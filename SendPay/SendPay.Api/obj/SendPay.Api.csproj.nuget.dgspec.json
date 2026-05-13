@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\TruongTV19\\Downloads\\SendPay (2)\\SendPay\\SendPay.Api\\SendPay.Api.csproj": {}
+    "C:\\Users\\TruongTV19\\Downloads\\Pay\\SendPay\\SendPay.Api\\SendPay.Api.csproj": {}
   },
   "projects": {
-    "C:\\Users\\TruongTV19\\Downloads\\SendPay (2)\\SendPay\\SendPay.Api\\SendPay.Api.csproj": {
+    "C:\\Users\\TruongTV19\\Downloads\\Pay\\SendPay\\SendPay.Api\\SendPay.Api.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\TruongTV19\\Downloads\\SendPay (2)\\SendPay\\SendPay.Api\\SendPay.Api.csproj",
+        "projectUniqueName": "C:\\Users\\TruongTV19\\Downloads\\Pay\\SendPay\\SendPay.Api\\SendPay.Api.csproj",
         "projectName": "SendPay.Api",
-        "projectPath": "C:\\Users\\TruongTV19\\Downloads\\SendPay (2)\\SendPay\\SendPay.Api\\SendPay.Api.csproj",
+        "projectPath": "C:\\Users\\TruongTV19\\Downloads\\Pay\\SendPay\\SendPay.Api\\SendPay.Api.csproj",
         "packagesPath": "C:\\Users\\TruongTV19\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\TruongTV19\\Downloads\\SendPay (2)\\SendPay\\SendPay.Api\\obj\\",
+        "outputPath": "C:\\Users\\TruongTV19\\Downloads\\Pay\\SendPay\\SendPay.Api\\obj\\",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "C:\\Users\\TruongTV19\\AppData\\Roaming\\NuGet\\NuGet.Config"
