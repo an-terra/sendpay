@@ -7,8 +7,8 @@
 
 <div class="sp-dash-page">
     <DashNav Active="rates" />
-
     <div class="sp-dash-content">
+
         <div class="sp-page-header">
             <a href="/dashboard" class="sp-back-circle"><i class="fa-solid fa-arrow-left"></i></a>
             <div class="sp-page-icon qi-teal"><i class="fa-solid fa-chart-line"></i></div>
@@ -25,37 +25,39 @@
 
         @if (loading)
         {
-            <div class="sp-dash-tx-card" style="text-align:center;padding:60px">
-                <i class="fa-solid fa-spinner fa-spin" style="font-size:28px;color:var(--text-muted)"></i>
-                <div style="margin-top:12px;color:var(--text-muted);font-size:14px">@Lang.T("rates_loading")</div>
+            <div style="text-align:center;padding:48px">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size:28px;color:var(--red)"></i>
+                <div style="color:var(--text-muted);font-size:13px;margin-top:12px">@Lang.T("rates_loading")</div>
             </div>
         }
         else if (!string.IsNullOrEmpty(loadError))
         {
-            <div class="sp-alert sp-alert-error">
-                <i class="fa-solid fa-triangle-exclamation" style="margin-right:6px"></i>@loadError
-            </div>
+            <div class="sp-alert sp-alert-error"><i class="fa-solid fa-circle-exclamation"></i> @loadError</div>
         }
         else
         {
             <div class="sp-rates-grid">
-                <!-- Main rate table -->
+
+                <!-- LEFT: Rate table -->
                 <div>
-                    <div class="sp-side-card" style="padding:0;overflow:hidden">
+                    <div style="border-radius:16px;overflow:hidden;box-shadow:0 2px 16px rgba(0,0,0,.07);border:1px solid var(--gray-border)">
                         <div style="padding:1rem 1.5rem;background:linear-gradient(135deg,#0B1E3D,#1a3260);display:flex;align-items:center;justify-content:space-between">
-                            <div style="color:white;font-weight:700;font-size:15px">
-                                <i class="fa-solid fa-yen-sign" style="margin-right:8px;color:#FFD166"></i>
+                            <span style="color:white;font-weight:700;display:flex;align-items:center;gap:8px;font-size:15px">
+                                <i class="fa-solid fa-yen-sign" style="color:#FFD166"></i>
                                 @Lang.T("rates_base") JPY
-                            </div>
-                            <div style="font-size:12px;color:rgba(255,255,255,.6)">
+                            </span>
+                            <span style="color:rgba(255,255,255,.6);font-size:12px">
                                 <i class="fa-solid fa-clock" style="margin-right:4px"></i>@rateDate
-                            </div>
+                            </span>
                         </div>
+
                         <div class="sp-rate-table">
                             @foreach (var r in rates)
                             {
                                 <div class="sp-rate-row">
-                                    <div class="sp-rate-flag">@r.Flag</div>
+                                    <div class="sp-rate-flag-cell">
+                                        <img src="@FlagUrl(r.Code)" class="sp-rate-flag-img" alt="@r.Code" />
+                                    </div>
                                     <div>
                                         <div class="sp-rate-currency">@r.Code</div>
                                         <div class="sp-rate-country">@r.Country</div>
@@ -64,90 +66,108 @@
                                         <div class="sp-rate-num">@r.Rate.ToString("N4")</div>
                                         <div class="sp-rate-code">@r.Code / JPY</div>
                                     </div>
-                                    <div class="sp-rate-change @(r.Up ? "up" : "down")">
-                                        <i class="fa-solid @(r.Up ? "fa-arrow-trend-up" : "fa-arrow-trend-down")"></i>
+                                    <span class="sp-rate-change @(r.Up ? "up" : "down")">
+                                        <i class="fa-solid @(r.Up ? "fa-arrow-trend-up" : "fa-arrow-trend-down")" style="margin-right:3px;font-size:10px"></i>
                                         @r.Change%
-                                    </div>
+                                    </span>
                                 </div>
                             }
                         </div>
                     </div>
 
-                    <div style="font-size:12px;color:var(--text-muted);margin-top:10px;padding:0 4px">
+                    <div style="color:var(--text-muted);font-size:11px;margin-top:10px;padding:0 4px">
                         <i class="fa-solid fa-circle-info" style="margin-right:4px"></i>
                         @Lang.T("rates_source")
                     </div>
                 </div>
 
-                <!-- RIGHT: converter -->
+                <!-- RIGHT: Converter + Notice -->
                 <div>
                     <div class="sp-side-card">
-                        <div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:1.2rem">
-                            <i class="fa-solid fa-arrow-right-arrow-left" style="color:#0ca678;margin-right:6px"></i>
+                        <div style="font-weight:700;color:var(--navy);margin-bottom:1.2rem;display:flex;align-items:center;gap:8px;font-size:15px">
+                            <i class="fa-solid fa-arrow-right-arrow-left" style="color:#0ca678"></i>
                             @Lang.T("rates_convert")
                         </div>
+
                         <div class="sp-form-group">
                             <label>@Lang.T("rates_amount")</label>
-                            <input type="number" class="sp-form-input sp-form-input-lg"
-                                   @bind="convertAmount" @bind:event="oninput" min="1" />
+                            <div style="position:relative">
+                                <span style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--navy);font-weight:700;font-size:16px;pointer-events:none">¥</span>
+                                <input type="number" class="sp-form-input" style="padding-left:34px"
+                                       @bind="convertAmount" @bind:event="oninput" />
+                            </div>
                         </div>
+
                         <div class="sp-form-group">
                             <label>@Lang.T("rates_from")</label>
-                            <select class="sp-form-input sp-form-input-lg" @bind="fromCurrency">
-                                <option value="JPY">🇯🇵 JPY - Japanese Yen</option>
+                            <select class="sp-form-input" @bind="fromCurrency">
+                                <option value="JPY">JPY - Japanese Yen</option>
                                 @foreach (var r in rates)
                                 {
-                                    <option value="@r.Code">@r.Flag @r.Code - @r.Country</option>
+                                    <option value="@r.Code">@r.Code - @r.Country</option>
                                 }
                             </select>
                         </div>
-                        <div style="text-align:center;margin:8px 0;color:var(--text-muted)">
-                            <i class="fa-solid fa-arrows-up-down"></i>
+
+                        <div style="text-align:center;margin:4px 0 8px">
+                            <button class="sp-swap-btn" @onclick="SwapCurrencies" title="Swap">
+                                <i class="fa-solid fa-right-left" style="transform:rotate(90deg)"></i>
+                            </button>
                         </div>
-                        <div class="sp-form-group">
+
+                        <div class="sp-form-group" style="margin-bottom:1rem">
                             <label>@Lang.T("rates_to")</label>
-                            <select class="sp-form-input sp-form-input-lg" @bind="toCurrency">
-                                <option value="JPY">🇯🇵 JPY - Japanese Yen</option>
+                            <select class="sp-form-input" @bind="toCurrency">
+                                <option value="JPY">JPY - Japanese Yen</option>
                                 @foreach (var r in rates)
                                 {
-                                    <option value="@r.Code">@r.Flag @r.Code - @r.Country</option>
+                                    <option value="@r.Code">@r.Code - @r.Country</option>
                                 }
                             </select>
                         </div>
-                        <div class="sp-rate-result">
-                            <div style="font-size:13px;color:var(--text-sub);margin-bottom:6px">@Lang.T("rates_result")</div>
-                            <div style="font-size:28px;font-weight:800;color:var(--navy)">
-                                @ConvertedAmount.ToString("N2")
-                                <span style="font-size:16px;color:var(--text-sub)">@toCurrency</span>
+
+                        <div style="background:var(--gray-bg);border-radius:12px;padding:16px;text-align:center">
+                            <div style="color:var(--text-sub);font-size:12px;margin-bottom:6px">@Lang.T("rates_result")</div>
+                            <div>
+                                <span style="font-weight:800;color:var(--navy);font-size:28px">@ConvertedAmount.ToString("N2")</span>
+                                <span style="color:var(--text-sub);font-size:16px;margin-left:6px">@toCurrency</span>
                             </div>
-                            <div style="font-size:12px;color:var(--text-muted);margin-top:6px">
+                            <div style="color:var(--text-muted);font-size:11px;margin-top:4px">
                                 1 @fromCurrency = @GetRate(fromCurrency, toCurrency).ToString("N4") @toCurrency
                             </div>
                         </div>
                     </div>
 
                     <div class="sp-side-card" style="margin-top:1rem">
-                        <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px">
-                            <i class="fa-solid fa-circle-info" style="color:#3B5BDB;margin-right:6px"></i>
+                        <div style="font-weight:700;color:var(--navy);margin-bottom:8px;display:flex;align-items:center;gap:6px;font-size:14px">
+                            <i class="fa-solid fa-circle-info" style="color:#3B5BDB;font-size:14px"></i>
                             @Lang.T("rates_notice_title")
                         </div>
-                        <p style="font-size:13px;color:var(--text-sub);line-height:1.7">@Lang.T("rates_notice_body")</p>
+                        <div style="color:var(--text-sub);font-size:13px;line-height:1.7">@Lang.T("rates_notice_body")</div>
                     </div>
                 </div>
+
             </div>
         }
+
     </div>
 </div>
 
 @code {
     List<CurrencyRate> rates = [];
-    string rateDate = "";
-    string loadError = "";
+    string rateDate = "", loadError = "";
     bool loading = true;
-
     decimal convertAmount = 10000;
-    string fromCurrency = "JPY";
-    string toCurrency = "VND";
+    string fromCurrency = "JPY", toCurrency = "VND";
+
+    static readonly Dictionary<string, string> _currencyFlag = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["VND"] = "vn", ["USD"] = "us", ["EUR"] = "eu", ["CNY"] = "cn",
+        ["KRW"] = "kr", ["LKR"] = "lk", ["NPR"] = "np", ["PHP"] = "ph",
+        ["INR"] = "in", ["THB"] = "th",
+    };
+    static string FlagUrl(string code) =>
+        _currencyFlag.TryGetValue(code, out var cc) ? $"https://flagcdn.com/w40/{cc}.png" : "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -165,17 +185,10 @@
         try
         {
             var resp = await Api.GetRatesAsync();
-            if (resp != null)
-            {
-                rates = resp.Rates;
-                rateDate = resp.Date;
-            }
+            if (resp != null) { rates = resp.Rates; rateDate = resp.Date; }
             else loadError = Lang.T("rates_err");
         }
-        catch
-        {
-            loadError = Lang.T("rates_err");
-        }
+        catch { loadError = Lang.T("rates_err"); }
         loading = false;
     }
 
@@ -184,7 +197,6 @@
     decimal GetRate(string from, string to)
     {
         if (from == to) return 1m;
-
         decimal toJpy = 1m;
         if (from != "JPY")
         {
@@ -192,7 +204,6 @@
             if (r == null || r.Rate == 0) return 0;
             toJpy = 1m / r.Rate;
         }
-
         decimal fromJpy = 1m;
         if (to != "JPY")
         {
@@ -200,9 +211,10 @@
             if (r == null) return 0;
             fromJpy = r.Rate;
         }
-
         return toJpy * fromJpy;
     }
+
+    void SwapCurrencies() { (fromCurrency, toCurrency) = (toCurrency, fromCurrency); }
 
     public void Dispose() => Lang.OnChanged -= StateHasChanged;
 }

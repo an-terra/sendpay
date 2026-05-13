@@ -25,12 +25,11 @@
                 <span>@fullName</span>
             </div>
             <button class="sp-dash-logout" @onclick="Logout">
-                <i class="fa-solid fa-arrow-right-from-bracket"></i> @Lang.T("dash_logout")
+                <i class="fa-solid fa-arrow-right-from-bracket"></i> <span class="sp-dash-logout-txt">@Lang.T("dash_logout")</span>
             </button>
         </div>
     </nav>
 
-    <!-- MAIN CONTENT -->
     <div class="sp-dash-content">
 
         <!-- BALANCE + ACTIONS ROW -->
@@ -65,7 +64,7 @@
                     <i class="fa-solid fa-chart-line"></i> @Lang.T("dash_rate_title")
                     @if (!string.IsNullOrEmpty(rateDate))
                     {
-                        <span style="float:right;font-size:10px;font-weight:400;color:var(--text-muted)">@rateDate</span>
+                        <span style="margin-left:auto;font-size:10px;font-weight:400;color:var(--text-muted)">@rateDate</span>
                     }
                 </div>
                 @if (liveRates.Count == 0)
@@ -88,7 +87,7 @@
                         </div>
                     }
                 }
-                <div style="font-size:11px;color:var(--text-muted);margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                <div style="font-size:11px;color:var(--text-muted);margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:8px">
                     <span>@Lang.T("dash_rate_note")</span>
                     <a href="/rates" style="color:var(--red);text-decoration:none;font-weight:600;white-space:nowrap">@Lang.T("dash_see_all") →</a>
                 </div>
@@ -98,38 +97,13 @@
         <!-- QUICK ACTIONS -->
         <div class="sp-dash-section-title">@Lang.T("dash_quick_title")</div>
         <div class="sp-dash-quick-grid">
-            <a href="/transfer" class="sp-dash-quick-item">
-                <div class="sp-quick-icon qi-red"><i class="fa-solid fa-paper-plane"></i></div>
-                <span>@Lang.T("quick_transfer")</span>
-            </a>
-            <a href="/topup" class="sp-dash-quick-item">
-                <div class="sp-quick-icon qi-blue"><i class="fa-solid fa-wallet"></i></div>
-                <span>@Lang.T("quick_topup")</span>
-            </a>
-            <a href="/history" class="sp-dash-quick-item">
-                <div class="sp-quick-icon qi-gold"><i class="fa-solid fa-clock-rotate-left"></i></div>
-                <span>@Lang.T("quick_history")</span>
-            </a>
-            <a href="/receipt" class="sp-dash-quick-item">
-                <div class="sp-quick-icon qi-green"><i class="fa-solid fa-receipt"></i></div>
-                <span>@Lang.T("quick_receipt")</span>
-            </a>
-            <a href="/recipients" class="sp-dash-quick-item">
-                <div class="sp-quick-icon qi-purple"><i class="fa-solid fa-users"></i></div>
-                <span>@Lang.T("quick_contacts")</span>
-            </a>
-            <a href="/rates" class="sp-dash-quick-item">
-                <div class="sp-quick-icon qi-teal"><i class="fa-solid fa-chart-line"></i></div>
-                <span>@Lang.T("quick_rates")</span>
-            </a>
-            <a href="/support" class="sp-dash-quick-item">
-                <div class="sp-quick-icon qi-pink"><i class="fa-solid fa-headset"></i></div>
-                <span>@Lang.T("quick_support")</span>
-            </a>
-            <a href="/settings" class="sp-dash-quick-item">
-                <div class="sp-quick-icon qi-gray"><i class="fa-solid fa-gear"></i></div>
-                <span>@Lang.T("quick_settings")</span>
-            </a>
+            @foreach (var (href, icon, label, colorClass) in QuickActions)
+            {
+                <a href="@href" class="sp-dash-quick-item">
+                    <div class="sp-quick-icon @colorClass"><i class="@icon"></i></div>
+                    <span>@Lang.T(label)</span>
+                </a>
+            }
         </div>
 
         <!-- RECENT TRANSACTIONS -->
@@ -200,12 +174,22 @@
     WalletResponse? wallet;
     List<TransactionResponse> recentTx = [];
     List<CurrencyRate> liveRates = [];
-    string fullName = "";
-    string rateDate = "";
+    string fullName = "", rateDate = "";
     int currentUserId;
 
-    // currencies to show on dashboard panel
     static readonly string[] DashRateCodes = ["VND", "USD", "LKR", "NPR", "PHP"];
+
+    static readonly (string href, string icon, string label, string color)[] QuickActions =
+    [
+        ("/transfer",   "fa-solid fa-paper-plane",      "quick_transfer", "qi-red"),
+        ("/topup",      "fa-solid fa-wallet",            "quick_topup",    "qi-blue"),
+        ("/history",    "fa-solid fa-clock-rotate-left", "quick_history",  "qi-gold"),
+        ("/receipt",    "fa-solid fa-receipt",           "quick_receipt",  "qi-green"),
+        ("/recipients", "fa-solid fa-users",             "quick_contacts", "qi-purple"),
+        ("/rates",      "fa-solid fa-chart-line",        "quick_rates",    "qi-teal"),
+        ("/support",    "fa-solid fa-headset",           "quick_support",  "qi-pink"),
+        ("/settings",   "fa-solid fa-gear",              "quick_settings", "qi-gray"),
+    ];
 
     static readonly Dictionary<string, string> _currencyFlag = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -228,7 +212,6 @@
         fullName      = await LocalStorage.GetItemAsync<string>("fullName") ?? "";
         currentUserId = await LocalStorage.GetItemAsync<int>("userId");
 
-        // load all in parallel — rates failure must not block wallet/history
         var walletTask  = Api.GetWalletAsync();
         var historyTask = Api.GetHistoryAsync();
         var ratesTask   = Api.GetRatesAsync();
@@ -241,9 +224,7 @@
         if (ratesTask.IsCompletedSuccessfully && ratesTask.Result != null)
         {
             rateDate  = ratesTask.Result.Date;
-            liveRates = ratesTask.Result.Rates
-                .Where(r => DashRateCodes.Contains(r.Code))
-                .ToList();
+            liveRates = ratesTask.Result.Rates.Where(r => DashRateCodes.Contains(r.Code)).ToList();
         }
     }
 

@@ -19,25 +19,24 @@
             </div>
         </div>
 
-        <!-- ═══ GROUP 1: Thông tin cá nhân & Bảo mật ═══ -->
+        <!-- ═══ GROUP 1: Hồ sơ & Mật khẩu ═══ -->
         <div class="sp-side-card">
-            <div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:1.4rem;display:flex;align-items:center;gap:8px">
-                <i class="fa-solid fa-user-pen" style="color:var(--red)"></i>
-                @Lang.T("settings_profile")
-            </div>
-
             @if (!string.IsNullOrEmpty(group1Error))
             {
-                <div class="sp-alert sp-alert-error" style="margin-bottom:1.2rem">@group1Error</div>
+                <div class="sp-alert sp-alert-error" style="margin-bottom:1rem">
+                    <i class="fa-solid fa-circle-exclamation"></i> @group1Error
+                </div>
             }
             @if (!string.IsNullOrEmpty(group1Success))
             {
-                <div class="sp-alert sp-alert-success" style="margin-bottom:1.2rem">@group1Success</div>
+                <div class="sp-alert sp-alert-success" style="margin-bottom:1rem">
+                    <i class="fa-solid fa-circle-check"></i> @group1Success
+                </div>
             }
 
-            <div style="display:flex;gap:2.5rem;align-items:flex-start;flex-wrap:wrap;margin-bottom:1.8rem">
-                <!-- Avatar -->
-                <div style="display:flex;flex-direction:column;align-items:center;gap:8px;flex-shrink:0">
+            <!-- Avatar row -->
+            <div style="display:flex;gap:2rem;align-items:flex-start;flex-wrap:wrap;margin-bottom:1.8rem">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:8px">
                     <div class="sp-avatar-wrap">
                         @if (!string.IsNullOrEmpty(avatarData))
                         {
@@ -53,47 +52,50 @@
                         </label>
                     </div>
                     <div style="font-size:11px;color:var(--text-muted);text-align:center">
-                        @Lang.T("settings_avatar")<br>@Lang.T("settings_avatar_hint")
+                        @Lang.T("settings_avatar")<br />@Lang.T("settings_avatar_hint")
                     </div>
                 </div>
-                <!-- Fields -->
-                <div style="flex:1;min-width:260px;display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1rem;align-items:end">
-                    <div class="sp-form-group" style="margin-bottom:0">
-                        <label>@Lang.T("settings_fullname")</label>
-                        <input class="sp-form-input sp-form-input-lg" @bind="fullName" />
-                    </div>
-                    <div class="sp-form-group" style="margin-bottom:0">
-                        <label>@Lang.T("settings_email")</label>
-                        <input class="sp-form-input sp-form-input-lg" type="email" @bind="email" />
-                    </div>
-                    <div class="sp-form-group" style="margin-bottom:0">
-                        <label>@Lang.T("settings_phone")</label>
-                        <input class="sp-form-input sp-form-input-lg" @bind="phone" />
-                    </div>
-                    <div style="border-left:3px solid var(--gray-border);padding-left:12px">
-                        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">@Lang.T("settings_balance")</div>
+
+                <div style="flex:1;min-width:200px">
+                    <div style="border-left:3px solid var(--gray-border);padding-left:14px">
+                        <div style="font-size:11px;color:var(--text-muted)">@Lang.T("settings_balance")</div>
                         <div style="font-size:22px;font-weight:800;color:var(--navy)">¥@balance.ToString("N0")</div>
                     </div>
                 </div>
             </div>
 
-            <!-- Divider -->
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:1.4rem">
+            <!-- Profile fields -->
+            <div class="sp-reg-row" style="margin-bottom:1rem">
+                <div class="sp-form-group">
+                    <label>@Lang.T("settings_fullname")</label>
+                    <input class="sp-form-input sp-form-input-lg" type="text" @bind="fullName" />
+                </div>
+                <div class="sp-form-group">
+                    <label>@Lang.T("settings_email")</label>
+                    <input class="sp-form-input sp-form-input-lg" type="email" @bind="email" />
+                </div>
+                <div class="sp-form-group">
+                    <label>@Lang.T("settings_phone")</label>
+                    <input class="sp-form-input sp-form-input-lg" type="tel" @bind="phone" />
+                </div>
+            </div>
+
+            <!-- Password divider -->
+            <div style="display:flex;align-items:center;gap:10px;margin:1.2rem 0">
                 <div style="flex:1;height:1px;background:var(--gray-border)"></div>
-                <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;display:flex;align-items:center;gap:5px">
-                    <i class="fa-solid fa-lock" style="color:#e67700"></i>
-                    @Lang.T("settings_password")
-                    <span style="opacity:.6">· @Lang.T("settings_pwd_optional")</span>
+                <span style="font-size:11px;color:#a67800;background:#fef9e7;border:1px solid #f0d060;padding:4px 12px;border-radius:20px;white-space:nowrap;display:flex;align-items:center;gap:5px">
+                    <i class="fa-solid fa-lock" style="font-size:10px"></i>
+                    @Lang.T("settings_password") · @Lang.T("settings_pwd_optional")
                 </span>
                 <div style="flex:1;height:1px;background:var(--gray-border)"></div>
             </div>
 
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1rem;margin-bottom:1.8rem">
-                <div class="sp-form-group" style="margin-bottom:0">
+            <div class="sp-reg-row" style="margin-bottom:1.5rem">
+                <div class="sp-form-group">
                     <label>@Lang.T("settings_cur_pwd")</label>
                     <input class="sp-form-input sp-form-input-lg" type="password" @bind="currentPwd" />
                 </div>
-                <div class="sp-form-group" style="margin-bottom:0">
+                <div class="sp-form-group">
                     <label>@Lang.T("settings_new_pwd")</label>
                     <input class="sp-form-input sp-form-input-lg" type="password" @bind="newPwd" />
                 </div>
@@ -103,34 +105,37 @@
                 </div>
             </div>
 
-            <button class="btn-red" style="padding:13px 40px" @onclick="SaveAll" disabled="@savingGroup1">
-                @if (savingGroup1) { <i class="fa-solid fa-spinner fa-spin" style="margin-right:6px"></i> }
-                <i class="fa-solid fa-floppy-disk" style="margin-right:6px"></i>
-                @Lang.T("settings_save")
-            </button>
+            <div style="display:flex;justify-content:center">
+                <button class="btn-red" style="padding:13px 40px" @onclick="SaveAll" disabled="@savingGroup1">
+                    @if (savingGroup1) { <i class="fa-solid fa-spinner fa-spin" style="margin-right:6px"></i> }
+                    <i class="fa-solid fa-floppy-disk" style="margin-right:6px"></i>
+                    @Lang.T("settings_save")
+                </button>
+            </div>
         </div>
 
         <!-- ═══ GROUP 2: Hồ sơ cư trú & Giấy tờ ═══ -->
         <div class="sp-side-card" style="margin-top:1.5rem">
-            <div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:1.4rem;display:flex;align-items:center;gap:8px">
-                <i class="fa-solid fa-location-dot" style="color:#3B5BDB"></i>
-                @Lang.T("settings_addr_title")
-            </div>
-
             @if (!string.IsNullOrEmpty(group2Error))
             {
-                <div class="sp-alert sp-alert-error" style="margin-bottom:1.2rem">@group2Error</div>
+                <div class="sp-alert sp-alert-error" style="margin-bottom:1rem">
+                    <i class="fa-solid fa-circle-exclamation"></i> @group2Error
+                </div>
             }
             @if (!string.IsNullOrEmpty(group2Success))
             {
-                <div class="sp-alert sp-alert-success" style="margin-bottom:1.2rem">@group2Success</div>
-            }
-            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1rem;margin-bottom:1.8rem">
-                <div class="sp-form-group" style="margin-bottom:0">
-                    <label>@Lang.T("settings_postal")</label>
-                    <input class="sp-form-input sp-form-input-lg" @bind="postalCode" placeholder="〒 000-0000" />
+                <div class="sp-alert sp-alert-success" style="margin-bottom:1rem">
+                    <i class="fa-solid fa-circle-check"></i> @group2Success
                 </div>
-                <div class="sp-form-group" style="margin-bottom:0">
+            }
+
+            <!-- Address fields -->
+            <div class="sp-reg-row" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-bottom:1.2rem">
+                <div class="sp-form-group">
+                    <label>@Lang.T("settings_postal")</label>
+                    <input class="sp-form-input sp-form-input-lg" type="text" placeholder="〒 000-0000" @bind="postalCode" />
+                </div>
+                <div class="sp-form-group">
                     <label>@Lang.T("settings_prefecture")</label>
                     <select class="sp-form-input sp-form-input-lg" @bind="prefecture">
                         <option value="">---</option>
@@ -140,18 +145,18 @@
                         }
                     </select>
                 </div>
-                <div class="sp-form-group" style="margin-bottom:0">
+                <div class="sp-form-group">
                     <label>@Lang.T("settings_city")</label>
-                    <input class="sp-form-input sp-form-input-lg" @bind="city" />
+                    <input class="sp-form-input sp-form-input-lg" type="text" @bind="city" />
                 </div>
                 <div class="sp-form-group" style="margin-bottom:0">
                     <label>@Lang.T("settings_street")</label>
-                    <input class="sp-form-input sp-form-input-lg" @bind="streetAddress" />
+                    <input class="sp-form-input sp-form-input-lg" type="text" @bind="streetAddress" />
                 </div>
             </div>
 
-            <!-- Divider -->
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:1.4rem">
+            <!-- KYC divider -->
+            <div style="display:flex;align-items:center;gap:10px;margin:1.2rem 0">
                 <div style="flex:1;height:1px;background:var(--gray-border)"></div>
                 <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;display:flex;align-items:center;gap:5px">
                     <i class="fa-solid fa-id-card" style="color:#6741D9"></i>
@@ -170,9 +175,9 @@
                     <input type="radio" name="kycDocType" value="mynumber" @onchange='() => kycDocType = "mynumber"' />
                     <div class="sp-kyc-opt-inner">
                         <i class="fa-solid fa-id-card"></i>
-                        <div>
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
                             <div class="sp-kyc-opt-title">@Lang.T("reg_mynumber")</div>
-                            <div class="sp-kyc-opt-sub">@Lang.T("reg_mynumber_sub")</div>
+                            <span class="sp-kyc-badge">@Lang.T("reg_mynumber_sub")</span>
                         </div>
                     </div>
                 </label>
@@ -180,20 +185,14 @@
                     <input type="radio" name="kycDocType" value="zairyu" @onchange='() => kycDocType = "zairyu"' />
                     <div class="sp-kyc-opt-inner">
                         <i class="fa-solid fa-passport"></i>
-                        <div>
-                            <div class="sp-kyc-opt-title">@Lang.T("reg_zairyu")</div>
-                            <div class="sp-kyc-opt-sub">@Lang.T("reg_zairyu_sub")</div>
-                        </div>
+                        <div><div class="sp-kyc-opt-title">@Lang.T("reg_zairyu")</div></div>
                     </div>
                 </label>
                 <label class="sp-kyc-option @(kycDocType == "license" ? "selected" : "")">
                     <input type="radio" name="kycDocType" value="license" @onchange='() => kycDocType = "license"' />
                     <div class="sp-kyc-opt-inner">
                         <i class="fa-solid fa-car"></i>
-                        <div>
-                            <div class="sp-kyc-opt-title">@Lang.T("reg_license")</div>
-                            <div class="sp-kyc-opt-sub">@Lang.T("reg_license_sub")</div>
-                        </div>
+                        <div><div class="sp-kyc-opt-title">@Lang.T("reg_license")</div></div>
                     </div>
                 </label>
             </div>
@@ -229,9 +228,8 @@
                 </div>
             }
 
-            <!-- Jumin -->
-            <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:.6rem">@Lang.T("settings_kyc_jumin")</div>
-            <div class="sp-jumin-box" style="margin-bottom:1.8rem">
+            <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:8px">@Lang.T("settings_kyc_jumin")</div>
+            <div class="sp-jumin-box" style="margin-bottom:2rem">
                 <i class="fa-solid fa-file-lines" style="font-size:22px;color:var(--gold);margin-bottom:8px;display:block"></i>
                 <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:4px">@Lang.T("reg_jumin_title")</div>
                 <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">@Lang.T("reg_jumin_sub")</div>
@@ -243,14 +241,15 @@
                 }
             </div>
 
-            <button class="btn-red" style="padding:13px 40px;background:linear-gradient(135deg,#3B5BDB,#6741D9);border:none"
-                    @onclick="SaveDocuments" disabled="@savingGroup2">
-                @if (savingGroup2) { <i class="fa-solid fa-spinner fa-spin" style="margin-right:6px"></i> }
-                <i class="fa-solid fa-cloud-arrow-up" style="margin-right:6px"></i>
-                @Lang.T("settings_save_addr")
-            </button>
+            <div style="display:flex;justify-content:center">
+                <button class="btn-red" style="padding:13px 40px;background:linear-gradient(135deg,#3B5BDB,#6741D9);border:none"
+                        @onclick="SaveDocuments" disabled="@savingGroup2">
+                    @if (savingGroup2) { <i class="fa-solid fa-spinner fa-spin" style="margin-right:6px"></i> }
+                    <i class="fa-solid fa-cloud-arrow-up" style="margin-right:6px"></i>
+                    @Lang.T("settings_save_addr")
+                </button>
+            </div>
         </div>
-
     </div>
 </div>
 
@@ -262,7 +261,7 @@
 
     string group1Error = "", group1Success = "";
     string group2Error = "", group2Success = "";
-    bool savingGroup1 = false, savingGroup2 = false;
+    bool savingGroup1, savingGroup2;
 
     string postalCode = "", prefecture = "", city = "", streetAddress = "";
     string kycDocType = "", kycFrontFile = "", kycBackFile = "", kycJuminFile = "";
@@ -310,15 +309,12 @@
     {
         group1Error = ""; group1Success = "";
         if (string.IsNullOrWhiteSpace(fullName) || string.IsNullOrWhiteSpace(email))
-        {
-            group1Error = Lang.T("settings_err_required"); return;
-        }
-        if (!string.IsNullOrWhiteSpace(currentPwd) && newPwd != confirmPwd)
-        {
-            group1Error = Lang.T("settings_pwd_mismatch"); return;
-        }
-        savingGroup1 = true;
+        { group1Error = Lang.T("settings_err_required"); return; }
 
+        if (!string.IsNullOrWhiteSpace(currentPwd) && newPwd != confirmPwd)
+        { group1Error = Lang.T("settings_pwd_mismatch"); return; }
+
+        savingGroup1 = true;
         var (profOk, profErr) = await Api.UpdateProfileAsync(fullName.Trim(), email.Trim(), phone.Trim());
         if (profOk) await LocalStorage.SetItemAsync("fullName", fullName.Trim());
 
@@ -344,13 +340,10 @@
         if (!hasAddr && !hasKyc) { group2Error = Lang.T("settings_err_required"); return; }
 
         if (hasAddr && (string.IsNullOrWhiteSpace(postalCode) || string.IsNullOrWhiteSpace(prefecture) || string.IsNullOrWhiteSpace(city)))
-        {
-            group2Error = Lang.T("settings_err_required"); return;
-        }
+        { group2Error = Lang.T("settings_err_required"); return; }
+
         if (hasKyc && string.IsNullOrEmpty(kycFrontFile))
-        {
-            group2Error = Lang.T("settings_kyc_err_front"); return;
-        }
+        { group2Error = Lang.T("settings_kyc_err_front"); return; }
 
         savingGroup2 = true;
         if (hasAddr)
@@ -360,7 +353,6 @@
         }
         if (hasKyc)
         {
-            // KYC API call would go here
             kycDocType = kycFrontFile = kycBackFile = kycJuminFile = "";
         }
         savingGroup2 = false;

@@ -32,13 +32,33 @@
         <p style="color:rgba(255,255,255,.8);font-size:16px;line-height:1.8;margin-bottom:24px">
             @Lang.T("hero_desc")
         </p>
-        <div style="font-size:12px;color:rgba(255,255,255,.55);margin-bottom:18px">
-            🇻🇳 Việt Nam &nbsp;·&nbsp; 🇱🇰 Sri Lanka &nbsp;·&nbsp; 🇳🇵 Nepal &nbsp;·&nbsp; 🇵🇭 Philippines
+        <div class="sp-hero-countries">
+            <img src="https://flagcdn.com/w40/vn.png" alt="VN" /><span>Việt Nam</span>
+            <span class="sp-dot">·</span>
+            <img src="https://flagcdn.com/w40/lk.png" alt="LK" /><span>Sri Lanka</span>
+            <span class="sp-dot">·</span>
+            <img src="https://flagcdn.com/w40/np.png" alt="NP" /><span>Nepal</span>
+            <span class="sp-dot">·</span>
+            <img src="https://flagcdn.com/w40/ph.png" alt="PH" /><span>Philippines</span>
         </div>
         <div class="sp-hero-stats">
-            <div class="sp-hero-stat"><div class="val">50K+</div><div class="lbl">@Lang.T("hero_stat1")</div></div>
-            <div class="sp-hero-stat"><div class="val">4</div><div class="lbl">@Lang.T("hero_stat2")</div></div>
-            <div class="sp-hero-stat"><div class="val">24/7</div><div class="lbl">@Lang.T("hero_stat3")</div></div>
+            <div class="sp-hero-stat">
+                <div class="sp-hero-stat-icon"><i class="fa-solid fa-paper-plane"></i></div>
+                <div class="val">50K+</div>
+                <div class="lbl">@Lang.T("hero_stat1")</div>
+            </div>
+            <div class="sp-hero-stat-sep"></div>
+            <div class="sp-hero-stat">
+                <div class="sp-hero-stat-icon"><i class="fa-solid fa-earth-asia"></i></div>
+                <div class="val">4</div>
+                <div class="lbl">@Lang.T("hero_stat2")</div>
+            </div>
+            <div class="sp-hero-stat-sep"></div>
+            <div class="sp-hero-stat">
+                <div class="sp-hero-stat-icon"><i class="fa-solid fa-clock"></i></div>
+                <div class="val">24/7</div>
+                <div class="lbl">@Lang.T("hero_stat3")</div>
+            </div>
         </div>
         <div class="sp-hero-btns">
             <a href="/register" class="btn-gold"><i class="fa-solid fa-paper-plane"></i> @Lang.T("hero_btn_send")</a>
@@ -390,7 +410,7 @@
             <div class="sp-footer-col">
                 <h5>@Lang.T("footer_col1")</h5>
                 <a href="/transfer">@Lang.T("footer_transfer")</a>
-                <a href="#rates">@Lang.T("footer_rates")</a>
+                <a href="/rates">@Lang.T("footer_rates")</a>
                 <a href="/history">@Lang.T("footer_history")</a>
                 <a href="/receipt">@Lang.T("footer_receipt")</a>
             </div>

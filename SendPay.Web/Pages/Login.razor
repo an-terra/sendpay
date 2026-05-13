@@ -6,52 +6,74 @@
 @implements IDisposable
 
 <div class="sp-auth-page">
-    <div class="sp-auth-card">
+    <MudPaper Class="sp-auth-card mud-elevation-3" Elevation="0">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:28px">
-            <div class="sp-auth-logo" style="margin-bottom:0">
-                <img src="/images/logo.png" alt="SendPay" class="sp-logo-img sp-logo-img--auth" />
-            </div>
+            <img src="/images/logo.png" alt="SendPay" class="sp-logo-img sp-logo-img--auth" />
             <LangSelector />
         </div>
-        <h2>@Lang.T("login_title")</h2>
-        <p class="sp-auth-subtitle">@Lang.T("login_subtitle")</p>
+
+        <MudText Typo="Typo.h5" Style="font-weight:800;color:var(--navy);margin-bottom:6px">@Lang.T("login_title")</MudText>
+        <MudText Typo="Typo.body2" Style="color:var(--text-sub);margin-bottom:24px">@Lang.T("login_subtitle")</MudText>
 
         @if (!string.IsNullOrEmpty(error))
         {
-            <div class="sp-alert-error"><i class="fa-solid fa-circle-exclamation"></i> @error</div>
+            <MudAlert Severity="Severity.Error" Class="mb-4" Dense="true">@error</MudAlert>
         }
 
-        <div class="sp-field">
-            <label>@Lang.T("login_email")</label>
-            <input type="email" @bind="email" placeholder="@Lang.T("login_email_ph")" />
-        </div>
-        <div class="sp-field">
-            <label>@Lang.T("login_password")</label>
-            <input type="password" @bind="password" placeholder="••••••••" />
-        </div>
-        <button class="sp-submit-btn" @onclick="HandleLogin" disabled="@loading">
+        <MudTextField @bind-Value="email"
+                      Label="@Lang.T("login_email")"
+                      Placeholder="@Lang.T("login_email_ph")"
+                      InputType="InputType.Email"
+                      Variant="Variant.Outlined"
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Email"
+                      Class="mb-4"
+                      FullWidth="true" />
+
+        <MudTextField @bind-Value="password"
+                      Label="@Lang.T("login_password")"
+                      Placeholder="••••••••"
+                      InputType="@(showPwd ? InputType.Text : InputType.Password)"
+                      Variant="Variant.Outlined"
+                      Adornment="Adornment.End"
+                      AdornmentIcon="@(showPwd ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                      OnAdornmentClick="() => showPwd = !showPwd"
+                      Class="mb-5"
+                      FullWidth="true" />
+
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   FullWidth="true"
+                   Size="Size.Large"
+                   OnClick="HandleLogin"
+                   Disabled="@loading"
+                   Style="border-radius:10px;font-weight:700;height:50px;font-size:15px">
             @if (loading)
             {
-                <i class="fa-solid fa-spinner fa-spin"></i>
-                <span> @Lang.T("login_loading")</span>
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span>@Lang.T("login_loading")</span>
             }
             else
             {
                 <span>@Lang.T("login_btn")</span>
             }
-        </button>
-        <p class="sp-auth-switch">
-            @Lang.T("login_switch") <a href="/register">@Lang.T("login_switch_link")</a>
-        </p>
-        <p class="sp-auth-switch" style="margin-top:8px">
-            <a href="/">@Lang.T("login_home")</a>
-        </p>
-    </div>
+        </MudButton>
+
+        <MudDivider Class="my-4" />
+
+        <MudText Typo="Typo.body2" Align="Align.Center" Style="color:var(--text-sub)">
+            @Lang.T("login_switch")
+            <MudLink Href="/register" Color="Color.Primary" Style="font-weight:600">@Lang.T("login_switch_link")</MudLink>
+        </MudText>
+        <MudText Typo="Typo.body2" Align="Align.Center" Class="mt-2">
+            <MudLink Href="/" Color="Color.Primary">@Lang.T("login_home")</MudLink>
+        </MudText>
+    </MudPaper>
 </div>
 
 @code {
     string email = "", password = "", error = "";
-    bool loading;
+    bool loading, showPwd;
 
     protected override async Task OnInitializedAsync()
     {

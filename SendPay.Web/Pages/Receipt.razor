@@ -7,8 +7,8 @@
 
 <div class="sp-dash-page">
     <DashNav Active="receipt" />
-
     <div class="sp-dash-content">
+
         <div class="sp-page-header">
             <a href="/dashboard" class="sp-back-circle"><i class="fa-solid fa-arrow-left"></i></a>
             <div class="sp-page-icon qi-green"><i class="fa-solid fa-receipt"></i></div>
@@ -20,70 +20,99 @@
 
         @if (loading)
         {
-            <div class="sp-dash-tx-card" style="text-align:center;padding:60px">
-                <i class="fa-solid fa-spinner fa-spin" style="font-size:28px;color:var(--text-muted)"></i>
-            </div>
+            <MudPaper Class="mud-elevation-1 pa-8" Style="border-radius:16px;text-align:center">
+                <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+            </MudPaper>
         }
         else if (transactions.Count == 0)
         {
-            <div class="sp-dash-tx-card">
-                <div style="text-align:center;padding:60px;color:var(--text-muted);font-size:15px">
-                    <i class="fa-solid fa-inbox" style="font-size:36px;margin-bottom:12px;display:block"></i>
-                    @Lang.T("dash_empty")
-                </div>
-            </div>
+            <MudPaper Class="mud-elevation-1 pa-8" Style="border-radius:16px;text-align:center">
+                <MudIcon Icon="@Icons.Material.Filled.Inbox" Style="font-size:48px;color:var(--gray-border)" />
+                <MudText Typo="Typo.body1" Style="color:var(--text-muted);margin-top:12px">@Lang.T("dash_empty")</MudText>
+            </MudPaper>
         }
         else
         {
-            <div class="sp-dash-tx-card">
-                @foreach (var tx in transactions)
-                {
-                    bool isTopUp = tx.Type == 1;
-                    string initials = isTopUp ? "+" : GetInitials(tx.ReceiverName);
-                    string avatarBg = isTopUp ? "#0D7A4E" : "#3B5BDB";
-                    <div class="sp-dash-tx-row" style="cursor:pointer" @onclick="() => OpenReceipt(tx)">
-                        <div class="sp-tx-avatar" style="background:@avatarBg;width:44px;height:44px;font-size:12px">@initials</div>
-                        <div class="sp-tx-info">
-                            <div class="sp-tx-name">@(isTopUp ? Lang.T("dash_topup_lbl") : tx.ReceiverName)</div>
-                            <div class="sp-tx-meta">@tx.CreatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm") · @(isTopUp ? Lang.T("dash_topup_lbl") : Lang.T("dash_transfer_lbl"))</div>
-                        </div>
-                        <div class="sp-tx-amt-col">
-                            <div class="sp-tx-amt @(isTopUp ? "in" : "out")">
-                                @(isTopUp ? "+" : "−")¥@tx.Amount.ToString("N0")
-                            </div>
-                            <div class="sp-tx-status">✓ @Lang.T("dash_done")</div>
-                        </div>
-                        <div style="color:var(--text-muted);padding-left:8px"><i class="fa-solid fa-chevron-right fa-xs"></i></div>
-                    </div>
-                }
-            </div>
+            <MudPaper Class="mud-elevation-1" Style="border-radius:16px;overflow:hidden">
+                <MudList T="TransactionResponse" Padding="false">
+                    @foreach (var (tx, idx) in transactions.Select((t, i) => (t, i)))
+                    {
+                        bool isTopUp = tx.Type == 1;
+                        string initials = isTopUp ? "+" : GetInitials(tx.ReceiverName);
+                        string avatarBg = isTopUp ? "#0D7A4E" : "#3B5BDB";
 
-            <div class="sp-dash-section-row" style="margin-top:1.5rem">
-                <button class="btn-outline" @onclick="PrevPage" disabled="@(currentPage <= 1)">
-                    <i class="fa-solid fa-chevron-left"></i> @Lang.T("hist_prev")
-                </button>
-                <span style="font-size:13px;color:var(--text-sub)">@Lang.T("hist_page") @currentPage</span>
-                <button class="btn-outline" @onclick="NextPage" disabled="@(transactions.Count < 10)">
-                    @Lang.T("hist_next") <i class="fa-solid fa-chevron-right"></i>
-                </button>
+                        <MudListItem T="TransactionResponse"
+                                     OnClick="() => OpenReceipt(tx)"
+                                     Style="@($"padding:14px 20px;cursor:pointer;{(idx < transactions.Count - 1 ? "border-bottom:1px solid var(--gray-border)" : "")}")">
+                            <div style="display:flex;align-items:center;gap:14px">
+                                <MudAvatar Style="@($"background:{avatarBg};color:white;font-weight:700;font-size:12px;flex-shrink:0")">
+                                    @initials
+                                </MudAvatar>
+                                <div style="flex:1;min-width:0">
+                                    <MudText Typo="Typo.body2" Style="font-weight:600;color:var(--navy)">
+                                        @(isTopUp ? Lang.T("dash_topup_lbl") : tx.ReceiverName)
+                                    </MudText>
+                                    <MudText Typo="Typo.caption" Style="color:var(--text-muted)">
+                                        @tx.CreatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm") ·
+                                        @(isTopUp ? Lang.T("dash_topup_lbl") : Lang.T("dash_transfer_lbl"))
+                                    </MudText>
+                                </div>
+                                <div style="text-align:right;flex-shrink:0">
+                                    <MudText Typo="Typo.body2" Style="@($"font-weight:700;{(isTopUp ? "color:#0D7A4E" : "color:var(--red)")}")">
+                                        @(isTopUp ? "+" : "−")¥@tx.Amount.ToString("N0")
+                                    </MudText>
+                                    <MudChip T="string" Size="Size.Small" Color="Color.Success" Style="height:18px;font-size:10px">
+                                        ✓ @Lang.T("dash_done")
+                                    </MudChip>
+                                </div>
+                                <MudIcon Icon="@Icons.Material.Filled.ChevronRight" Style="color:var(--text-muted);font-size:16px;flex-shrink:0" />
+                            </div>
+                        </MudListItem>
+                    }
+                </MudList>
+            </MudPaper>
+
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem">
+                <MudButton Variant="Variant.Outlined" Color="Color.Default"
+                           StartIcon="@Icons.Material.Filled.ChevronLeft"
+                           OnClick="PrevPage" Disabled="@(currentPage <= 1)"
+                           Style="border-radius:10px">
+                    @Lang.T("hist_prev")
+                </MudButton>
+                <MudChip T="string" Color="Color.Default" Style="font-weight:600">
+                    @Lang.T("hist_page") @currentPage
+                </MudChip>
+                <MudButton Variant="Variant.Outlined" Color="Color.Default"
+                           EndIcon="@Icons.Material.Filled.ChevronRight"
+                           OnClick="NextPage" Disabled="@(transactions.Count < 10)"
+                           Style="border-radius:10px">
+                    @Lang.T("hist_next")
+                </MudButton>
             </div>
         }
+
     </div>
 </div>
 
+<!-- Receipt Detail Dialog -->
 @if (selected != null)
 {
-    <div class="sp-modal-backdrop" @onclick="CloseReceipt">
-        <div class="sp-receipt-modal" @onclick:stopPropagation="true">
-            <div class="sp-receipt-header">
-                <div class="sp-receipt-logo">SP</div>
-                <div class="sp-receipt-brand">SendPay</div>
-                <div class="sp-receipt-label">@Lang.T("receipt_modal_title")</div>
+    <MudOverlay Visible="true" DarkBackground="true" ZIndex="1200" OnClick="CloseReceipt" />
+    <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1300;width:min(480px,94vw)">
+        <MudPaper Class="mud-elevation-24" Style="border-radius:20px;overflow:hidden">
+            <!-- Header -->
+            <div style="background:linear-gradient(135deg,var(--navy),#1a3260);padding:24px;text-align:center">
+                <img src="/images/logo.png" alt="SendPay" class="sp-logo-img sp-logo-img--modal" style="display:block;margin:0 auto 10px" />
+                <MudText Typo="Typo.caption" Style="color:rgba(255,255,255,.6)">@Lang.T("receipt_modal_title")</MudText>
             </div>
-            <div class="sp-receipt-amount @(selected.Type == 1 ? "in" : "out")">
-                @(selected.Type == 1 ? "+" : "−")¥@selected.Amount.ToString("N0")
+            <!-- Amount -->
+            <div style="text-align:center;padding:20px 24px;border-bottom:1px solid var(--gray-border)">
+                <MudText Typo="Typo.h4" Style="@($"font-weight:800;{(selected.Type == 1 ? "color:#0D7A4E" : "color:var(--red)") }")">
+                    @(selected.Type == 1 ? "+" : "−")¥@selected.Amount.ToString("N0")
+                </MudText>
             </div>
-            <div class="sp-receipt-rows">
+            <!-- Details -->
+            <div style="padding:16px 24px">
                 <div class="sp-receipt-row"><span>@Lang.T("receipt_id")</span><strong>#@selected.Id</strong></div>
                 <div class="sp-receipt-row"><span>@Lang.T("receipt_from")</span><strong>@selected.SenderName</strong></div>
                 <div class="sp-receipt-row"><span>@Lang.T("receipt_to")</span><strong>@selected.ReceiverName</strong></div>
@@ -94,10 +123,14 @@
                 <div class="sp-receipt-row"><span>@Lang.T("receipt_date")</span><strong>@selected.CreatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</strong></div>
                 <div class="sp-receipt-row"><span>@Lang.T("receipt_status")</span><strong style="color:var(--green)">✓ @Lang.T("dash_done")</strong></div>
             </div>
-            <button class="btn-red" style="width:100%;justify-content:center;margin-top:1rem" @onclick="CloseReceipt">
-                @Lang.T("receipt_close")
-            </button>
-        </div>
+            <!-- Actions -->
+            <div style="padding:0 24px 20px;display:flex;gap:10px">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                           OnClick="CloseReceipt" Style="border-radius:10px;font-weight:700">
+                    @Lang.T("receipt_close")
+                </MudButton>
+            </div>
+        </MudPaper>
     </div>
 }
 

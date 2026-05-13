@@ -9,7 +9,7 @@
     }
     <button class="sp-lang-btn @(Dark ? "sp-lang-btn-dark" : "sp-lang-btn-light")"
             @onclick="Toggle">
-        <span>@CurrentFlag</span>
+        <i class="fa-solid fa-globe" style="font-size:13px;opacity:.8"></i>
         <span>@Lang.Current.ToUpper()</span>
         <i class="fa-solid fa-chevron-down" style="font-size:9px;opacity:.7;transition:transform .2s;@(langOpen?"transform:rotate(180deg)":"")"></i>
     </button>
@@ -20,7 +20,6 @@
             {
                 <div class="sp-lang-option @(Lang.Current == l.Code ? "sp-lang-active" : "")"
                      @onclick="() => Select(l.Code)">
-                    <span style="font-size:18px">@l.Flag</span>
                     <span>@l.Label</span>
                     @if (Lang.Current == l.Code)
                     {

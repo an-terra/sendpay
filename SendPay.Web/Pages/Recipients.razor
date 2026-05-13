@@ -7,8 +7,8 @@
 
 <div class="sp-dash-page">
     <DashNav Active="recipients" />
-
     <div class="sp-dash-content">
+
         <div class="sp-page-header">
             <a href="/dashboard" class="sp-back-circle"><i class="fa-solid fa-arrow-left"></i></a>
             <div class="sp-page-icon qi-purple"><i class="fa-solid fa-users"></i></div>
@@ -19,82 +19,119 @@
         </div>
 
         <div class="sp-recip-grid">
+
             <!-- LEFT: list -->
             <div>
-                @if (recipients.Count == 0 && !loading)
+                @if (loading)
                 {
-                    <div class="sp-dash-tx-card">
-                        <div style="text-align:center;padding:48px;color:var(--text-muted);font-size:15px">
-                            <i class="fa-solid fa-user-plus" style="font-size:32px;margin-bottom:12px;display:block"></i>
-                            @Lang.T("recip_empty")
-                        </div>
-                    </div>
+                    <MudPaper Class="mud-elevation-1 pa-6" Style="border-radius:16px;text-align:center">
+                        <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Medium" />
+                    </MudPaper>
+                }
+                else if (recipients.Count == 0)
+                {
+                    <MudPaper Class="mud-elevation-1 pa-8" Style="border-radius:16px;text-align:center">
+                        <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Style="font-size:42px;color:var(--gray-border)" />
+                        <MudText Typo="Typo.body1" Style="color:var(--text-muted);margin-top:12px">@Lang.T("recip_empty")</MudText>
+                    </MudPaper>
                 }
                 else
                 {
-                    <div class="sp-dash-tx-card">
-                        @foreach (var r in recipients)
-                        {
-                            <div class="sp-recip-row">
-                                <div class="sp-tx-avatar" style="background:#7048e8;width:44px;height:44px">
-                                    @GetInitials(r.Name)
-                                </div>
-                                <div class="sp-tx-info" style="flex:1">
-                                    <div class="sp-tx-name">@r.Name</div>
-                                    <div class="sp-tx-meta">
-                                        <i class="fa-solid fa-phone fa-xs"></i> @r.Phone
-                                        @if (!string.IsNullOrEmpty(r.Note)) { <span> · @r.Note</span> }
+                    <MudPaper Class="mud-elevation-1" Style="border-radius:16px;overflow:hidden">
+                        <MudList T="RecipientResponse" Padding="false">
+                            @foreach (var (r, idx) in recipients.Select((x, i) => (x, i)))
+                            {
+                                <MudListItem T="RecipientResponse" Style="@($"padding:14px 20px;{(idx < recipients.Count - 1 ? "border-bottom:1px solid var(--gray-border)" : "")}")">
+                                    <div style="display:flex;align-items:center;gap:14px">
+                                        <MudAvatar Style="background:#7048e8;color:white;font-weight:700;flex-shrink:0">
+                                            @GetInitials(r.Name)
+                                        </MudAvatar>
+                                        <div style="flex:1;min-width:0">
+                                            <MudText Typo="Typo.body2" Style="font-weight:600;color:var(--navy)">@r.Name</MudText>
+                                            <MudText Typo="Typo.caption" Style="color:var(--text-sub)">
+                                                <MudIcon Icon="@Icons.Material.Filled.Phone" Style="font-size:11px;vertical-align:middle" />
+                                                @r.Phone
+                                                @if (!string.IsNullOrEmpty(r.Note)) { <span> · @r.Note</span> }
+                                            </MudText>
+                                        </div>
+                                        <div style="display:flex;gap:8px;flex-shrink:0">
+                                            <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                                                       Size="Size.Small"
+                                                       Href="@($"/transfer?phone={Uri.EscapeDataString(r.Phone)}")"
+                                                       StartIcon="@Icons.Material.Filled.Send"
+                                                       Style="border-radius:8px;font-size:12px">
+                                                @Lang.T("recip_send")
+                                            </MudButton>
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                           Color="Color.Error"
+                                                           Size="Size.Small"
+                                                           Variant="Variant.Outlined"
+                                                           Style="border-radius:8px"
+                                                           OnClick="() => DeleteRecipient(r.Id)" />
+                                        </div>
                                     </div>
-                                </div>
-                                <div style="display:flex;gap:8px">
-                                    <a href="/transfer?phone=@Uri.EscapeDataString(r.Phone)" class="btn-outline" style="padding:7px 14px;font-size:13px">
-                                        <i class="fa-solid fa-paper-plane fa-xs"></i> @Lang.T("recip_send")
-                                    </a>
-                                    <button class="btn-outline" style="padding:7px 14px;font-size:13px;color:#c92a2a;border-color:#c92a2a"
-                                            @onclick="() => DeleteRecipient(r.Id)">
-                                        <i class="fa-solid fa-trash fa-xs"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        }
-                    </div>
+                                </MudListItem>
+                            }
+                        </MudList>
+                    </MudPaper>
                 }
             </div>
 
             <!-- RIGHT: add form -->
-            <div class="sp-side-card">
-                <div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:1rem">
-                    <i class="fa-solid fa-user-plus" style="color:#7048e8;margin-right:6px"></i>
+            <MudPaper Class="sp-side-card mud-elevation-1" Style="border-radius:16px;padding:24px">
+                <MudText Typo="Typo.subtitle1" Style="font-weight:700;color:var(--navy);margin-bottom:1rem;display:flex;align-items:center;gap:8px">
+                    <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Style="color:#7048e8" />
                     @Lang.T("recip_add_title")
-                </div>
+                </MudText>
 
                 @if (!string.IsNullOrEmpty(addError))
                 {
-                    <div class="sp-alert sp-alert-error">@addError</div>
+                    <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">@addError</MudAlert>
                 }
                 @if (!string.IsNullOrEmpty(addSuccess))
                 {
-                    <div class="sp-alert sp-alert-success">@addSuccess</div>
+                    <MudAlert Severity="Severity.Success" Dense="true" Class="mb-3">@addSuccess</MudAlert>
                 }
 
-                <div class="sp-form-group">
-                    <label>@Lang.T("recip_name")</label>
-                    <input class="sp-form-input sp-form-input-lg" @bind="newName" placeholder="Nguyen Van A" />
-                </div>
-                <div class="sp-form-group">
-                    <label>@Lang.T("recip_phone")</label>
-                    <input class="sp-form-input sp-form-input-lg" @bind="newPhone" placeholder="090-1234-5678" />
-                </div>
-                <div class="sp-form-group">
-                    <label>@Lang.T("recip_note")</label>
-                    <input class="sp-form-input sp-form-input-lg" @bind="newNote" placeholder="@Lang.T("recip_note_ph")" />
-                </div>
-                <button class="btn-red" style="width:100%;justify-content:center;margin-top:.5rem;padding:14px"
-                        @onclick="AddRecipient" disabled="@adding">
-                    @if (adding) { <i class="fa-solid fa-spinner fa-spin" style="margin-right:6px"></i> }
+                <MudTextField @bind-Value="newName"
+                              Label="@Lang.T("recip_name")"
+                              Placeholder="Nguyen Van A"
+                              Variant="Variant.Outlined"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Person"
+                              FullWidth="true"
+                              Class="mb-3" />
+
+                <MudTextField @bind-Value="newPhone"
+                              Label="@Lang.T("recip_phone")"
+                              Placeholder="090-1234-5678"
+                              Variant="Variant.Outlined"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Phone"
+                              FullWidth="true"
+                              Class="mb-3" />
+
+                <MudTextField @bind-Value="newNote"
+                              Label="@Lang.T("recip_note")"
+                              Placeholder="@Lang.T("recip_note_ph")"
+                              Variant="Variant.Outlined"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Notes"
+                              FullWidth="true"
+                              Class="mb-4" />
+
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           FullWidth="true" Size="Size.Large"
+                           OnClick="AddRecipient" Disabled="@adding"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           Style="border-radius:10px;font-weight:700;height:48px">
+                    @if (adding)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
                     @Lang.T("recip_add_btn")
-                </button>
-            </div>
+                </MudButton>
+            </MudPaper>
         </div>
     </div>
 </div>
@@ -102,7 +139,7 @@
 @code {
     List<RecipientResponse> recipients = [];
     bool loading = true;
-    bool adding = false;
+    bool adding;
     string newName = "", newPhone = "", newNote = "";
     string addError = "", addSuccess = "";
 
@@ -127,19 +164,13 @@
     {
         addError = ""; addSuccess = "";
         if (string.IsNullOrWhiteSpace(newName) || string.IsNullOrWhiteSpace(newPhone))
-        {
-            addError = Lang.T("recip_err_required");
-            return;
-        }
+        { addError = Lang.T("recip_err_required"); return; }
+
         adding = true;
         var (ok, _, err) = await Api.AddRecipientAsync(newName.Trim(), newPhone.Trim(), newNote.Trim());
         adding = false;
-        if (ok)
-        {
-            addSuccess = Lang.T("recip_added");
-            newName = newPhone = newNote = "";
-            await Reload();
-        }
+
+        if (ok) { addSuccess = Lang.T("recip_added"); newName = newPhone = newNote = ""; await Reload(); }
         else addError = err;
     }
 

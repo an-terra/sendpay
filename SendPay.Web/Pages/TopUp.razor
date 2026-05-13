@@ -13,7 +13,10 @@
             <a href="/dashboard" class="sp-back-circle"><i class="fa-solid fa-arrow-left"></i></a>
             <div>
                 <h1 class="sp-page-title">@Lang.T("topup_title")</h1>
-                <p class="sp-page-sub"><i class="fa-solid fa-circle-check" style="color:var(--green)"></i> @Lang.T("topup_free")</p>
+                <p class="sp-page-sub">
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Style="color:var(--green);font-size:14px;vertical-align:middle" />
+                    @Lang.T("topup_free")
+                </p>
             </div>
         </div>
 
@@ -21,22 +24,28 @@
 
             <!-- LEFT: amount display + quick amounts -->
             <div>
-                <div class="sp-amount-display" style="margin-bottom:1.5rem">
-                    <div class="sp-amount-label">@Lang.T("topup_amount_lbl")</div>
-                    <div style="font-size:52px;font-weight:800;color:white;letter-spacing:-2px;text-align:center;padding:14px 0">
+                <MudPaper Class="sp-amount-display mud-elevation-2" Style="margin-bottom:1.5rem;text-align:center;padding:28px 24px;border-radius:16px;background:linear-gradient(135deg,var(--navy),#1a3260)">
+                    <MudText Typo="Typo.caption" Style="color:rgba(255,255,255,.65);text-transform:uppercase;letter-spacing:.5px;font-weight:600">
+                        @Lang.T("topup_amount_lbl")
+                    </MudText>
+                    <MudText Typo="Typo.h3" Style="color:white;font-weight:800;letter-spacing:-2px;margin:10px 0">
                         ¥@amount.ToString("N0")
-                    </div>
-                    <div class="sp-cur-pill">🇯🇵 JPY</div>
-                </div>
+                    </MudText>
+                    <MudChip T="string" Color="Color.Default" Style="background:rgba(255,255,255,.15);color:white;font-weight:700">
+                        🇯🇵 JPY
+                    </MudChip>
+                </MudPaper>
 
-                <div class="sp-dash-section-title">@Lang.T("topup_quick")</div>
+                <MudText Typo="Typo.subtitle2" Style="color:var(--navy);font-weight:700;margin-bottom:12px">@Lang.T("topup_quick")</MudText>
                 <div class="sp-topup-quick-grid">
                     @foreach (var amt in new[] { 5_000m, 10_000m, 30_000m, 50_000m, 100_000m, 200_000m })
                     {
-                        <button class="sp-quick-amt-btn @(amount == amt ? "selected" : "")"
-                                @onclick="() => amount = amt">
+                        <MudButton Variant="@(amount == amt ? Variant.Filled : Variant.Outlined)"
+                                   Color="@(amount == amt ? Color.Primary : Color.Default)"
+                                   OnClick="() => amount = amt"
+                                   Style="border-radius:10px;font-weight:700">
                             ¥@amt.ToString("N0")
-                        </button>
+                        </MudButton>
                     }
                 </div>
             </div>
@@ -46,58 +55,61 @@
                 @if (balance > 0)
                 {
                     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;background:var(--navy);border-radius:10px;padding:12px 16px">
-                        <span style="color:rgba(255,255,255,.7);font-size:12px"><i class="fa-solid fa-wallet" style="margin-right:6px"></i>@Lang.T("dash_bal_label")</span>
+                        <span style="color:rgba(255,255,255,.7);font-size:12px">
+                            <i class="fa-solid fa-wallet" style="margin-right:6px"></i>@Lang.T("dash_bal_label")
+                        </span>
                         <strong style="color:white;font-size:16px">¥@balance.ToString("N0")</strong>
                     </div>
                 }
-                <div class="sp-fee-info" style="margin-bottom:20px">
-                    <i class="fa-solid fa-circle-info"></i>
-                    @Lang.T("topup_free")
-                </div>
 
-                <div class="sp-form-field">
-                    <label>@Lang.T("topup_custom_lbl")</label>
-                    <input class="sp-form-input sp-form-input-lg" type="number" @bind="amount"
-                           placeholder="@Lang.T("topup_custom_ph")" min="1000" />
-                </div>
+                <MudAlert Severity="Severity.Info" Dense="true" Class="mb-4">@Lang.T("topup_free")</MudAlert>
+
+                <MudTextField @bind-Value="amount"
+                              Label="@Lang.T("topup_custom_lbl")"
+                              Placeholder="@Lang.T("topup_custom_ph")"
+                              InputType="InputType.Number"
+                              Variant="Variant.Outlined"
+                              Adornment="Adornment.Start"
+                              AdornmentText="¥"
+                              FullWidth="true"
+                              Class="mb-4" />
 
                 @if (!string.IsNullOrEmpty(successMsg))
                 {
-                    <div class="sp-alert-success" style="margin-bottom:12px">
-                        <i class="fa-solid fa-circle-check"></i> @successMsg
-                    </div>
+                    <MudAlert Severity="Severity.Success" Dense="true" Class="mb-3">@successMsg</MudAlert>
                 }
                 @if (!string.IsNullOrEmpty(error))
                 {
-                    <div class="sp-alert-error" style="margin-bottom:12px">
-                        <i class="fa-solid fa-circle-exclamation"></i> @error
-                    </div>
+                    <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">@error</MudAlert>
                 }
 
-                <button class="sp-cta-full" @onclick="HandleTopUp" disabled="@loading">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           FullWidth="true" Size="Size.Large"
+                           OnClick="HandleTopUp" Disabled="@loading"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           Style="border-radius:10px;font-weight:700;height:50px;font-size:15px">
                     @if (loading)
                     {
-                        <i class="fa-solid fa-spinner fa-spin"></i>
-                        <span> @Lang.T("topup_loading")</span>
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <span>@Lang.T("topup_loading")</span>
                     }
                     else
                     {
-                        <i class="fa-solid fa-plus"></i>
-                        <span> @Lang.T("topup_btn") ¥@amount.ToString("N0")</span>
+                        <span>@Lang.T("topup_btn") ¥@amount.ToString("N0")</span>
                     }
-                </button>
+                </MudButton>
 
-                <div style="margin-top:16px;background:var(--gray-bg);border-radius:12px;padding:16px">
-                    <div style="font-size:12px;font-weight:700;color:var(--navy);margin-bottom:8px">
-                        <i class="fa-solid fa-circle-info" style="color:var(--red)"></i>
+                <MudPaper Class="mud-elevation-0 mt-4" Style="background:var(--gray-bg);border-radius:12px;padding:16px">
+                    <MudText Typo="Typo.caption" Style="font-weight:700;color:var(--navy);display:flex;align-items:center;gap:6px;margin-bottom:8px">
+                        <MudIcon Icon="@Icons.Material.Filled.Info" Style="color:var(--red);font-size:14px" />
                         @Lang.T("topup_guide_title")
-                    </div>
-                    <div style="font-size:12px;color:var(--text-sub);line-height:1.9">
-                        • @Lang.T("topup_guide_min")<br>
-                        • @Lang.T("topup_guide_fee")<br>
+                    </MudText>
+                    <MudText Typo="Typo.caption" Style="color:var(--text-sub);line-height:1.9">
+                        • @Lang.T("topup_guide_min")<br />
+                        • @Lang.T("topup_guide_fee")<br />
                         • @Lang.T("topup_guide_instant")
-                    </div>
-                </div>
+                    </MudText>
+                </MudPaper>
             </div>
 
         </div>

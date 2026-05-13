@@ -6,123 +6,161 @@
 @implements IDisposable
 
 <div class="sp-auth-page sp-register-page">
-    <div class="sp-auth-card sp-register-card">
+    <MudPaper Class="sp-auth-card sp-register-card mud-elevation-3" Elevation="0">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:28px">
-            <div class="sp-auth-logo" style="margin-bottom:0">
-                <img src="/images/logo.png" alt="SendPay" class="sp-logo-img sp-logo-img--auth" />
-            </div>
+            <img src="/images/logo.png" alt="SendPay" class="sp-logo-img sp-logo-img--auth" />
             <LangSelector />
         </div>
-        <h2>@Lang.T("reg_title")</h2>
-        <p class="sp-auth-subtitle">@Lang.T("reg_subtitle")</p>
+
+        <MudText Typo="Typo.h5" Style="font-weight:800;color:var(--navy);margin-bottom:6px">@Lang.T("reg_title")</MudText>
+        <MudText Typo="Typo.body2" Style="color:var(--text-sub);margin-bottom:24px">@Lang.T("reg_subtitle")</MudText>
 
         @if (!string.IsNullOrEmpty(error))
         {
-            <div class="sp-alert-error"><i class="fa-solid fa-circle-exclamation"></i> @error</div>
+            <MudAlert Severity="Severity.Error" Class="mb-4" Dense="true">@error</MudAlert>
         }
 
-        <!-- SECTION 1: 基本情報 -->
+        <!-- SECTION 1 -->
         <div class="sp-reg-section">
-            <div class="sp-reg-section-title"><i class="fa-solid fa-user"></i> @Lang.T("reg_sec1")</div>
-            <div class="sp-reg-row">
-                <div class="sp-field">
-                    <label>@Lang.T("reg_name") <span class="required">*</span></label>
-                    <input type="text" name="fullname" @bind="fullName" placeholder="@Lang.T("reg_name_ph")" autocomplete="name" />
-                </div>
-                <div class="sp-field">
-                    <label>@Lang.T("reg_dob") <span class="required">*</span></label>
-                    <input type="date" @bind="dateOfBirth" />
-                </div>
-            </div>
-            <div class="sp-reg-row">
-                <div class="sp-field">
-                    <label>@Lang.T("reg_nationality") <span class="required">*</span></label>
-                    <select @bind="nationality">
-                        <option value="">@Lang.T("select_ph")</option>
-                        <option value="VN">🇻🇳 @Lang.T("reg_country_vn")</option>
-                        <option value="LK">🇱🇰 @Lang.T("reg_country_lk")</option>
-                        <option value="NP">🇳🇵 @Lang.T("reg_country_np")</option>
-                        <option value="PH">🇵🇭 @Lang.T("reg_country_ph")</option>
-                        <option value="Other">@Lang.T("reg_country_other")</option>
-                    </select>
-                </div>
-                <div class="sp-field">
-                    <label>@Lang.T("reg_visa") <span class="required">*</span></label>
-                    <select @bind="visaStatus">
-                        <option value="">@Lang.T("select_ph")</option>
-                        <option value="永住者">@Lang.T("visa_1")</option>
-                        <option value="特定技能">@Lang.T("visa_2")</option>
-                        <option value="技能実習">@Lang.T("visa_3")</option>
-                        <option value="留学">@Lang.T("visa_4")</option>
-                        <option value="家族滞在">@Lang.T("visa_5")</option>
-                        <option value="技術・人文知識・国際業務">@Lang.T("visa_6")</option>
-                        <option value="その他">@Lang.T("visa_7")</option>
-                    </select>
-                </div>
-            </div>
-            <div class="sp-reg-row">
-                <div class="sp-field">
-                    <label>@Lang.T("reg_email") <span class="required">*</span></label>
-                    <input type="email" name="email" @bind="email" placeholder="example@email.com" autocomplete="email" />
-                </div>
-                <div class="sp-field">
-                    <label>@Lang.T("reg_phone") <span class="required">*</span></label>
-                    <input type="tel" name="phone" @bind="phone" placeholder="@Lang.T("reg_phone_ph")" autocomplete="tel" />
-                </div>
-            </div>
-            <div class="sp-reg-row">
-                <div class="sp-field">
-                    <label>@Lang.T("reg_password") <span class="required">*</span></label>
-                    <input type="password" name="password" @bind="password" placeholder="@Lang.T("reg_password_ph")" autocomplete="new-password" />
-                </div>
-                <div class="sp-field">
-                    <label>@Lang.T("reg_confirm") <span class="required">*</span></label>
-                    <input type="password" name="password-confirm" @bind="passwordConfirm" placeholder="@Lang.T("reg_confirm_ph")" autocomplete="new-password" />
-                </div>
-            </div>
+            <MudText Typo="Typo.subtitle2" Class="sp-reg-section-title">
+                <i class="fa-solid fa-user mr-1"></i> @Lang.T("reg_sec1")
+            </MudText>
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="fullName"
+                                  Label="@(Lang.T("reg_name") + " *")"
+                                  Placeholder="@Lang.T("reg_name_ph")"
+                                  Variant="Variant.Outlined"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Person"
+                                  FullWidth="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudDatePicker @bind-Date="dateOfBirth"
+                                   Label="@(Lang.T("reg_dob") + " *")"
+                                   Variant="Variant.Outlined"
+                                   Adornment="Adornment.Start"
+                                   AdornmentIcon="@Icons.Material.Filled.CalendarMonth"
+                                   Style="width:100%"
+                                   MaxDate="DateTime.Today.AddYears(-18)" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect @bind-Value="nationality"
+                               Label="@(Lang.T("reg_nationality") + " *")"
+                               Variant="Variant.Outlined"
+                               Adornment="Adornment.Start"
+                               AdornmentIcon="@Icons.Material.Filled.Flag"
+                               FullWidth="true">
+                        <MudSelectItem Value='""'>@Lang.T("select_ph")</MudSelectItem>
+                        <MudSelectItem Value='"VN"'>@Lang.T("reg_country_vn")</MudSelectItem>
+                        <MudSelectItem Value='"LK"'>@Lang.T("reg_country_lk")</MudSelectItem>
+                        <MudSelectItem Value='"NP"'>@Lang.T("reg_country_np")</MudSelectItem>
+                        <MudSelectItem Value='"PH"'>@Lang.T("reg_country_ph")</MudSelectItem>
+                        <MudSelectItem Value='"Other"'>@Lang.T("reg_country_other")</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect @bind-Value="visaStatus"
+                               Label="@(Lang.T("reg_visa") + " *")"
+                               Variant="Variant.Outlined"
+                               Adornment="Adornment.Start"
+                               AdornmentIcon="@Icons.Material.Filled.CreditCard"
+                               FullWidth="true">
+                        <MudSelectItem Value='""'>@Lang.T("select_ph")</MudSelectItem>
+                        <MudSelectItem Value='"永住者"'>@Lang.T("visa_1")</MudSelectItem>
+                        <MudSelectItem Value='"特定技能"'>@Lang.T("visa_2")</MudSelectItem>
+                        <MudSelectItem Value='"技能実習"'>@Lang.T("visa_3")</MudSelectItem>
+                        <MudSelectItem Value='"留学"'>@Lang.T("visa_4")</MudSelectItem>
+                        <MudSelectItem Value='"家族滞在"'>@Lang.T("visa_5")</MudSelectItem>
+                        <MudSelectItem Value='"技術・人文知識・国際業務"'>@Lang.T("visa_6")</MudSelectItem>
+                        <MudSelectItem Value='"その他"'>@Lang.T("visa_7")</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="email"
+                                  Label="@(Lang.T("reg_email") + " *")"
+                                  Placeholder="example@email.com"
+                                  InputType="InputType.Email"
+                                  Variant="Variant.Outlined"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Email"
+                                  UserAttributes='new Dictionary<string, object> { {"autocomplete", "email"} }'
+                                  FullWidth="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="phone"
+                                  Label="@(Lang.T("reg_phone") + " *")"
+                                  Placeholder="@Lang.T("reg_phone_ph")"
+                                  Variant="Variant.Outlined"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Phone"
+                                  UserAttributes='new Dictionary<string, object> { {"autocomplete", "tel"} }'
+                                  FullWidth="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="password"
+                                  Label="@(Lang.T("reg_password") + " *")"
+                                  Placeholder="@Lang.T("reg_password_ph")"
+                                  InputType="@(showPwd ? InputType.Text : InputType.Password)"
+                                  Variant="Variant.Outlined"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@(showPwd ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                  OnAdornmentClick="() => showPwd = !showPwd"
+                                  UserAttributes='new Dictionary<string, object> { {"autocomplete", "new-password"} }'
+                                  FullWidth="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="passwordConfirm"
+                                  Label="@(Lang.T("reg_confirm") + " *")"
+                                  Placeholder="@Lang.T("reg_confirm_ph")"
+                                  InputType="@(showPwd ? InputType.Text : InputType.Password)"
+                                  Variant="Variant.Outlined"
+                                  Adornment="Adornment.End"
+                                  AdornmentIcon="@(showPwd ? Icons.Material.Filled.VisibilityOff : Icons.Material.Filled.Visibility)"
+                                  OnAdornmentClick="() => showPwd = !showPwd"
+                                  UserAttributes='new Dictionary<string, object> { {"autocomplete", "new-password"} }'
+                                  FullWidth="true" />
+                </MudItem>
+            </MudGrid>
         </div>
 
-        <!-- SECTION 2: 本人確認書類 -->
+        <!-- SECTION 2 -->
         <div class="sp-reg-section">
-            <div class="sp-reg-section-title"><i class="fa-solid fa-id-card"></i> @Lang.T("reg_sec2")</div>
-            <div class="sp-kyc-notice">
-                <i class="fa-solid fa-circle-info"></i>
+            <MudText Typo="Typo.subtitle2" Class="sp-reg-section-title">
+                <i class="fa-solid fa-id-card mr-1"></i> @Lang.T("reg_sec2")
+            </MudText>
+            <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3" Icon="@Icons.Material.Filled.Info">
                 @Lang.T("reg_kyc_notice")
-            </div>
-            <div class="sp-field">
-                <label>@Lang.T("reg_doc_label") <span class="required">*</span></label>
-                <div class="sp-kyc-options">
-                    <label class="sp-kyc-option @(docType == "mynumber" ? "selected" : "")">
-                        <input type="radio" name="doctype" value="mynumber" @onchange='() => docType = "mynumber"' />
-                        <div class="sp-kyc-opt-inner">
-                            <i class="fa-solid fa-id-card"></i>
-                            <div>
-                                <div class="sp-kyc-opt-title">@Lang.T("reg_mynumber")</div>
-                                <div class="sp-kyc-opt-sub">@Lang.T("reg_mynumber_sub")</div>
-                            </div>
+            </MudAlert>
+
+            <MudText Typo="Typo.body2" Style="font-weight:600;margin-bottom:10px">
+                @Lang.T("reg_doc_label") <span style="color:var(--red)">*</span>
+            </MudText>
+            <div class="sp-kyc-options">
+                <label class="sp-kyc-option @(docType == "zairyu" ? "selected" : "")">
+                    <input type="radio" name="doctype" value="zairyu" @onchange='() => docType = "zairyu"' />
+                    <div class="sp-kyc-opt-inner">
+                        <i class="fa-solid fa-passport"></i>
+                        <div><div class="sp-kyc-opt-title">@Lang.T("reg_zairyu")</div></div>
+                    </div>
+                </label>
+                <label class="sp-kyc-option @(docType == "license" ? "selected" : "")">
+                    <input type="radio" name="doctype" value="license" @onchange='() => docType = "license"' />
+                    <div class="sp-kyc-opt-inner">
+                        <i class="fa-solid fa-car"></i>
+                        <div><div class="sp-kyc-opt-title">@Lang.T("reg_license")</div></div>
+                    </div>
+                </label>
+                <label class="sp-kyc-option sp-kyc-option-rec @(docType == "mynumber" ? "selected" : "")">
+                    <input type="radio" name="doctype" value="mynumber" @onchange='() => docType = "mynumber"' />
+                    <div class="sp-kyc-opt-inner">
+                        <i class="fa-solid fa-id-card"></i>
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                            <div class="sp-kyc-opt-title">@Lang.T("reg_mynumber")</div>
+                            <span class="sp-kyc-badge" style="margin-top:0">@Lang.T("reg_mynumber_sub")</span>
                         </div>
-                    </label>
-                    <label class="sp-kyc-option @(docType == "zairyu" ? "selected" : "")">
-                        <input type="radio" name="doctype" value="zairyu" @onchange='() => docType = "zairyu"' />
-                        <div class="sp-kyc-opt-inner">
-                            <i class="fa-solid fa-passport"></i>
-                            <div>
-                                <div class="sp-kyc-opt-title">@Lang.T("reg_zairyu")</div>
-                                <div class="sp-kyc-opt-sub">@Lang.T("reg_zairyu_sub")</div>
-                            </div>
-                        </div>
-                    </label>
-                    <label class="sp-kyc-option @(docType == "license" ? "selected" : "")">
-                        <input type="radio" name="doctype" value="license" @onchange='() => docType = "license"' />
-                        <div class="sp-kyc-opt-inner">
-                            <i class="fa-solid fa-car"></i>
-                            <div>
-                                <div class="sp-kyc-opt-title">@Lang.T("reg_license")</div>
-                                <div class="sp-kyc-opt-sub">@Lang.T("reg_license_sub")</div>
-                            </div>
-                        </div>
-                    </label>
-                </div>
+                    </div>
+                </label>
             </div>
 
             @if (!string.IsNullOrEmpty(docType))
@@ -160,71 +198,77 @@
                 </div>
             }
 
-            <!-- 住民票 -->
-            <div class="sp-field" style="margin-top:16px">
-                <label>@Lang.T("reg_jumin_label") <span class="required">*</span></label>
-                <div class="sp-jumin-box">
-                    <i class="fa-solid fa-file-lines" style="font-size:24px;color:var(--gold);margin-bottom:8px;display:block"></i>
-                    <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:4px">@Lang.T("reg_jumin_title")</div>
-                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">@Lang.T("reg_jumin_sub")</div>
-                    <input type="file" accept="image/*,.pdf" @onchange='e => juminFile = e.Value?.ToString() ?? ""' style="display:none" id="jumin" />
-                    <label for="jumin" class="sp-kyc-upload-btn">
-                        <i class="fa-solid fa-upload"></i> @Lang.T("reg_jumin_btn")
-                    </label>
-                    @if (!string.IsNullOrEmpty(juminFile))
-                    {
-                        <div class="sp-kyc-file-ok" style="margin-top:8px"><i class="fa-solid fa-check-circle"></i> @Lang.T("reg_file_ok")</div>
-                    }
-                </div>
+            <div class="sp-jumin-box" style="margin-top:16px">
+                <i class="fa-solid fa-file-lines" style="font-size:24px;color:var(--gold);margin-bottom:8px;display:block"></i>
+                <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:4px">@Lang.T("reg_jumin_title")</div>
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">@Lang.T("reg_jumin_sub")</div>
+                <input type="file" accept="image/*,.pdf" @onchange='e => juminFile = e.Value?.ToString() ?? ""' style="display:none" id="jumin" />
+                <label for="jumin" class="sp-kyc-upload-btn">
+                    <i class="fa-solid fa-upload"></i> @Lang.T("reg_jumin_btn")
+                </label>
+                @if (!string.IsNullOrEmpty(juminFile))
+                {
+                    <div class="sp-kyc-file-ok" style="margin-top:8px"><i class="fa-solid fa-check-circle"></i> @Lang.T("reg_file_ok")</div>
+                }
             </div>
         </div>
 
-        <!-- SECTION 3: 同意 -->
+        <!-- SECTION 3 -->
         <div class="sp-reg-section">
-            <div class="sp-reg-section-title"><i class="fa-solid fa-check-square"></i> @Lang.T("reg_sec3")</div>
-            <label class="sp-agree-check">
-                <input type="checkbox" @bind="agreeTerms" />
-                <span>@Lang.T("reg_agree1")</span>
-            </label>
-            <label class="sp-agree-check">
-                <input type="checkbox" @bind="agreeKyc" />
-                <span>@Lang.T("reg_agree2")</span>
-            </label>
-            <label class="sp-agree-check">
-                <input type="checkbox" @bind="agreeAml" />
-                <span>@Lang.T("reg_agree3")</span>
-            </label>
+            <MudText Typo="Typo.subtitle2" Class="sp-reg-section-title">
+                <i class="fa-solid fa-check-square mr-1"></i> @Lang.T("reg_sec3")
+            </MudText>
+            <MudCheckBox @bind-Value="agreeTerms" Color="Color.Primary" Dense="true" Class="d-block mb-1">
+                <MudText Typo="Typo.body2">@Lang.T("reg_agree1")</MudText>
+            </MudCheckBox>
+            <MudCheckBox @bind-Value="agreeKyc" Color="Color.Primary" Dense="true" Class="d-block mb-1">
+                <MudText Typo="Typo.body2">@Lang.T("reg_agree2")</MudText>
+            </MudCheckBox>
+            <MudCheckBox @bind-Value="agreeAml" Color="Color.Primary" Dense="true" Class="d-block">
+                <MudText Typo="Typo.body2">@Lang.T("reg_agree3")</MudText>
+            </MudCheckBox>
         </div>
 
-        <button class="sp-submit-btn" @onclick="HandleRegister" disabled="@loading">
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   FullWidth="true"
+                   Size="Size.Large"
+                   OnClick="HandleRegister"
+                   Disabled="@loading"
+                   StartIcon="@Icons.Material.Filled.HowToReg"
+                   Style="border-radius:10px;font-weight:700;height:50px;font-size:15px;margin-top:8px">
             @if (loading)
             {
-                <i class="fa-solid fa-spinner fa-spin"></i>
-                <span> @Lang.T("reg_loading")</span>
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span>@Lang.T("reg_loading")</span>
             }
             else
             {
-                <i class="fa-solid fa-user-check"></i>
-                <span> @Lang.T("reg_submit")</span>
+                <span>@Lang.T("reg_submit")</span>
             }
-        </button>
+        </MudButton>
 
-        <div style="background:var(--gray-bg);border-radius:10px;padding:12px 14px;margin-top:14px;font-size:12px;color:var(--text-sub);line-height:1.7">
-            <i class="fa-solid fa-shield-halved" style="color:var(--green)"></i>
+        <MudAlert Severity="Severity.Success" Dense="true" Class="mt-3" Icon="@Icons.Material.Filled.Security">
             @Lang.T("reg_note")
-        </div>
+        </MudAlert>
 
-        <p class="sp-auth-switch">@Lang.T("reg_switch") <a href="/login">@Lang.T("reg_switch_link")</a></p>
-        <p class="sp-auth-switch" style="margin-top:8px"><a href="/">@Lang.T("reg_home")</a></p>
-    </div>
+        <MudDivider Class="my-3" />
+        <MudText Typo="Typo.body2" Align="Align.Center" Style="color:var(--text-sub)">
+            @Lang.T("reg_switch")
+            <MudLink Href="/login" Color="Color.Primary" Style="font-weight:600">@Lang.T("reg_switch_link")</MudLink>
+        </MudText>
+        <MudText Typo="Typo.body2" Align="Align.Center" Class="mt-2">
+            <MudLink Href="/" Color="Color.Primary">@Lang.T("reg_home")</MudLink>
+        </MudText>
+    </MudPaper>
 </div>
 
 @code {
     string fullName = "", email = "", phone = "", password = "", passwordConfirm = "", error = "";
     string nationality = "", visaStatus = "", docType = "";
     string docFrontFile = "", docBackFile = "", juminFile = "";
-    DateTime dateOfBirth = DateTime.Today.AddYears(-25);
-    bool loading, agreeTerms, agreeKyc, agreeAml;
+    DateTime? dateOfBirth = DateTime.Today.AddYears(-25);
+    bool loading, agreeTerms, agreeKyc, agreeAml, showPwd;
 
     protected override async Task OnInitializedAsync()
     {

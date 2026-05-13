@@ -1,2 +1,27 @@
 ﻿@inherits LayoutComponentBase
+
+<MudThemeProvider Theme="_theme" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
 @Body
+
+@code {
+    readonly MudTheme _theme = new()
+    {
+        PaletteLight = new PaletteLight
+        {
+            Primary = "#D0001F",
+            PrimaryDarken = "#A0001A",
+            PrimaryLighten = "#fff0f2",
+            Secondary = "#C8971A",
+            Background = "#F5F6FA",
+            Surface = "#ffffff",
+            AppbarBackground = "#ffffff",
+            DrawerBackground = "#ffffff",
+            TextPrimary = "#0B1E3D",
+            TextSecondary = "#5A6480",
+        }
+    };
+}

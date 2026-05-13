@@ -1,6 +1,7 @@
 using Blazored.LocalStorage;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.AspNetCore.Components.WebAssembly.Hosting;
+using MudBlazor.Services;
 using SendPay.Web;
 using SendPay.Web.Services;
 
@@ -17,5 +18,6 @@ builder.Services.AddScoped(_ => new HttpClient { BaseAddress = baseUri });
 builder.Services.AddScoped<ApiService>();
 builder.Services.AddSingleton<LanguageService>();
 builder.Services.AddBlazoredLocalStorage();
+builder.Services.AddMudServices();
 
 await builder.Build().RunAsync();

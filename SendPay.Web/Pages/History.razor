@@ -11,75 +11,71 @@
 
         <div class="sp-page-header">
             <a href="/dashboard" class="sp-back-circle"><i class="fa-solid fa-arrow-left"></i></a>
-            <div>
-                <h1 class="sp-page-title">@Lang.T("hist_title")</h1>
-            </div>
+            <div><h1 class="sp-page-title">@Lang.T("hist_title")</h1></div>
         </div>
 
         @if (loading)
         {
-            <div class="sp-loading-text">
-                <i class="fa-solid fa-spinner fa-spin" style="font-size:28px;margin-bottom:12px;display:block"></i>
-                @Lang.T("hist_loading")
+            <div class="sp-dash-tx-card" style="text-align:center;padding:48px">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size:28px;color:var(--red)"></i>
+                <div style="color:var(--text-muted);font-size:13px;margin-top:12px">@Lang.T("hist_loading")</div>
             </div>
         }
         else if (transactions.Count == 0)
         {
-            <div class="sp-dash-tx-card">
-                <div style="text-align:center;padding:64px;color:var(--text-muted)">
-                    <i class="fa-solid fa-inbox" style="font-size:42px;margin-bottom:14px;display:block;color:var(--gray-border)"></i>
-                    @Lang.T("hist_empty")
-                </div>
+            <div class="sp-dash-tx-card" style="text-align:center;padding:64px 48px">
+                <i class="fa-solid fa-inbox" style="font-size:40px;color:var(--gray-border);display:block;margin-bottom:14px"></i>
+                <div style="color:var(--text-muted);font-size:15px">@Lang.T("hist_empty")</div>
             </div>
         }
         else
         {
             <div class="sp-dash-tx-card">
-                @foreach (var tx in transactions)
+                @foreach (var (tx, idx) in transactions.Select((t, i) => (t, i)))
                 {
                     bool isIncoming = tx.Type == 1 || (tx.Type == 0 && tx.SenderId != currentUserId);
                     string label = tx.Type == 1
                         ? Lang.T("hist_topup")
                         : isIncoming ? $"{tx.SenderName} → {Lang.T("hist_you")}" : $"{Lang.T("hist_you")} → {tx.ReceiverName}";
-                    string txIcon = tx.Type == 1 ? "fa-solid fa-plus" : "fa-solid fa-paper-plane";
                     string avatarBg = tx.Type == 1 ? "linear-gradient(140deg,#38d9a9,#0C8599)"
                                     : isIncoming  ? "linear-gradient(140deg,#51cf66,#0D7A4E)"
                                     : "linear-gradient(140deg,#ff8fa3,#D0001F)";
-                    string avatarShadow = tx.Type == 1 ? "0 4px 14px rgba(12,133,153,.45)"
-                                       : isIncoming  ? "0 4px 14px rgba(13,122,78,.45)"
-                                       : "0 4px 14px rgba(208,0,31,.45)";
+                    string txIcon = tx.Type == 1 ? "fa-solid fa-plus" : "fa-solid fa-paper-plane";
+
                     <div class="sp-dash-tx-row">
-                        <div class="sp-tx-avatar" style="background:@avatarBg;box-shadow:@avatarShadow">
-                            <i class="@txIcon" style="font-size:17px"></i>
+                        <div class="sp-tx-avatar" style="background:@avatarBg;flex-shrink:0">
+                            <i class="@txIcon" style="font-size:16px"></i>
                         </div>
-                        <div class="sp-tx-info">
-                            <div class="sp-tx-name">@label</div>
+                        <div style="flex:1;min-width:0">
+                            <div style="font-weight:600;color:var(--navy);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">@label</div>
                             @if (!string.IsNullOrEmpty(tx.Note) && tx.Type != 1)
                             {
-                                <div class="sp-tx-meta" style="font-style:italic">@tx.Note</div>
+                                <div style="color:var(--text-sub);font-size:12px;font-style:italic;margin-top:2px">@tx.Note</div>
                             }
-                            <div class="sp-tx-meta">@tx.CreatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</div>
+                            <div style="color:var(--text-muted);font-size:12px;margin-top:2px">@tx.CreatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</div>
                         </div>
-                        <div class="sp-tx-amt-col">
-                            <div class="sp-tx-amt @(isIncoming ? "in" : "out")">
+                        <div style="text-align:right;flex-shrink:0">
+                            <div style="font-weight:700;font-size:15px;@(isIncoming ? "color:#0D7A4E" : "color:var(--red)")">
                                 @(isIncoming ? "+" : "−")¥@tx.Amount.ToString("N0")
                             </div>
                             @if (!isIncoming && tx.Fee > 0)
                             {
-                                <div class="sp-tx-fee">@Lang.T("tr_fee_lbl"): ¥@tx.Fee.ToString("N0")</div>
+                                <div style="font-size:11px;color:var(--text-muted);margin-top:2px">@Lang.T("tr_fee_lbl"): ¥@tx.Fee.ToString("N0")</div>
                             }
-                            <div class="sp-tx-status">@Lang.T("hist_success")</div>
+                            <div class="sp-tx-status" style="margin-top:4px">@Lang.T("hist_success")</div>
                         </div>
                     </div>
                 }
             </div>
 
-            <div class="sp-dash-section-row" style="margin-top:1rem">
-                <button class="sp-page-btn" @onclick="PrevPage" disabled="@(page <= 1)">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:1rem">
+                <button class="sp-btn-gray" style="flex:unset;padding:10px 20px" @onclick="PrevPage" disabled="@(page <= 1)">
                     <i class="fa-solid fa-chevron-left"></i> @Lang.T("hist_prev")
                 </button>
-                <span class="sp-page-label">@Lang.T("hist_page") @(page)</span>
-                <button class="sp-page-btn" @onclick="NextPage" disabled="@(transactions.Count < 10)">
+                <span style="font-size:13px;font-weight:600;color:var(--navy);background:var(--gray-bg);border-radius:20px;padding:6px 18px;border:1px solid var(--gray-border)">
+                    @Lang.T("hist_page") @(page)
+                </span>
+                <button class="sp-btn-gray" style="flex:unset;padding:10px 20px" @onclick="NextPage" disabled="@(transactions.Count < 10)">
                     @Lang.T("hist_next") <i class="fa-solid fa-chevron-right"></i>
                 </button>
             </div>
@@ -114,15 +110,6 @@
 
     async Task PrevPage() { if (page > 1) { page--; await LoadPage(); } }
     async Task NextPage() { page++; await LoadPage(); }
-
-    static string GetInitials(string? name)
-    {
-        if (string.IsNullOrWhiteSpace(name)) return "??";
-        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        return parts.Length >= 2
-            ? $"{parts[0][0]}{parts[^1][0]}".ToUpper()
-            : name[..Math.Min(2, name.Length)].ToUpper();
-    }
 
     public void Dispose() => Lang.OnChanged -= StateHasChanged;
 }
