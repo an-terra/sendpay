@@ -1,0 +1,418 @@
+@page "/"
+@inject NavigationManager Nav
+@inject ILocalStorageService LocalStorage
+@inject LanguageService Lang
+@inject ApiService Api
+@implements IDisposable
+
+<!-- NAV -->
+<nav class="sp-nav">
+    <a class="sp-nav-logo" href="/">
+        <div class="sp-nav-logo-icon">SP</div>
+        <div class="sp-nav-logo-text">Send<span>Pay</span></div>
+    </a>
+    <div class="sp-nav-links">
+        <a href="#features">@Lang.T("nav_services")</a>
+        <a href="#countries">@Lang.T("nav_countries")</a>
+        <a href="#rates">@Lang.T("nav_rates")</a>
+        <a href="#how">@Lang.T("nav_how")</a>
+        <a href="#contact">@Lang.T("nav_contact")</a>
+    </div>
+    <div class="sp-nav-actions">
+        <LangSelector />
+        <a href="/login" class="btn-outline">@Lang.T("nav_login")</a>
+        <a href="/register" class="btn-red">@Lang.T("nav_register")</a>
+    </div>
+</nav>
+
+<!-- HERO -->
+<section class="sp-hero">
+    <div>
+        <div class="sp-hero-badge"><i class="fa-solid fa-bolt"></i> @Lang.T("hero_badge")</div>
+        <h1>@Lang.T("hero_title1")<br><span>@Lang.T("hero_accent")</span><br>@Lang.T("hero_title2")</h1>
+        <p style="color:rgba(255,255,255,.8);font-size:16px;line-height:1.8;margin-bottom:24px">
+            @Lang.T("hero_desc")
+        </p>
+        <div style="font-size:12px;color:rgba(255,255,255,.55);margin-bottom:18px">
+            🇻🇳 Việt Nam &nbsp;·&nbsp; 🇱🇰 Sri Lanka &nbsp;·&nbsp; 🇳🇵 Nepal &nbsp;·&nbsp; 🇵🇭 Philippines
+        </div>
+        <div class="sp-hero-stats">
+            <div class="sp-hero-stat"><div class="val">50K+</div><div class="lbl">@Lang.T("hero_stat1")</div></div>
+            <div class="sp-hero-stat"><div class="val">4</div><div class="lbl">@Lang.T("hero_stat2")</div></div>
+            <div class="sp-hero-stat"><div class="val">24/7</div><div class="lbl">@Lang.T("hero_stat3")</div></div>
+        </div>
+        <div class="sp-hero-btns">
+            <a href="/register" class="btn-gold"><i class="fa-solid fa-paper-plane"></i> @Lang.T("hero_btn_send")</a>
+            <a href="#how" class="btn-ghost"><i class="fa-solid fa-play"></i> @Lang.T("hero_btn_guide")</a>
+        </div>
+    </div>
+    <div>
+        <div class="sp-hero-card">
+            <h3><i class="fa-solid fa-calculator" style="color:var(--red);margin-right:6px"></i> @Lang.T("calc_title")</h3>
+            <div class="hero-field">
+                <div class="hero-field-label">@Lang.T("calc_from")</div>
+                <div class="hero-field-row">
+                    <input class="hero-field-input" type="number" @bind="calcAmount" @bind:event="oninput" min="1000" />
+                    <div class="hero-field-badge">🇯🇵 JPY</div>
+                </div>
+            </div>
+            <div class="hero-field">
+                <div class="hero-field-label">@Lang.T("calc_dest")</div>
+                <div class="hero-field-row" style="padding:8px 0 0">
+                    <select class="hero-country-select" value="@destCountry" @onchange="OnCountryChange">
+                        <option value="VN">🇻🇳 Việt Nam</option>
+                        <option value="LK">🇱🇰 Sri Lanka</option>
+                        <option value="NP">🇳🇵 Nepal</option>
+                        <option value="PH">🇵🇭 Philippines</option>
+                    </select>
+                </div>
+            </div>
+            <div class="hero-field">
+                <div class="hero-field-label">@Lang.T("calc_receive")</div>
+                <div class="hero-field-row">
+                    <span style="font-size:20px;font-weight:800;color:var(--text-main)">@ReceivedAmount.ToString("N0")</span>
+                    <div class="hero-field-badge">@CurrencyLabel</div>
+                </div>
+            </div>
+            <div class="hero-rate-info">
+                <span>@Lang.T("calc_fee"): <span style="color:var(--green);font-weight:600">¥@ServiceFee.ToString("N0")</span></span>
+                <span class="fee-badge">@Lang.T("calc_instant")</span>
+            </div>
+            <div class="hero-rate-info" style="margin-top:6px;border-top:none;padding-top:0">
+                <span style="font-size:12px;color:var(--text-muted)">@Lang.T("calc_rate"): 1 JPY = @Rate.ToString("N2") @CurrencyCode</span>
+                <span style="font-size:12px;color:var(--text-muted)">SSL 256-bit</span>
+            </div>
+            <a href="/register" class="hero-cta">@Lang.T("calc_cta") <i class="fa-solid fa-arrow-right"></i></a>
+            <p class="hero-disclaimer">@Lang.T("calc_note")</p>
+        </div>
+    </div>
+</section>
+
+<!-- COUNTRIES -->
+<section class="sp-features" id="countries" style="background:var(--gray-bg)">
+    <div class="section-tag"><i class="fa-solid fa-earth-asia"></i> @Lang.T("sec_countries_tag")</div>
+    <h2 class="section-title">@Lang.T("sec_countries_h2")</h2>
+    <div class="sp-country-grid">
+        <div class="sp-country-card">
+            <div class="sp-country-flag">🇻🇳</div>
+            <h4>Việt Nam</h4>
+            <div class="sp-country-rate">1 JPY ≈ <strong>@GetLiveRate("VND", 170)</strong> VND</div>
+            <div class="sp-country-banks">Vietcombank · BIDV · Agribank · MB Bank</div>
+            <span class="badge-fast">@Lang.T("country_instant")</span>
+        </div>
+        <div class="sp-country-card">
+            <div class="sp-country-flag">🇱🇰</div>
+            <h4>Sri Lanka</h4>
+            <div class="sp-country-rate">1 JPY ≈ <strong>@GetLiveRate("LKR", 2.0m)</strong> LKR</div>
+            <div class="sp-country-banks">Bank of Ceylon · Sampath · HNB · People's</div>
+            <span class="badge-fast">@Lang.T("country_instant")</span>
+        </div>
+        <div class="sp-country-card">
+            <div class="sp-country-flag">🇳🇵</div>
+            <h4>Nepal</h4>
+            <div class="sp-country-rate">1 JPY ≈ <strong>@GetLiveRate("NPR", 0.88m)</strong> NPR</div>
+            <div class="sp-country-banks">Nepal Bank · NIC Asia · Himalayan · Global IME</div>
+            <span class="badge-fast">@Lang.T("country_instant")</span>
+        </div>
+        <div class="sp-country-card">
+            <div class="sp-country-flag">🇵🇭</div>
+            <h4>Philippines</h4>
+            <div class="sp-country-rate">1 JPY ≈ <strong>@GetLiveRate("PHP", 0.38m)</strong> PHP</div>
+            <div class="sp-country-banks">BDO · BPI · Metrobank · UnionBank</div>
+            <span class="badge-fast">@Lang.T("country_instant")</span>
+        </div>
+    </div>
+</section>
+
+<!-- FEATURES -->
+<section class="sp-features" id="features">
+    <div class="section-tag"><i class="fa-solid fa-star"></i> @Lang.T("sec_feat_tag")</div>
+    <h2 class="section-title">@Lang.T("sec_feat_h2")</h2>
+    <p class="section-sub">@Lang.T("sec_feat_sub")</p>
+    <div class="sp-features-grid">
+        <div class="feat-card">
+            <div class="feat-icon"><i class="fa-solid fa-bolt"></i></div>
+            <h4>@Lang.T("feat1_title")</h4>
+            <p>@Lang.T("feat1_desc")</p>
+        </div>
+        <div class="feat-card">
+            <div class="feat-icon"><i class="fa-solid fa-shield-halved"></i></div>
+            <h4>@Lang.T("feat2_title")</h4>
+            <p>@Lang.T("feat2_desc")</p>
+        </div>
+        <div class="feat-card">
+            <div class="feat-icon"><i class="fa-solid fa-yen-sign"></i></div>
+            <h4>@Lang.T("feat3_title")</h4>
+            <p>@Lang.T("feat3_desc")</p>
+        </div>
+        <div class="feat-card">
+            <div class="feat-icon"><i class="fa-solid fa-id-card"></i></div>
+            <h4>@Lang.T("feat4_title")</h4>
+            <p>@Lang.T("feat4_desc")</p>
+        </div>
+        <div class="feat-card">
+            <div class="feat-icon"><i class="fa-solid fa-headset"></i></div>
+            <h4>@Lang.T("feat5_title")</h4>
+            <p>@Lang.T("feat5_desc")</p>
+        </div>
+        <div class="feat-card">
+            <div class="feat-icon"><i class="fa-solid fa-receipt"></i></div>
+            <h4>@Lang.T("feat6_title")</h4>
+            <p>@Lang.T("feat6_desc")</p>
+        </div>
+    </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="sp-how" id="how">
+    <div class="section-tag"><i class="fa-solid fa-list-check"></i> @Lang.T("sec_how_tag")</div>
+    <h2 class="section-title">@Lang.T("sec_how_h2")</h2>
+    <p class="section-sub">@Lang.T("sec_how_sub")</p>
+    <div class="sp-steps">
+        <div class="sp-step">
+            <div class="sp-step-num"><i class="fa-solid fa-id-card"></i></div>
+            <h4>@Lang.T("step1_title")</h4>
+            <p>@Lang.T("step1_desc")</p>
+        </div>
+        <div class="sp-step">
+            <div class="sp-step-num"><i class="fa-solid fa-user-plus"></i></div>
+            <h4>@Lang.T("step2_title")</h4>
+            <p>@Lang.T("step2_desc")</p>
+        </div>
+        <div class="sp-step">
+            <div class="sp-step-num"><i class="fa-solid fa-money-bill-wave"></i></div>
+            <h4>@Lang.T("step3_title")</h4>
+            <p>@Lang.T("step3_desc")</p>
+        </div>
+        <div class="sp-step">
+            <div class="sp-step-num"><i class="fa-solid fa-circle-check"></i></div>
+            <h4>@Lang.T("step4_title")</h4>
+            <p>@Lang.T("step4_desc")</p>
+        </div>
+    </div>
+</section>
+
+<!-- RATES TABLE -->
+<section class="sp-rates" id="rates" style="background:var(--gray-bg)">
+    <div class="section-tag"><i class="fa-solid fa-table"></i> @Lang.T("sec_rates_tag")</div>
+    <h2 class="section-title">@Lang.T("sec_rates_h2")</h2>
+    <p class="section-sub">@Lang.T("sec_rates_sub")</p>
+    <div class="sp-rate-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>@Lang.T("rate_col1")</th>
+                    <th>@Lang.T("rate_col2")</th>
+                    <th>@Lang.T("rate_col3")</th>
+                    <th>@Lang.T("rate_col4")</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>〜 ¥10,000</td>
+                    <td style="color:var(--green);font-weight:600">¥200</td>
+                    <td><span class="badge-fast">@Lang.T("rate_instant")</span></td>
+                    <td>🇻🇳 🇱🇰 🇳🇵 🇵🇭</td>
+                </tr>
+                <tr>
+                    <td>¥10,001 〜 ¥50,000</td>
+                    <td style="color:var(--green);font-weight:600">¥400</td>
+                    <td><span class="badge-fast">@Lang.T("rate_instant")</span></td>
+                    <td>🇻🇳 🇱🇰 🇳🇵 🇵🇭</td>
+                </tr>
+                <tr>
+                    <td>¥50,001 〜 ¥200,000</td>
+                    <td style="color:var(--gold);font-weight:600">¥800</td>
+                    <td><span class="badge-std">@Lang.T("rate_sameday")</span></td>
+                    <td>🇻🇳 🇱🇰 🇳🇵 🇵🇭</td>
+                </tr>
+                <tr>
+                    <td>¥200,001〜</td>
+                    <td style="color:var(--gold);font-weight:600">@Lang.T("rate_vip")</td>
+                    <td><span class="badge-std">@Lang.T("rate_vip")</span></td>
+                    <td>🇻🇳 🇱🇰 🇳🇵 🇵🇭</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <p style="text-align:center;font-size:12px;color:var(--text-muted);margin-top:16px">
+        @Lang.T("rate_note")
+    </p>
+</section>
+
+<!-- TESTIMONIALS -->
+<section class="sp-testimonials">
+    <div class="section-tag"><i class="fa-solid fa-heart"></i> @Lang.T("sec_test_tag")</div>
+    <h2 class="section-title">@Lang.T("sec_test_h2")</h2>
+    <div class="sp-test-grid">
+        <div class="test-card">
+            <div class="stars">★★★★★</div>
+            <p>"Dùng SendPay được 1 năm rồi, chuyển tiền về Việt Nam rất nhanh, thường chỉ mất vài phút. Phí thấp hơn nhiều so với ngân hàng Nhật. Rất hài lòng!"</p>
+            <div class="test-author">
+                <div class="test-avatar" style="background:#D0001F">TN</div>
+                <div>
+                    <div class="test-name">Trần Nguyên</div>
+                    <div class="test-loc">🇻🇳 Việt Nam · 東京都 在住</div>
+                </div>
+            </div>
+        </div>
+        <div class="test-card">
+            <div class="stars">★★★★★</div>
+            <p>"SendPayを使い始めてから、スリランカの家族への仕送りが本当に楽になりました。手数料も安くて、操作も分かりやすいです。"</p>
+            <div class="test-author">
+                <div class="test-avatar" style="background:#0D7A4E">RP</div>
+                <div>
+                    <div class="test-name">Ravi Perera</div>
+                    <div class="test-loc">🇱🇰 Sri Lanka · 大阪府 在住</div>
+                </div>
+            </div>
+        </div>
+        <div class="test-card">
+            <div class="stars">★★★★★</div>
+            <p>"Nepal maa paise pathauna SendPay sabai bhanda sajilo chha. Turant paisa pugcha, commission pani kam chha. Dherai ramro service!"</p>
+            <div class="test-author">
+                <div class="test-avatar" style="background:#C8971A">BS</div>
+                <div>
+                    <div class="test-name">Bikash Sharma</div>
+                    <div class="test-loc">🇳🇵 Nepal · 愛知県 在住</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- APP PROMO -->
+<section class="sp-app-promo">
+    <div class="sp-app-promo-inner">
+        <div>
+            <h2>@Lang.T("promo_h2")</h2>
+            <p>@Lang.T("promo_sub")</p>
+            <div class="app-store-btns">
+                <a class="app-store-btn" href="#">
+                    <i class="fa-brands fa-apple"></i>
+                    <div><div class="sub">@Lang.T("promo_dl")</div><div class="main">App Store</div></div>
+                </a>
+                <a class="app-store-btn" href="#">
+                    <i class="fa-brands fa-google-play"></i>
+                    <div><div class="sub">@Lang.T("promo_dl")</div><div class="main">Google Play</div></div>
+                </a>
+            </div>
+        </div>
+        <div class="app-mockup">
+            <div class="app-mockup-inner">
+                <div style="font-size:9px;opacity:.6">@Lang.T("dash_bal_label")</div>
+                <div class="bal">¥125,000</div>
+                <div style="font-size:9px;opacity:.6;margin-bottom:10px">ID: SP-038712</div>
+                <div class="app-mockup-btns">
+                    <div class="app-mockup-btn">@Lang.T("dash_topup")</div>
+                    <div class="app-mockup-btn-red">@Lang.T("dash_transfer")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="sp-footer" id="contact">
+    <div class="sp-footer-grid">
+        <div class="sp-footer-brand">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+                <div class="sp-nav-logo-icon">SP</div>
+                <div style="font-weight:800;font-size:18px;color:white">Send<span style="color:var(--red)">Pay</span></div>
+            </div>
+            <p>SendPay Japan 株式会社<br>
+               関東財務局長（資移）第〇〇〇号<br>
+               〒101-0047 東京都千代田区内神田1-1-1<br>
+               SendPayビル 5F</p>
+            <div class="footer-socials" style="margin-top:16px">
+                <a class="social-btn"><i class="fa-brands fa-facebook-f"></i></a>
+                <a class="social-btn"><i class="fa-brands fa-line"></i></a>
+                <a class="social-btn"><i class="fa-brands fa-youtube"></i></a>
+                <a class="social-btn"><i class="fa-brands fa-telegram"></i></a>
+            </div>
+        </div>
+        <div class="sp-footer-col">
+            <h5>@Lang.T("footer_col1")</h5>
+            <a href="#">@Lang.T("footer_transfer")</a>
+            <a href="#">@Lang.T("footer_rates")</a>
+            <a href="#">@Lang.T("footer_history")</a>
+            <a href="#">@Lang.T("footer_receipt")</a>
+        </div>
+        <div class="sp-footer-col">
+            <h5>@Lang.T("footer_col2")</h5>
+            <a href="#">@Lang.T("footer_faq")</a>
+            <a href="#">@Lang.T("footer_guide")</a>
+            <a href="#">@Lang.T("footer_contact")</a>
+            <a href="#">support@sendpay.jp</a>
+        </div>
+        <div class="sp-footer-col">
+            <h5>@Lang.T("footer_col3")</h5>
+            <a href="#">@Lang.T("footer_about")</a>
+            <a href="#">@Lang.T("footer_terms")</a>
+            <a href="#">@Lang.T("footer_privacy")</a>
+            <a href="#">@Lang.T("footer_disclosure")</a>
+        </div>
+    </div>
+    <div class="sp-footer-bottom">
+        <div>
+            <p style="margin-bottom:4px">© 2022–@DateTime.Now.Year SendPay Japan 株式会社. All rights reserved.</p>
+            <p style="font-size:11px;color:rgba(255,255,255,.3)">@Lang.T("footer_legal")</p>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <img src="https://flagcdn.com/w20/jp.png" alt="JP" style="height:14px;opacity:.6" />
+            <img src="https://flagcdn.com/w20/vn.png" alt="VN" style="height:14px;opacity:.6" />
+            <img src="https://flagcdn.com/w20/lk.png" alt="LK" style="height:14px;opacity:.6" />
+            <img src="https://flagcdn.com/w20/np.png" alt="NP" style="height:14px;opacity:.6" />
+            <img src="https://flagcdn.com/w20/ph.png" alt="PH" style="height:14px;opacity:.6" />
+        </div>
+    </div>
+</footer>
+
+@code {
+    decimal calcAmount = 30_000;
+    string destCountry = "VN";
+    Dictionary<string, decimal> liveRates = new();
+
+    string CurrencyCode => destCountry switch {
+        "VN" => "VND", "LK" => "LKR", "NP" => "NPR", "PH" => "PHP", _ => "VND"
+    };
+    string CurrencyLabel => destCountry switch {
+        "VN" => "🇻🇳 VND", "LK" => "🇱🇰 LKR", "NP" => "🇳🇵 NPR", "PH" => "🇵🇭 PHP", _ => "🇻🇳 VND"
+    };
+
+    decimal Rate => liveRates.TryGetValue(CurrencyCode, out var r) ? r : destCountry switch {
+        "VN" => 170m, "LK" => 2.0m, "NP" => 0.88m, "PH" => 0.38m, _ => 170m
+    };
+
+    decimal ServiceFee => calcAmount <= 10_000 ? 200 : calcAmount <= 50_000 ? 400 : 800;
+    decimal ReceivedAmount => (calcAmount - ServiceFee) * Rate;
+
+    string GetLiveRate(string code, decimal fallback)
+    {
+        var val = liveRates.TryGetValue(code, out var r) ? r : fallback;
+        return val >= 10 ? val.ToString("N0") : val.ToString("N2").TrimEnd('0').TrimEnd('.');
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Lang.OnChanged += StateHasChanged;
+        var saved = await LocalStorage.GetItemAsync<string>("sp_lang");
+        if (!string.IsNullOrEmpty(saved)) Lang.Set(saved);
+
+        try
+        {
+            var resp = await Api.GetRatesAsync();
+            if (resp != null)
+                foreach (var r in resp.Rates)
+                    liveRates[r.Code] = r.Rate;
+        }
+        catch { }
+    }
+
+    void OnCountryChange(ChangeEventArgs e)
+    {
+        destCountry = e.Value?.ToString() ?? "VN";
+    }
+
+    public void Dispose() => Lang.OnChanged -= StateHasChanged;
+}

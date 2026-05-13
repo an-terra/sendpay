@@ -1,0 +1,471 @@
+@page "/admin"
+@inject ApiService Api
+@inject ILocalStorageService LocalStorage
+@inject NavigationManager Nav
+
+<div class="sp-admin-page">
+
+    <!-- Top nav -->
+    <nav class="sp-admin-nav">
+        <a class="sp-admin-logo" href="/admin">
+            <div class="sp-admin-logo-icon">SP</div>
+            <div class="sp-admin-logo-text">Send<span>Pay</span></div>
+        </a>
+        <span class="sp-admin-title">/ Quản trị</span>
+        <div class="sp-admin-nav-right">
+            <span class="sp-admin-user"><i class="fa-solid fa-user-shield"></i> @adminName</span>
+            <button class="sp-admin-logout" @onclick="Logout">
+                <i class="fa-solid fa-right-from-bracket"></i> Đăng xuất
+            </button>
+        </div>
+    </nav>
+
+    <div class="sp-admin-content">
+
+        <!-- Stats -->
+        @if (stats is not null)
+        {
+            <div class="sp-stat-grid">
+                <div class="sp-stat-card">
+                    <div class="sc-icon sc-icon-blue"><i class="fa-solid fa-users"></i></div>
+                    <div class="sc-label">Tổng người dùng</div>
+                    <div class="sc-value">@stats.TotalUsers.ToString("N0")</div>
+                </div>
+                <div class="sp-stat-card">
+                    <div class="sc-icon sc-icon-green"><i class="fa-solid fa-user-check"></i></div>
+                    <div class="sc-label">Đang hoạt động</div>
+                    <div class="sc-value">@stats.ActiveUsers.ToString("N0")</div>
+                </div>
+                <div class="sp-stat-card">
+                    <div class="sc-icon sc-icon-red"><i class="fa-solid fa-arrow-right-arrow-left"></i></div>
+                    <div class="sc-label">GD hôm nay</div>
+                    <div class="sc-value">@stats.TodayTransactions.ToString("N0")</div>
+                </div>
+                <div class="sp-stat-card">
+                    <div class="sc-icon sc-icon-gold"><i class="fa-solid fa-coins"></i></div>
+                    <div class="sc-label">Doanh số hôm nay</div>
+                    <div class="sc-value">@FormatVnd(stats.TodayVolume)</div>
+                </div>
+            </div>
+        }
+
+        <!-- Tab panel -->
+        <div class="sp-admin-panel">
+            <div class="sp-admin-tabs">
+                <button class="sp-admin-tab @(activeTab == "users" ? "active" : "")"
+                        @onclick='() => SwitchTab("users")'>
+                    <i class="fa-solid fa-users"></i> Người dùng
+                </button>
+                <button class="sp-admin-tab @(activeTab == "tx" ? "active" : "")"
+                        @onclick='() => SwitchTab("tx")'>
+                    <i class="fa-solid fa-list-ul"></i> Giao dịch
+                </button>
+            </div>
+
+            @if (activeTab == "users")
+            {
+                <!-- Users toolbar -->
+                <div class="sp-admin-toolbar">
+                    <div class="sp-search-wrap">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                        <input placeholder="Tìm tên, email, SĐT..."
+                               value="@userSearch"
+                               @oninput="OnSearchChanged" />
+                    </div>
+                </div>
+
+                <!-- Users table -->
+                <div class="sp-table-wrap">
+                    @if (usersLoading)
+                    {
+                        <div class="sp-loading-text"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải...</div>
+                    }
+                    else if (users.Count == 0)
+                    {
+                        <div class="sp-empty"><i class="fa-solid fa-inbox"></i><br/>Không có người dùng nào</div>
+                    }
+                    else
+                    {
+                        <table class="sp-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Họ tên</th>
+                                    <th>Email</th>
+                                    <th>SĐT</th>
+                                    <th>Số dư</th>
+                                    <th>Trạng thái</th>
+                                    <th>Vai trò</th>
+                                    <th>Ngày tạo</th>
+                                    <th style="min-width:150px">Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var u in users)
+                                {
+                                    <tr>
+                                        <td style="color:var(--text-muted)">@u.Id</td>
+                                        <td><strong>@u.FullName</strong></td>
+                                        <td>@u.Email</td>
+                                        <td>@u.Phone</td>
+                                        <td>@FormatVnd(u.Balance)</td>
+                                        <td>
+                                            @if (u.IsActive)
+                                            {
+                                                <span class="badge-active"><i class="fa-solid fa-circle" style="font-size:7px"></i> Hoạt động</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge-inactive"><i class="fa-solid fa-circle" style="font-size:7px"></i> Bị khóa</span>
+                                            }
+                                        </td>
+                                        <td>
+                                            @if (u.IsAdmin)
+                                            {
+                                                <span class="badge-admin"><i class="fa-solid fa-shield-halved"></i> Admin</span>
+                                            }
+                                            else
+                                            {
+                                                <span style="color:var(--text-muted);font-size:12px">Người dùng</span>
+                                            }
+                                        </td>
+                                        <td style="color:var(--text-sub);font-size:12px">@u.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy")</td>
+                                        <td>
+                                            <div style="display:flex;gap:6px;align-items:center">
+                                                <button class="sp-adm-btn sp-adm-btn-edit" @onclick="() => OpenEdit(u)" title="Chỉnh sửa">
+                                                    <i class="fa-solid fa-pen"></i>
+                                                </button>
+                                                @if (!u.IsAdmin)
+                                                {
+                                                    <button class="sp-adm-btn @(!u.IsActive ? "sp-adm-btn-unlock" : "sp-adm-btn-lock")"
+                                                            @onclick="() => ToggleUser(u.Id)"
+                                                            title="@(u.IsActive ? "Khóa" : "Mở khóa")">
+                                                        <i class="fa-solid @(u.IsActive ? "fa-lock" : "fa-lock-open")"></i>
+                                                    </button>
+                                                    <button class="sp-adm-btn sp-adm-btn-delete" @onclick="() => ConfirmDeleteUser(u)" title="Xóa">
+                                                        <i class="fa-solid fa-trash"></i>
+                                                    </button>
+                                                }
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+
+                <!-- Users pagination -->
+                <div class="sp-admin-pagination">
+                    <button class="sp-admin-page-btn" disabled="@(userPage <= 1)" @onclick="PrevUserPage">
+                        <i class="fa-solid fa-chevron-left"></i> Trước
+                    </button>
+                    <span class="sp-page-label">Trang @(userPage)</span>
+                    <button class="sp-admin-page-btn" disabled="@(users.Count < 15)" @onclick="NextUserPage">
+                        Sau <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+            }
+
+            @if (activeTab == "tx")
+            {
+                <!-- Transactions table -->
+                <div class="sp-table-wrap">
+                    @if (txLoading)
+                    {
+                        <div class="sp-loading-text"><i class="fa-solid fa-spinner fa-spin"></i> Đang tải...</div>
+                    }
+                    else if (transactions.Count == 0)
+                    {
+                        <div class="sp-empty"><i class="fa-solid fa-inbox"></i><br/>Chưa có giao dịch nào</div>
+                    }
+                    else
+                    {
+                        <table class="sp-table">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Người gửi</th>
+                                    <th>Người nhận</th>
+                                    <th>Số tiền</th>
+                                    <th>Ghi chú</th>
+                                    <th>Loại</th>
+                                    <th>Trạng thái</th>
+                                    <th>Thời gian</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var t in transactions)
+                                {
+                                    <tr>
+                                        <td style="color:var(--text-muted)">@t.Id</td>
+                                        <td><strong>@t.SenderName</strong></td>
+                                        <td>@t.ReceiverName</td>
+                                        <td style="font-weight:700;color:var(--navy)">@FormatVnd(t.Amount)</td>
+                                        <td style="color:var(--text-sub);font-size:12px">@(string.IsNullOrEmpty(t.Note) ? "—" : t.Note)</td>
+                                        <td><span class="badge-type">@t.Type</span></td>
+                                        <td><span class="badge-status">@t.Status</span></td>
+                                        <td style="color:var(--text-sub);font-size:12px">@t.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                </div>
+
+                <!-- Transactions pagination -->
+                <div class="sp-admin-pagination">
+                    <button class="sp-admin-page-btn" disabled="@(txPage <= 1)" @onclick="PrevTxPage">
+                        <i class="fa-solid fa-chevron-left"></i> Trước
+                    </button>
+                    <span class="sp-page-label">Trang @(txPage)</span>
+                    <button class="sp-admin-page-btn" disabled="@(transactions.Count < 15)" @onclick="NextTxPage">
+                        Sau <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                </div>
+            }
+        </div>
+
+    </div>
+</div>
+
+<!-- ── Edit User Modal ─────────────────────────────────── -->
+@if (editUser != null)
+{
+    <div class="sp-modal-backdrop" @onclick="CloseEdit">
+        <div class="sp-modal-box" @onclick:stopPropagation>
+            <div class="sp-modal-header">
+                <div>
+                    <i class="fa-solid fa-user-pen" style="color:var(--red);margin-right:8px"></i>
+                    Chỉnh sửa người dùng #@editUser.Id
+                </div>
+                <button class="sp-modal-close" @onclick="CloseEdit">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            @if (!string.IsNullOrEmpty(editError))
+            {
+                <div class="sp-alert sp-alert-error" style="margin-bottom:12px">@editError</div>
+            }
+
+            <div class="sp-form-group">
+                <label>Họ tên</label>
+                <input class="sp-form-input sp-form-input-lg" @bind="editFullName" />
+            </div>
+            <div class="sp-form-group">
+                <label>Email</label>
+                <input class="sp-form-input sp-form-input-lg" type="email" @bind="editEmail" />
+            </div>
+            <div class="sp-form-group">
+                <label>Số điện thoại</label>
+                <input class="sp-form-input sp-form-input-lg" @bind="editPhone" />
+            </div>
+            <div class="sp-form-group">
+                <label>Số dư (JPY)</label>
+                <input class="sp-form-input sp-form-input-lg" type="number" min="0" @bind="editBalance" />
+            </div>
+
+            <div style="display:flex;gap:10px;margin-top:4px">
+                <button class="btn-red" style="flex:1;justify-content:center;padding:12px"
+                        @onclick="SaveEdit" disabled="@editSaving">
+                    @if (editSaving) { <i class="fa-solid fa-spinner fa-spin" style="margin-right:6px"></i> }
+                    <i class="fa-solid fa-floppy-disk" style="margin-right:6px"></i> Lưu thay đổi
+                </button>
+                <button class="btn-outline" style="padding:12px 20px" @onclick="CloseEdit">Hủy</button>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ── Delete Confirm Modal ───────────────────────────── -->
+@if (deleteUser != null)
+{
+    <div class="sp-modal-backdrop" @onclick="CloseDelete">
+        <div class="sp-modal-box sp-modal-box-sm" @onclick:stopPropagation>
+            <div class="sp-modal-header">
+                <div>
+                    <i class="fa-solid fa-triangle-exclamation" style="color:#e67700;margin-right:8px"></i>
+                    Xác nhận xóa
+                </div>
+                <button class="sp-modal-close" @onclick="CloseDelete">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <p style="color:var(--text-sub);font-size:14px;margin-bottom:16px">
+                Bạn có chắc muốn xóa người dùng <strong>@deleteUser.FullName</strong>?<br/>
+                Thao tác này không thể hoàn tác.
+            </p>
+            @if (!string.IsNullOrEmpty(deleteError))
+            {
+                <div class="sp-alert sp-alert-error" style="margin-bottom:12px">@deleteError</div>
+            }
+            <div style="display:flex;gap:10px">
+                <button class="btn-red" style="flex:1;justify-content:center;padding:12px;background:#c92a2a"
+                        @onclick="DoDeleteUser" disabled="@deleteSaving">
+                    @if (deleteSaving) { <i class="fa-solid fa-spinner fa-spin" style="margin-right:6px"></i> }
+                    <i class="fa-solid fa-trash" style="margin-right:6px"></i> Xóa
+                </button>
+                <button class="btn-outline" style="padding:12px 20px" @onclick="CloseDelete">Hủy</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    string activeTab = "users";
+    string adminName = "";
+
+    AdminStatsResponse? stats;
+
+    List<AdminUserResponse> users = [];
+    bool usersLoading;
+    int userPage = 1;
+    string userSearch = "";
+    System.Timers.Timer? searchDebounce;
+
+    List<AdminTransactionResponse> transactions = [];
+    bool txLoading;
+    int txPage = 1;
+
+    // Edit modal
+    AdminUserResponse? editUser;
+    string editFullName = "", editEmail = "", editPhone = "";
+    decimal editBalance;
+    string editError = "";
+    bool editSaving;
+
+    // Delete modal
+    AdminUserResponse? deleteUser;
+    string deleteError = "";
+    bool deleteSaving;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var isAdmin = await LocalStorage.GetItemAsync<bool>("isAdmin");
+        if (!isAdmin) { Nav.NavigateTo("/login"); return; }
+
+        adminName = await LocalStorage.GetItemAsync<string>("fullName") ?? "Admin";
+        stats = await Api.GetAdminStatsAsync();
+        await LoadUsers();
+    }
+
+    async Task SwitchTab(string tab)
+    {
+        activeTab = tab;
+        if (tab == "tx" && transactions.Count == 0)
+            await LoadTransactions();
+    }
+
+    async Task LoadUsers()
+    {
+        usersLoading = true;
+        users = await Api.GetAdminUsersAsync(userPage, userSearch);
+        usersLoading = false;
+    }
+
+    async Task LoadTransactions()
+    {
+        txLoading = true;
+        transactions = await Api.GetAdminTransactionsAsync(txPage);
+        txLoading = false;
+    }
+
+    void OnSearchChanged(ChangeEventArgs e)
+    {
+        userSearch = e.Value?.ToString() ?? "";
+        searchDebounce?.Stop();
+        searchDebounce?.Dispose();
+        searchDebounce = new System.Timers.Timer(400);
+        searchDebounce.Elapsed += async (_, _) =>
+        {
+            searchDebounce?.Stop();
+            userPage = 1;
+            await InvokeAsync(async () => { await LoadUsers(); StateHasChanged(); });
+        };
+        searchDebounce.Start();
+    }
+
+    async Task ToggleUser(int id)
+    {
+        var (ok, updated, _) = await Api.ToggleUserAsync(id);
+        if (ok && updated is not null)
+        {
+            var idx = users.FindIndex(u => u.Id == id);
+            if (idx >= 0) users[idx] = updated;
+        }
+        stats = await Api.GetAdminStatsAsync();
+    }
+
+    // ── Edit ────────────────────────────────────────────────
+    void OpenEdit(AdminUserResponse u)
+    {
+        editUser     = u;
+        editFullName = u.FullName;
+        editEmail    = u.Email;
+        editPhone    = u.Phone;
+        editBalance  = u.Balance;
+        editError    = "";
+    }
+
+    void CloseEdit() { editUser = null; editError = ""; }
+
+    async Task SaveEdit()
+    {
+        if (string.IsNullOrWhiteSpace(editFullName) || string.IsNullOrWhiteSpace(editEmail))
+        {
+            editError = "Họ tên và email không được để trống.";
+            return;
+        }
+        editSaving = true;
+        var (ok, updated, err) = await Api.AdminUpdateUserAsync(
+            editUser!.Id, editFullName, editEmail, editPhone, editBalance);
+        editSaving = false;
+
+        if (ok && updated is not null)
+        {
+            var idx = users.FindIndex(u => u.Id == updated.Id);
+            if (idx >= 0) users[idx] = updated;
+            CloseEdit();
+        }
+        else editError = err;
+    }
+
+    // ── Delete ──────────────────────────────────────────────
+    void ConfirmDeleteUser(AdminUserResponse u) { deleteUser = u; deleteError = ""; }
+    void CloseDelete() { deleteUser = null; deleteError = ""; }
+
+    async Task DoDeleteUser()
+    {
+        deleteSaving = true;
+        var (ok, err) = await Api.AdminDeleteUserAsync(deleteUser!.Id);
+        deleteSaving = false;
+
+        if (ok)
+        {
+            users.RemoveAll(u => u.Id == deleteUser!.Id);
+            stats = await Api.GetAdminStatsAsync();
+            CloseDelete();
+        }
+        else deleteError = err;
+    }
+
+    async Task PrevUserPage() { if (userPage > 1) { userPage--; await LoadUsers(); } }
+    async Task NextUserPage() { userPage++; await LoadUsers(); }
+
+    async Task PrevTxPage() { if (txPage > 1) { txPage--; await LoadTransactions(); } }
+    async Task NextTxPage() { txPage++; await LoadTransactions(); }
+
+    async Task Logout()
+    {
+        await LocalStorage.RemoveItemAsync("token");
+        await LocalStorage.RemoveItemAsync("fullName");
+        await LocalStorage.RemoveItemAsync("isAdmin");
+        Nav.NavigateTo("/login");
+    }
+
+    static string FormatVnd(decimal amount) =>
+        amount >= 1_000_000
+            ? $"{amount / 1_000_000:0.##}M ₫"
+            : $"{amount:N0} ₫";
+}

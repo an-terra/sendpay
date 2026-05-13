@@ -1,0 +1,233 @@
+@page "/settings"
+@using Microsoft.AspNetCore.Components.Forms
+@inject ApiService Api
+@inject ILocalStorageService LocalStorage
+@inject NavigationManager Nav
+@inject LanguageService Lang
+@implements IDisposable
+
+<div class="sp-dash-page">
+    <DashNav Active="settings" />
+
+    <div class="sp-dash-content">
+        <div class="sp-page-header">
+            <a href="/dashboard" class="sp-back-circle"><i class="fa-solid fa-arrow-left"></i></a>
+            <div class="sp-page-icon qi-gray"><i class="fa-solid fa-gear"></i></div>
+            <div>
+                <div class="sp-page-title">@Lang.T("settings_title")</div>
+                <div class="sp-page-sub">@Lang.T("settings_sub")</div>
+            </div>
+        </div>
+
+        <div class="sp-settings-grid">
+            <!-- Profile form -->
+            <div class="sp-side-card">
+                <div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:1.2rem">
+                    <i class="fa-solid fa-user-pen" style="color:var(--red);margin-right:6px"></i>
+                    @Lang.T("settings_profile")
+                </div>
+
+                @if (!string.IsNullOrEmpty(profileError))
+                {
+                    <div class="sp-alert sp-alert-error">@profileError</div>
+                }
+                @if (!string.IsNullOrEmpty(profileSuccess))
+                {
+                    <div class="sp-alert sp-alert-success">@profileSuccess</div>
+                }
+
+                <!-- Avatar -->
+                <div style="display:flex;flex-direction:column;align-items:center;margin-bottom:1.5rem;gap:8px">
+                    <div class="sp-avatar-wrap">
+                        @if (!string.IsNullOrEmpty(avatarData))
+                        {
+                            <img src="@avatarData" class="sp-avatar-img" alt="avatar" />
+                        }
+                        else
+                        {
+                            <div class="sp-avatar-initials">@GetInitials(fullName)</div>
+                        }
+                        <label class="sp-avatar-cam" title="@Lang.T("settings_avatar_hint")">
+                            <i class="fa-solid fa-camera"></i>
+                            <InputFile OnChange="OnAvatarChanged" accept="image/*" style="display:none" />
+                        </label>
+                    </div>
+                    <div style="font-size:11px;color:var(--text-muted)">
+                        @Lang.T("settings_avatar") · @Lang.T("settings_avatar_hint")
+                    </div>
+                </div>
+
+                <div class="sp-form-group">
+                    <label>@Lang.T("settings_fullname")</label>
+                    <input class="sp-form-input sp-form-input-lg" @bind="fullName" />
+                </div>
+                <div class="sp-form-group">
+                    <label>@Lang.T("settings_email")</label>
+                    <input class="sp-form-input sp-form-input-lg" type="email" @bind="email" />
+                </div>
+                <div class="sp-form-group">
+                    <label>@Lang.T("settings_phone")</label>
+                    <input class="sp-form-input sp-form-input-lg" @bind="phone" />
+                </div>
+                <div class="sp-form-group" style="border-top:1px solid var(--gray-border);padding-top:1rem;margin-top:.5rem">
+                    <label style="color:var(--text-muted);font-size:12px">@Lang.T("settings_balance")</label>
+                    <div style="font-size:22px;font-weight:800;color:var(--navy)">¥@balance.ToString("N0")</div>
+                </div>
+                <button class="btn-red" style="width:100%;justify-content:center;padding:14px;margin-top:.5rem"
+                        @onclick="SaveProfile" disabled="@savingProfile">
+                    @if (savingProfile) { <i class="fa-solid fa-spinner fa-spin" style="margin-right:6px"></i> }
+                    @Lang.T("settings_save")
+                </button>
+            </div>
+
+            <!-- Password form -->
+            <div>
+                <div class="sp-side-card">
+                    <div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:1.2rem">
+                        <i class="fa-solid fa-lock" style="color:#e67700;margin-right:6px"></i>
+                        @Lang.T("settings_password")
+                    </div>
+
+                    @if (!string.IsNullOrEmpty(pwdError))
+                    {
+                        <div class="sp-alert sp-alert-error">@pwdError</div>
+                    }
+                    @if (!string.IsNullOrEmpty(pwdSuccess))
+                    {
+                        <div class="sp-alert sp-alert-success">@pwdSuccess</div>
+                    }
+
+                    <div class="sp-form-group">
+                        <label>@Lang.T("settings_cur_pwd")</label>
+                        <input class="sp-form-input sp-form-input-lg" type="password" @bind="currentPwd" />
+                    </div>
+                    <div class="sp-form-group">
+                        <label>@Lang.T("settings_new_pwd")</label>
+                        <input class="sp-form-input sp-form-input-lg" type="password" @bind="newPwd" />
+                    </div>
+                    <div class="sp-form-group">
+                        <label>@Lang.T("settings_confirm_pwd")</label>
+                        <input class="sp-form-input sp-form-input-lg" type="password" @bind="confirmPwd" />
+                    </div>
+                    <button class="btn-red" style="width:100%;justify-content:center;padding:14px;background:#e67700;border:none;margin-top:.5rem"
+                            @onclick="ChangePassword" disabled="@savingPwd">
+                        @if (savingPwd) { <i class="fa-solid fa-spinner fa-spin" style="margin-right:6px"></i> }
+                        @Lang.T("settings_change_pwd")
+                    </button>
+                </div>
+
+                <!-- Language card -->
+                <div class="sp-side-card" style="margin-top:1rem">
+                    <div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:1rem">
+                        <i class="fa-solid fa-globe" style="color:#3B5BDB;margin-right:6px"></i>
+                        @Lang.T("settings_lang")
+                    </div>
+                    <LangSelector Dark="false" />
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    string fullName = "", email = "", phone = "";
+    decimal balance = 0;
+    string currentPwd = "", newPwd = "", confirmPwd = "";
+    string profileError = "", profileSuccess = "";
+    string pwdError = "", pwdSuccess = "";
+    bool savingProfile = false, savingPwd = false;
+    string avatarData = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        Lang.OnChanged += StateHasChanged;
+        var token = await LocalStorage.GetItemAsync<string>("token");
+        if (string.IsNullOrEmpty(token)) { Nav.NavigateTo("/login"); return; }
+        var saved = await LocalStorage.GetItemAsync<string>("sp_lang");
+        if (!string.IsNullOrEmpty(saved)) Lang.Set(saved);
+        avatarData = await LocalStorage.GetItemAsync<string>("sp_avatar") ?? "";
+        await LoadProfile();
+    }
+
+    async Task LoadProfile()
+    {
+        var p = await Api.GetProfileAsync();
+        if (p != null)
+        {
+            fullName = p.FullName;
+            email    = p.Email;
+            phone    = p.Phone;
+            balance  = p.Balance;
+        }
+    }
+
+    async Task OnAvatarChanged(InputFileChangeEventArgs e)
+    {
+        profileError = ""; profileSuccess = "";
+        var file = e.File;
+        if (file.Size > 2 * 1024 * 1024)
+        {
+            profileError = Lang.T("settings_avatar_large");
+            return;
+        }
+        using var stream = file.OpenReadStream(maxAllowedSize: 2 * 1024 * 1024);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        var base64 = Convert.ToBase64String(ms.ToArray());
+        avatarData = $"data:{file.ContentType};base64,{base64}";
+        await LocalStorage.SetItemAsync("sp_avatar", avatarData);
+        profileSuccess = Lang.T("settings_avatar_saved");
+    }
+
+    async Task SaveProfile()
+    {
+        profileError = ""; profileSuccess = "";
+        if (string.IsNullOrWhiteSpace(fullName) || string.IsNullOrWhiteSpace(email))
+        {
+            profileError = Lang.T("settings_err_required");
+            return;
+        }
+        savingProfile = true;
+        var (ok, err) = await Api.UpdateProfileAsync(fullName.Trim(), email.Trim(), phone.Trim());
+        savingProfile = false;
+        if (ok)
+        {
+            profileSuccess = Lang.T("settings_saved");
+            await LocalStorage.SetItemAsync("fullName", fullName.Trim());
+        }
+        else profileError = err;
+    }
+
+    async Task ChangePassword()
+    {
+        pwdError = ""; pwdSuccess = "";
+        if (string.IsNullOrWhiteSpace(currentPwd) || string.IsNullOrWhiteSpace(newPwd))
+        {
+            pwdError = Lang.T("settings_err_required");
+            return;
+        }
+        if (newPwd != confirmPwd)
+        {
+            pwdError = Lang.T("settings_pwd_mismatch");
+            return;
+        }
+        savingPwd = true;
+        var (ok, err) = await Api.ChangePasswordAsync(currentPwd, newPwd);
+        savingPwd = false;
+        if (ok)
+        {
+            pwdSuccess = Lang.T("settings_pwd_changed");
+            currentPwd = newPwd = confirmPwd = "";
+        }
+        else pwdError = err;
+    }
+
+    static string GetInitials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var p = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return p.Length >= 2 ? $"{p[0][0]}{p[^1][0]}".ToUpper() : name[..Math.Min(2, name.Length)].ToUpper();
+    }
+
+    public void Dispose() => Lang.OnChanged -= StateHasChanged;
+}

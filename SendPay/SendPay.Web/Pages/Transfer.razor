@@ -1,0 +1,252 @@
+@page "/transfer"
+@inject ApiService Api
+@inject ILocalStorageService LocalStorage
+@inject NavigationManager Nav
+@inject LanguageService Lang
+@implements IDisposable
+
+<div class="sp-dash-page">
+    <DashNav Active="transfer" />
+    <div class="sp-dash-content">
+
+    @if (step == "form")
+    {
+        <div class="sp-page-header">
+            <a href="/dashboard" class="sp-back-circle"><i class="fa-solid fa-arrow-left"></i></a>
+            <div><h1 class="sp-page-title">@Lang.T("tr_title")</h1></div>
+        </div>
+
+        <div class="sp-transfer-grid">
+
+            <!-- LEFT: amount + form fields -->
+            <div>
+                <div class="sp-amount-display" style="margin-bottom:1.5rem">
+                    <div class="sp-amount-label">@Lang.T("tr_amount_lbl")</div>
+                    <input class="sp-amount-input" type="number" @bind="amount" @bind:event="oninput"
+                           placeholder="0" min="1000" />
+                    <div class="sp-cur-pill">🇯🇵 JPY</div>
+                </div>
+
+                @if (!string.IsNullOrEmpty(error))
+                {
+                    <div class="sp-alert-error" style="margin-bottom:14px">
+                        <i class="fa-solid fa-circle-exclamation"></i> @error
+                    </div>
+                }
+
+                <div class="sp-side-card">
+                    <div class="sp-form-field">
+                        <label>@Lang.T("tr_phone_lbl")</label>
+                        <input class="sp-form-input sp-form-input-lg" @bind="phone"
+                               placeholder="@Lang.T("tr_phone_ph")" />
+                    </div>
+                    <div class="sp-form-field">
+                        <label>@Lang.T("tr_note_lbl")</label>
+                        <input class="sp-form-input" @bind="note" placeholder="@Lang.T("tr_note_ph")" />
+                    </div>
+                    <div class="sp-form-field" style="margin-bottom:0">
+                        <label>@Lang.T("tr_purpose_lbl")</label>
+                        <select class="sp-form-select" @bind="purpose">
+                            <option>家族への仕送り / Hỗ trợ gia đình</option>
+                            <option>個人間の返済 / Trả nợ cá nhân</option>
+                            <option>サービス代金 / Thanh toán dịch vụ</option>
+                            <option>贈り物 / Quà tặng</option>
+                            <option>その他 / Khác</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT: fee summary + CTA -->
+            <div class="sp-side-card">
+                @if (balance > 0)
+                {
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;background:var(--navy);border-radius:10px;padding:12px 16px">
+                        <span style="color:rgba(255,255,255,.7);font-size:12px"><i class="fa-solid fa-wallet" style="margin-right:6px"></i>@Lang.T("dash_bal_label")</span>
+                        <strong style="color:white;font-size:16px">¥@balance.ToString("N0")</strong>
+                    </div>
+                }
+                @if (vndRate > 0)
+                {
+                    <div style="background:var(--gray-bg);border-radius:10px;padding:10px 14px;margin-bottom:16px;font-size:13px;display:flex;align-items:center;justify-content:space-between">
+                        <span style="color:var(--text-sub)">🇻🇳 @Lang.T("rates_base") JPY</span>
+                        <strong style="color:var(--navy)">1 JPY = @vndRate.ToString("N0") VND</strong>
+                        @if (amount > 0)
+                        {
+                            <span style="color:var(--green);font-weight:600">≈ @((amount * vndRate).ToString("N0")) ₫</span>
+                        }
+                    </div>
+                }
+                <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:16px;display:flex;align-items:center;gap:8px">
+                    <i class="fa-solid fa-receipt" style="color:var(--red)"></i>
+                    @Lang.T("tr_confirm_title")
+                </div>
+
+                <div class="sp-detail-row">
+                    <span class="dlabel">@Lang.T("tr_send_amt")</span>
+                    <span class="dval">@(amount > 0 ? $"¥{amount:N0}" : "---")</span>
+                </div>
+                <div class="sp-detail-row">
+                    <span class="dlabel">@Lang.T("tr_fee_lbl")</span>
+                    <span class="dval" style="color:var(--green)">@(amount > 0 ? $"¥{Fee:N0}" : "---")</span>
+                </div>
+                <div class="sp-detail-row" style="border-bottom:none;margin-top:8px;padding-top:14px;border-top:2px solid var(--gray-border)">
+                    <span class="dlabel" style="font-weight:700;color:var(--navy)">@Lang.T("tr_total")</span>
+                    <span class="dval" style="color:var(--red);font-size:20px;font-weight:800">
+                        @(amount > 0 ? $"¥{(amount + Fee):N0}" : "---")
+                    </span>
+                </div>
+
+                <button class="sp-cta-full" style="margin-top:20px" @onclick="GoToConfirm">
+                    @Lang.T("tr_continue") <i class="fa-solid fa-arrow-right"></i>
+                </button>
+                <div style="text-align:center;margin-top:10px;font-size:11px;color:var(--text-muted)">
+                    <i class="fa-solid fa-lock"></i> @Lang.T("tr_security")
+                </div>
+            </div>
+
+        </div>
+    }
+
+    @if (step == "confirm")
+    {
+        <div class="sp-page-header">
+            <button class="sp-back-circle" @onclick='() => step = "form"'>
+                <i class="fa-solid fa-arrow-left"></i>
+            </button>
+            <div><h1 class="sp-page-title">@Lang.T("tr_confirm_title")</h1></div>
+        </div>
+
+        <div class="sp-transfer-grid">
+
+            <!-- LEFT: detail rows -->
+            <div class="sp-detail-card">
+                <div class="sp-detail-row"><span class="dlabel">@Lang.T("tr_receiver")</span><span class="dval">@phone</span></div>
+                <div class="sp-detail-row"><span class="dlabel">@Lang.T("tr_send_amt")</span><span class="dval">¥@amount.ToString("N0")</span></div>
+                <div class="sp-detail-row"><span class="dlabel">@Lang.T("tr_fee")</span><span class="dval" style="color:var(--green)">¥@Fee.ToString("N0")</span></div>
+                <div class="sp-detail-row"><span class="dlabel">@Lang.T("tr_total")</span><span class="dval" style="color:var(--red);font-size:15px">¥@((amount + Fee).ToString("N0"))</span></div>
+                <div class="sp-detail-row"><span class="dlabel">@Lang.T("tr_note")</span><span class="dval">@(string.IsNullOrEmpty(note) ? "—" : note)</span></div>
+                <div class="sp-detail-row"><span class="dlabel">@Lang.T("tr_type")</span><span class="dval"><span class="badge-fast">⚡ @Lang.T("instant_badge")</span></span></div>
+                <div class="sp-detail-row" style="border-bottom:none"><span class="dlabel">@Lang.T("tr_purpose")</span><span class="dval">@purpose</span></div>
+            </div>
+
+            <!-- RIGHT: confirm card -->
+            <div class="sp-side-card">
+                <div class="sp-confirm-box" style="border-radius:14px;margin-bottom:16px">
+                    <div class="clabel">@Lang.T("tr_send_amt")</div>
+                    <div class="camount">¥@amount.ToString("N0")</div>
+                    <div class="csub">@Lang.T("tr_fee"): ¥@Fee.ToString("N0")</div>
+                </div>
+
+                @if (!string.IsNullOrEmpty(error))
+                {
+                    <div class="sp-alert-error" style="margin-bottom:12px">
+                        <i class="fa-solid fa-circle-exclamation"></i> @error
+                    </div>
+                }
+
+                <button class="sp-cta-full" @onclick="HandleTransfer" disabled="@loading">
+                    @if (loading)
+                    {
+                        <i class="fa-solid fa-spinner fa-spin"></i>
+                        <span> @Lang.T("tr_processing")</span>
+                    }
+                    else
+                    {
+                        <i class="fa-solid fa-lock"></i>
+                        <span> @Lang.T("tr_confirm_btn")</span>
+                    }
+                </button>
+                <div style="text-align:center;margin-top:12px;font-size:11px;color:var(--text-muted)">
+                    <i class="fa-solid fa-lock"></i> @Lang.T("tr_security")
+                </div>
+            </div>
+
+        </div>
+    }
+
+    @if (step == "success")
+    {
+        <div style="max-width:520px;margin:3rem auto;text-align:center;padding:0 1rem">
+            <div class="sp-success-anim"><i class="fa-solid fa-check"></i></div>
+            <h2 style="font-size:26px;font-weight:800;color:var(--navy);margin-bottom:8px">@Lang.T("tr_success_title")</h2>
+            <p style="font-size:15px;color:var(--text-sub);margin-bottom:24px">@Lang.T("tr_success_sub")</p>
+            <div class="sp-txid-badge">@Lang.T("tr_txid_label"): SP-@DateTime.Now.ToString("yyyyMMdd")-@(successData?.Id.ToString() ?? "000")</div>
+
+            <div class="sp-detail-card" style="text-align:left;margin-bottom:20px">
+                <div class="sp-detail-row"><span class="dlabel">@Lang.T("tr_receiver")</span><span class="dval">@(successData?.ReceiverName ?? phone)</span></div>
+                <div class="sp-detail-row"><span class="dlabel">@Lang.T("tr_send_amt")</span><span class="dval">¥@(successData?.Amount.ToString("N0") ?? amount.ToString("N0"))</span></div>
+                <div class="sp-detail-row"><span class="dlabel">@Lang.T("tr_time")</span><span class="dval">@DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss")</span></div>
+                <div class="sp-detail-row" style="border-bottom:none"><span class="dlabel">@Lang.T("tr_status")</span><span class="dval"><span class="badge-fast">@Lang.T("tr_success_status")</span></span></div>
+            </div>
+
+            <div class="sp-success-actions">
+                <a href="/dashboard" class="sp-btn-gray"><i class="fa-solid fa-house"></i> @Lang.T("tr_home")</a>
+                <button class="sp-btn-gray" style="flex:1"><i class="fa-solid fa-download"></i> @Lang.T("tr_receipt")</button>
+            </div>
+            <button class="sp-btn-navy" @onclick="Reset" style="width:100%;margin-top:10px">
+                <i class="fa-solid fa-plus"></i> @Lang.T("tr_new")
+            </button>
+        </div>
+    }
+
+    </div>
+</div>
+
+@code {
+    string step = "form";
+    string phone = "", note = "", error = "", purpose = "家族への仕送り / Hỗ trợ gia đình";
+    decimal amount;
+    decimal vndRate;
+    decimal balance;
+    bool loading;
+    TransactionResponse? successData;
+
+    decimal Fee => amount <= 10_000 ? 200 : amount <= 50_000 ? 400 : 800;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Lang.OnChanged += StateHasChanged;
+        var token = await LocalStorage.GetItemAsync<string>("token");
+        if (string.IsNullOrEmpty(token)) Nav.NavigateTo("/login");
+        var saved = await LocalStorage.GetItemAsync<string>("sp_lang");
+        if (!string.IsNullOrEmpty(saved)) Lang.Set(saved);
+
+        try
+        {
+            var walletTask = Api.GetWalletAsync();
+            var ratesTask  = Api.GetRatesAsync();
+            try { await Task.WhenAll(walletTask, ratesTask); } catch { }
+            balance = walletTask.IsCompletedSuccessfully ? walletTask.Result?.Balance ?? 0 : 0;
+            vndRate = ratesTask.IsCompletedSuccessfully
+                ? ratesTask.Result?.Rates.FirstOrDefault(r => r.Code == "VND")?.Rate ?? 0 : 0;
+        }
+        catch { }
+    }
+
+    void GoToConfirm()
+    {
+        error = "";
+        if (string.IsNullOrWhiteSpace(phone)) { error = Lang.T("tr_phone_lbl") + " ?"; return; }
+        if (amount < 1_000) { error = "Min ¥1,000"; return; }
+        step = "confirm";
+    }
+
+    async Task HandleTransfer()
+    {
+        error = "";
+        loading = true;
+        var (ok, data, err) = await Api.TransferAsync(phone, amount, note);
+        loading = false;
+        if (ok) { successData = data; step = "success"; }
+        else { error = err; }
+    }
+
+    void Reset()
+    {
+        step = "form"; phone = note = error = ""; amount = 0; successData = null;
+        purpose = "家族への仕送り / Hỗ trợ gia đình";
+    }
+
+    public void Dispose() => Lang.OnChanged -= StateHasChanged;
+}

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SendPay.Mobile.Pages.LoginPage"
+             BackgroundColor="#f5f5f7" Shell.NavBarIsVisible="False">
+    <ScrollView>
+        <VerticalStackLayout Padding="32" Spacing="0" VerticalOptions="Center">
+
+            <Label Text="💸" FontSize="56" HorizontalOptions="Center" Margin="0,0,0,4"/>
+            <Label Text="SendPay" FontSize="28" FontAttributes="Bold"
+                   HorizontalOptions="Center" TextColor="#6c47ff" Margin="0,0,0,32"/>
+
+            <Label x:Name="ErrorLabel" TextColor="#dc2626" IsVisible="False"
+                   HorizontalOptions="Center" Margin="0,0,0,12"/>
+
+            <Frame BackgroundColor="White" CornerRadius="16" Padding="0" HasShadow="True" Margin="0,0,0,16">
+                <VerticalStackLayout Padding="20" Spacing="14">
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Email" FontSize="13" TextColor="#8b8b9b" FontAttributes="Bold"/>
+                        <Entry x:Name="EmailEntry" Placeholder="email@example.com" Keyboard="Email"/>
+                    </VerticalStackLayout>
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Mật khẩu" FontSize="13" TextColor="#8b8b9b" FontAttributes="Bold"/>
+                        <Entry x:Name="PasswordEntry" IsPassword="True" Placeholder="••••••"/>
+                    </VerticalStackLayout>
+                </VerticalStackLayout>
+            </Frame>
+
+            <Button x:Name="LoginBtn" Text="Đăng nhập" Clicked="OnLoginClicked"
+                    BackgroundColor="#6c47ff" TextColor="White" CornerRadius="12"
+                    HeightRequest="52" FontAttributes="Bold" FontSize="16"/>
+
+            <HorizontalStackLayout HorizontalOptions="Center" Margin="0,16,0,0">
+                <Label Text="Chưa có tài khoản? " TextColor="#8b8b9b"/>
+                <Label Text="Đăng ký" TextColor="#6c47ff" FontAttributes="Bold">
+                    <Label.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnRegisterTapped"/>
+                    </Label.GestureRecognizers>
+                </Label>
+            </HorizontalStackLayout>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

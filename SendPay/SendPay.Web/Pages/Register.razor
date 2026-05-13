@@ -1,0 +1,273 @@
+@page "/register"
+@inject ApiService Api
+@inject ILocalStorageService LocalStorage
+@inject NavigationManager Nav
+@inject LanguageService Lang
+@implements IDisposable
+
+<div class="sp-auth-page sp-register-page">
+    <div class="sp-auth-card sp-register-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:28px">
+            <div class="sp-auth-logo" style="margin-bottom:0">
+                <div class="sp-auth-logo-icon">SP</div>
+                <div class="sp-auth-logo-text">Send<span>Pay</span></div>
+            </div>
+            <LangSelector />
+        </div>
+        <h2>@Lang.T("reg_title")</h2>
+        <p class="sp-auth-subtitle">@Lang.T("reg_subtitle")</p>
+
+        @if (!string.IsNullOrEmpty(error))
+        {
+            <div class="sp-alert-error"><i class="fa-solid fa-circle-exclamation"></i> @error</div>
+        }
+
+        <!-- SECTION 1: 基本情報 -->
+        <div class="sp-reg-section">
+            <div class="sp-reg-section-title"><i class="fa-solid fa-user"></i> @Lang.T("reg_sec1")</div>
+            <div class="sp-reg-row">
+                <div class="sp-field">
+                    <label>@Lang.T("reg_name") <span class="required">*</span></label>
+                    <input @bind="fullName" placeholder="@Lang.T("reg_name_ph")" />
+                </div>
+                <div class="sp-field">
+                    <label>@Lang.T("reg_dob") <span class="required">*</span></label>
+                    <input type="date" @bind="dateOfBirth" />
+                </div>
+            </div>
+            <div class="sp-reg-row">
+                <div class="sp-field">
+                    <label>@Lang.T("reg_nationality") <span class="required">*</span></label>
+                    <select @bind="nationality">
+                        <option value="">@Lang.T("select_ph")</option>
+                        <option value="VN">🇻🇳 ベトナム / Việt Nam</option>
+                        <option value="LK">🇱🇰 スリランカ / Sri Lanka</option>
+                        <option value="NP">🇳🇵 ネパール / Nepal</option>
+                        <option value="PH">🇵🇭 フィリピン / Philippines</option>
+                        <option value="Other">その他 / Khác</option>
+                    </select>
+                </div>
+                <div class="sp-field">
+                    <label>@Lang.T("reg_visa") <span class="required">*</span></label>
+                    <select @bind="visaStatus">
+                        <option value="">@Lang.T("select_ph")</option>
+                        <option value="永住者">永住者 / Thường trú</option>
+                        <option value="特定技能">特定技能 / Kỹ năng đặc định</option>
+                        <option value="技能実習">技能実習 / Thực tập kỹ năng</option>
+                        <option value="留学">留学 / Du học</option>
+                        <option value="家族滞在">家族滞在 / Lưu trú gia đình</option>
+                        <option value="技術・人文知識・国際業務">技術・人文・国際業務</option>
+                        <option value="その他">その他 / Khác</option>
+                    </select>
+                </div>
+            </div>
+            <div class="sp-reg-row">
+                <div class="sp-field">
+                    <label>@Lang.T("reg_email") <span class="required">*</span></label>
+                    <input type="email" @bind="email" placeholder="example@email.com" />
+                </div>
+                <div class="sp-field">
+                    <label>@Lang.T("reg_phone") <span class="required">*</span></label>
+                    <input @bind="phone" placeholder="@Lang.T("reg_phone_ph")" />
+                </div>
+            </div>
+            <div class="sp-reg-row">
+                <div class="sp-field">
+                    <label>@Lang.T("reg_password") <span class="required">*</span></label>
+                    <input type="password" @bind="password" placeholder="@Lang.T("reg_password_ph")" />
+                </div>
+                <div class="sp-field">
+                    <label>@Lang.T("reg_confirm") <span class="required">*</span></label>
+                    <input type="password" @bind="passwordConfirm" placeholder="@Lang.T("reg_confirm_ph")" />
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION 2: 本人確認書類 -->
+        <div class="sp-reg-section">
+            <div class="sp-reg-section-title"><i class="fa-solid fa-id-card"></i> @Lang.T("reg_sec2")</div>
+            <div class="sp-kyc-notice">
+                <i class="fa-solid fa-circle-info"></i>
+                @Lang.T("reg_kyc_notice")
+            </div>
+            <div class="sp-field">
+                <label>@Lang.T("reg_doc_label") <span class="required">*</span></label>
+                <div class="sp-kyc-options">
+                    <label class="sp-kyc-option @(docType == "mynumber" ? "selected" : "")">
+                        <input type="radio" name="doctype" value="mynumber" @onchange='() => docType = "mynumber"' />
+                        <div class="sp-kyc-opt-inner">
+                            <i class="fa-solid fa-id-card"></i>
+                            <div>
+                                <div class="sp-kyc-opt-title">@Lang.T("reg_mynumber")</div>
+                                <div class="sp-kyc-opt-sub">@Lang.T("reg_mynumber_sub")</div>
+                            </div>
+                        </div>
+                    </label>
+                    <label class="sp-kyc-option @(docType == "zairyu" ? "selected" : "")">
+                        <input type="radio" name="doctype" value="zairyu" @onchange='() => docType = "zairyu"' />
+                        <div class="sp-kyc-opt-inner">
+                            <i class="fa-solid fa-passport"></i>
+                            <div>
+                                <div class="sp-kyc-opt-title">@Lang.T("reg_zairyu")</div>
+                                <div class="sp-kyc-opt-sub">@Lang.T("reg_zairyu_sub")</div>
+                            </div>
+                        </div>
+                    </label>
+                    <label class="sp-kyc-option @(docType == "license" ? "selected" : "")">
+                        <input type="radio" name="doctype" value="license" @onchange='() => docType = "license"' />
+                        <div class="sp-kyc-opt-inner">
+                            <i class="fa-solid fa-car"></i>
+                            <div>
+                                <div class="sp-kyc-opt-title">@Lang.T("reg_license")</div>
+                                <div class="sp-kyc-opt-sub">@Lang.T("reg_license_sub")</div>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(docType))
+            {
+                <div class="sp-kyc-upload-area">
+                    <div class="sp-kyc-upload-box">
+                        <i class="fa-solid fa-camera" style="font-size:28px;color:var(--red);margin-bottom:8px"></i>
+                        <div style="font-weight:600;font-size:14px;color:var(--navy)">@Lang.T("reg_front")</div>
+                        <div style="font-size:12px;color:var(--text-muted);margin:4px 0 12px">@Lang.T("reg_upload_hint")</div>
+                        <input type="file" accept="image/*,.pdf" @onchange='e => docFrontFile = e.Value?.ToString() ?? ""' style="display:none" id="docFront" />
+                        <label for="docFront" class="sp-kyc-upload-btn">
+                            <i class="fa-solid fa-upload"></i> @Lang.T("reg_upload_btn")
+                        </label>
+                        @if (!string.IsNullOrEmpty(docFrontFile))
+                        {
+                            <div class="sp-kyc-file-ok"><i class="fa-solid fa-check-circle"></i> @Lang.T("reg_file_ok")</div>
+                        }
+                    </div>
+                    @if (docType != "mynumber")
+                    {
+                        <div class="sp-kyc-upload-box">
+                            <i class="fa-solid fa-camera" style="font-size:28px;color:var(--text-muted);margin-bottom:8px"></i>
+                            <div style="font-weight:600;font-size:14px;color:var(--navy)">@Lang.T("reg_back")</div>
+                            <div style="font-size:12px;color:var(--text-muted);margin:4px 0 12px">@Lang.T("reg_upload_hint")</div>
+                            <input type="file" accept="image/*,.pdf" @onchange='e => docBackFile = e.Value?.ToString() ?? ""' style="display:none" id="docBack" />
+                            <label for="docBack" class="sp-kyc-upload-btn secondary">
+                                <i class="fa-solid fa-upload"></i> @Lang.T("reg_upload_btn")
+                            </label>
+                            @if (!string.IsNullOrEmpty(docBackFile))
+                            {
+                                <div class="sp-kyc-file-ok"><i class="fa-solid fa-check-circle"></i> @Lang.T("reg_file_ok")</div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+
+            <!-- 住民票 -->
+            <div class="sp-field" style="margin-top:16px">
+                <label>住民票（発行3ヶ月以内）<span class="required">*</span></label>
+                <div class="sp-jumin-box">
+                    <i class="fa-solid fa-file-lines" style="font-size:24px;color:var(--gold);margin-bottom:8px;display:block"></i>
+                    <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:4px">@Lang.T("reg_jumin_title")</div>
+                    <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">@Lang.T("reg_jumin_sub")</div>
+                    <input type="file" accept="image/*,.pdf" @onchange='e => juminFile = e.Value?.ToString() ?? ""' style="display:none" id="jumin" />
+                    <label for="jumin" class="sp-kyc-upload-btn">
+                        <i class="fa-solid fa-upload"></i> @Lang.T("reg_jumin_btn")
+                    </label>
+                    @if (!string.IsNullOrEmpty(juminFile))
+                    {
+                        <div class="sp-kyc-file-ok" style="margin-top:8px"><i class="fa-solid fa-check-circle"></i> @Lang.T("reg_file_ok")</div>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <!-- SECTION 3: 同意 -->
+        <div class="sp-reg-section">
+            <div class="sp-reg-section-title"><i class="fa-solid fa-check-square"></i> @Lang.T("reg_sec3")</div>
+            <label class="sp-agree-check">
+                <input type="checkbox" @bind="agreeTerms" />
+                <span>@Lang.T("reg_agree1")</span>
+            </label>
+            <label class="sp-agree-check">
+                <input type="checkbox" @bind="agreeKyc" />
+                <span>@Lang.T("reg_agree2")</span>
+            </label>
+            <label class="sp-agree-check">
+                <input type="checkbox" @bind="agreeAml" />
+                <span>@Lang.T("reg_agree3")</span>
+            </label>
+        </div>
+
+        <button class="sp-submit-btn" @onclick="HandleRegister" disabled="@loading">
+            @if (loading)
+            {
+                <i class="fa-solid fa-spinner fa-spin"></i>
+                <span> @Lang.T("reg_loading")</span>
+            }
+            else
+            {
+                <i class="fa-solid fa-user-check"></i>
+                <span> @Lang.T("reg_submit")</span>
+            }
+        </button>
+
+        <div style="background:var(--gray-bg);border-radius:10px;padding:12px 14px;margin-top:14px;font-size:12px;color:var(--text-sub);line-height:1.7">
+            <i class="fa-solid fa-shield-halved" style="color:var(--green)"></i>
+            @Lang.T("reg_note")
+        </div>
+
+        <p class="sp-auth-switch">@Lang.T("reg_switch") <a href="/login">@Lang.T("reg_switch_link")</a></p>
+        <p class="sp-auth-switch" style="margin-top:8px"><a href="/">@Lang.T("reg_home")</a></p>
+    </div>
+</div>
+
+@code {
+    string fullName = "", email = "", phone = "", password = "", passwordConfirm = "", error = "";
+    string nationality = "", visaStatus = "", docType = "";
+    string docFrontFile = "", docBackFile = "", juminFile = "";
+    DateTime dateOfBirth = DateTime.Today.AddYears(-25);
+    bool loading, agreeTerms, agreeKyc, agreeAml;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Lang.OnChanged += StateHasChanged;
+        var saved = await LocalStorage.GetItemAsync<string>("sp_lang");
+        if (!string.IsNullOrEmpty(saved)) Lang.Set(saved);
+    }
+
+    async Task HandleRegister()
+    {
+        error = "";
+
+        if (string.IsNullOrWhiteSpace(fullName) || string.IsNullOrWhiteSpace(email) ||
+            string.IsNullOrWhiteSpace(phone) || string.IsNullOrWhiteSpace(password))
+        { error = Lang.T("err_fill_all"); return; }
+
+        if (password != passwordConfirm)
+        { error = Lang.T("err_pw_mismatch"); return; }
+
+        if (string.IsNullOrEmpty(nationality) || string.IsNullOrEmpty(visaStatus))
+        { error = Lang.T("err_select_country"); return; }
+
+        if (string.IsNullOrEmpty(docType))
+        { error = Lang.T("err_select_doc"); return; }
+
+        if (!agreeTerms || !agreeKyc || !agreeAml)
+        { error = Lang.T("err_agree_all"); return; }
+
+        loading = true;
+        var (ok, data, err) = await Api.RegisterAsync(fullName, email, phone, password);
+        loading = false;
+
+        if (ok && data != null)
+        {
+            await LocalStorage.SetItemAsync("token", data.Token);
+            await LocalStorage.SetItemAsync("fullName", data.FullName);
+            await LocalStorage.SetItemAsync("isAdmin", data.IsAdmin);
+            await LocalStorage.SetItemAsync("userId", data.UserId);
+            Nav.NavigateTo(data.IsAdmin ? "/admin" : "/dashboard");
+        }
+        else error = err;
+    }
+
+    public void Dispose() => Lang.OnChanged -= StateHasChanged;
+}

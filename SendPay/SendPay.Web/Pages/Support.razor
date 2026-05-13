@@ -1,0 +1,121 @@
+@page "/support"
+@inject ILocalStorageService LocalStorage
+@inject NavigationManager Nav
+@inject LanguageService Lang
+@implements IDisposable
+
+<div class="sp-dash-page">
+    <DashNav Active="support" />
+
+    <div class="sp-dash-content">
+        <div class="sp-page-header">
+            <a href="/dashboard" class="sp-back-circle"><i class="fa-solid fa-arrow-left"></i></a>
+            <div class="sp-page-icon qi-pink"><i class="fa-solid fa-headset"></i></div>
+            <div>
+                <div class="sp-page-title">@Lang.T("support_title")</div>
+                <div class="sp-page-sub">@Lang.T("support_sub")</div>
+            </div>
+        </div>
+
+        <div class="sp-support-grid">
+            <!-- FAQ -->
+            <div>
+                <div class="sp-side-card" style="padding:0;overflow:hidden">
+                    <div style="padding:1rem 1.5rem;border-bottom:1px solid var(--gray-border);font-weight:700;color:var(--navy);font-size:15px">
+                        <i class="fa-solid fa-circle-question" style="color:#e64980;margin-right:8px"></i>
+                        @Lang.T("support_faq")
+                    </div>
+                    @foreach (var (q, a, i) in faqs.Select((f, i) => (f.Q, f.A, i)))
+                    {
+                        <div class="sp-faq-item @(openFaq == i ? "open" : "")">
+                            <div class="sp-faq-q" @onclick="() => ToggleFaq(i)">
+                                <span>@Lang.T(q)</span>
+                                <i class="fa-solid @(openFaq == i ? "fa-chevron-up" : "fa-chevron-down")"></i>
+                            </div>
+                            @if (openFaq == i)
+                            {
+                                <div class="sp-faq-a">@Lang.T(a)</div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <!-- Contact info -->
+            <div>
+                <div class="sp-side-card">
+                    <div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:1.2rem">
+                        <i class="fa-solid fa-phone" style="color:#e64980;margin-right:6px"></i>
+                        @Lang.T("support_contact_title")
+                    </div>
+                    <div class="sp-contact-list">
+                        <div class="sp-contact-item">
+                            <div class="sp-contact-icon" style="background:#fff0f5;color:#e64980">
+                                <i class="fa-solid fa-envelope"></i>
+                            </div>
+                            <div>
+                                <div class="sp-contact-label">@Lang.T("support_email")</div>
+                                <a href="mailto:support@sendpay.jp" class="sp-contact-val">support@sendpay.jp</a>
+                            </div>
+                        </div>
+                        <div class="sp-contact-item">
+                            <div class="sp-contact-icon" style="background:#e8f5e9;color:#388e3c">
+                                <i class="fa-brands fa-line"></i>
+                            </div>
+                            <div>
+                                <div class="sp-contact-label">LINE</div>
+                                <span class="sp-contact-val">&#64;sendpay_official</span>
+                            </div>
+                        </div>
+                        <div class="sp-contact-item">
+                            <div class="sp-contact-icon" style="background:#e3f2fd;color:#1976d2">
+                                <i class="fa-solid fa-clock"></i>
+                            </div>
+                            <div>
+                                <div class="sp-contact-label">@Lang.T("support_hours")</div>
+                                <span class="sp-contact-val">9:00 – 18:00 JST (Mon–Sat)</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sp-side-card" style="margin-top:1rem;background:linear-gradient(135deg,#0B1E3D,#1a3260);color:white">
+                    <div style="font-weight:700;font-size:15px;margin-bottom:8px">
+                        <i class="fa-solid fa-shield-halved" style="color:#FFD166;margin-right:6px"></i>
+                        @Lang.T("support_security_title")
+                    </div>
+                    <p style="font-size:13px;line-height:1.7;color:rgba(255,255,255,.8)">
+                        @Lang.T("support_security_body")
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    int openFaq = -1;
+
+    record Faq(string Q, string A);
+    List<Faq> faqs =
+    [
+        new("faq_q1", "faq_a1"),
+        new("faq_q2", "faq_a2"),
+        new("faq_q3", "faq_a3"),
+        new("faq_q4", "faq_a4"),
+        new("faq_q5", "faq_a5"),
+    ];
+
+    void ToggleFaq(int i) => openFaq = openFaq == i ? -1 : i;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Lang.OnChanged += StateHasChanged;
+        var token = await LocalStorage.GetItemAsync<string>("token");
+        if (string.IsNullOrEmpty(token)) { Nav.NavigateTo("/login"); return; }
+        var saved = await LocalStorage.GetItemAsync<string>("sp_lang");
+        if (!string.IsNullOrEmpty(saved)) Lang.Set(saved);
+    }
+
+    public void Dispose() => Lang.OnChanged -= StateHasChanged;
+}

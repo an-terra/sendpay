@@ -1,0 +1,141 @@
+@page "/receipt"
+@inject ApiService Api
+@inject ILocalStorageService LocalStorage
+@inject NavigationManager Nav
+@inject LanguageService Lang
+@implements IDisposable
+
+<div class="sp-dash-page">
+    <DashNav Active="receipt" />
+
+    <div class="sp-dash-content">
+        <div class="sp-page-header">
+            <a href="/dashboard" class="sp-back-circle"><i class="fa-solid fa-arrow-left"></i></a>
+            <div class="sp-page-icon qi-green"><i class="fa-solid fa-receipt"></i></div>
+            <div>
+                <div class="sp-page-title">@Lang.T("receipt_title")</div>
+                <div class="sp-page-sub">@Lang.T("receipt_sub")</div>
+            </div>
+        </div>
+
+        @if (loading)
+        {
+            <div class="sp-dash-tx-card" style="text-align:center;padding:60px">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size:28px;color:var(--text-muted)"></i>
+            </div>
+        }
+        else if (transactions.Count == 0)
+        {
+            <div class="sp-dash-tx-card">
+                <div style="text-align:center;padding:60px;color:var(--text-muted);font-size:15px">
+                    <i class="fa-solid fa-inbox" style="font-size:36px;margin-bottom:12px;display:block"></i>
+                    @Lang.T("dash_empty")
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="sp-dash-tx-card">
+                @foreach (var tx in transactions)
+                {
+                    bool isTopUp = tx.Type == 1;
+                    string initials = isTopUp ? "+" : GetInitials(tx.ReceiverName);
+                    string avatarBg = isTopUp ? "#0D7A4E" : "#3B5BDB";
+                    <div class="sp-dash-tx-row" style="cursor:pointer" @onclick="() => OpenReceipt(tx)">
+                        <div class="sp-tx-avatar" style="background:@avatarBg;width:44px;height:44px;font-size:12px">@initials</div>
+                        <div class="sp-tx-info">
+                            <div class="sp-tx-name">@(isTopUp ? Lang.T("dash_topup_lbl") : tx.ReceiverName)</div>
+                            <div class="sp-tx-meta">@tx.CreatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm") · @(isTopUp ? Lang.T("dash_topup_lbl") : Lang.T("dash_transfer_lbl"))</div>
+                        </div>
+                        <div class="sp-tx-amt-col">
+                            <div class="sp-tx-amt @(isTopUp ? "in" : "out")">
+                                @(isTopUp ? "+" : "−")¥@tx.Amount.ToString("N0")
+                            </div>
+                            <div class="sp-tx-status">✓ @Lang.T("dash_done")</div>
+                        </div>
+                        <div style="color:var(--text-muted);padding-left:8px"><i class="fa-solid fa-chevron-right fa-xs"></i></div>
+                    </div>
+                }
+            </div>
+
+            <div class="sp-dash-section-row" style="margin-top:1.5rem">
+                <button class="btn-outline" @onclick="PrevPage" disabled="@(currentPage <= 1)">
+                    <i class="fa-solid fa-chevron-left"></i> @Lang.T("hist_prev")
+                </button>
+                <span style="font-size:13px;color:var(--text-sub)">@Lang.T("hist_page") @currentPage</span>
+                <button class="btn-outline" @onclick="NextPage" disabled="@(transactions.Count < 10)">
+                    @Lang.T("hist_next") <i class="fa-solid fa-chevron-right"></i>
+                </button>
+            </div>
+        }
+    </div>
+</div>
+
+@if (selected != null)
+{
+    <div class="sp-modal-backdrop" @onclick="CloseReceipt">
+        <div class="sp-receipt-modal" @onclick:stopPropagation="true">
+            <div class="sp-receipt-header">
+                <div class="sp-receipt-logo">SP</div>
+                <div class="sp-receipt-brand">SendPay</div>
+                <div class="sp-receipt-label">@Lang.T("receipt_modal_title")</div>
+            </div>
+            <div class="sp-receipt-amount @(selected.Type == 1 ? "in" : "out")">
+                @(selected.Type == 1 ? "+" : "−")¥@selected.Amount.ToString("N0")
+            </div>
+            <div class="sp-receipt-rows">
+                <div class="sp-receipt-row"><span>@Lang.T("receipt_id")</span><strong>#@selected.Id</strong></div>
+                <div class="sp-receipt-row"><span>@Lang.T("receipt_from")</span><strong>@selected.SenderName</strong></div>
+                <div class="sp-receipt-row"><span>@Lang.T("receipt_to")</span><strong>@selected.ReceiverName</strong></div>
+                @if (!string.IsNullOrEmpty(selected.Note))
+                {
+                    <div class="sp-receipt-row"><span>@Lang.T("receipt_note")</span><strong>@selected.Note</strong></div>
+                }
+                <div class="sp-receipt-row"><span>@Lang.T("receipt_date")</span><strong>@selected.CreatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</strong></div>
+                <div class="sp-receipt-row"><span>@Lang.T("receipt_status")</span><strong style="color:var(--green)">✓ @Lang.T("dash_done")</strong></div>
+            </div>
+            <button class="btn-red" style="width:100%;justify-content:center;margin-top:1rem" @onclick="CloseReceipt">
+                @Lang.T("receipt_close")
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    List<TransactionResponse> transactions = [];
+    TransactionResponse? selected;
+    bool loading = true;
+    int currentPage = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Lang.OnChanged += StateHasChanged;
+        var token = await LocalStorage.GetItemAsync<string>("token");
+        if (string.IsNullOrEmpty(token)) { Nav.NavigateTo("/login"); return; }
+        var saved = await LocalStorage.GetItemAsync<string>("sp_lang");
+        if (!string.IsNullOrEmpty(saved)) Lang.Set(saved);
+        await LoadPage();
+    }
+
+    async Task LoadPage()
+    {
+        loading = true;
+        transactions = await Api.GetHistoryAsync(currentPage);
+        loading = false;
+    }
+
+    async Task PrevPage() { if (currentPage > 1) { currentPage--; await LoadPage(); } }
+    async Task NextPage() { currentPage++; await LoadPage(); }
+
+    void OpenReceipt(TransactionResponse tx) => selected = tx;
+    void CloseReceipt() => selected = null;
+
+    static string GetInitials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var p = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return p.Length >= 2 ? $"{p[0][0]}{p[^1][0]}".ToUpper() : name[..Math.Min(2, name.Length)].ToUpper();
+    }
+
+    public void Dispose() => Lang.OnChanged -= StateHasChanged;
+}

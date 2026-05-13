@@ -1,0 +1,83 @@
+@page "/login"
+@inject ApiService Api
+@inject ILocalStorageService LocalStorage
+@inject NavigationManager Nav
+@inject LanguageService Lang
+@implements IDisposable
+
+<div class="sp-auth-page">
+    <div class="sp-auth-card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:28px">
+            <div class="sp-auth-logo" style="margin-bottom:0">
+                <div class="sp-auth-logo-icon">SP</div>
+                <div class="sp-auth-logo-text">Send<span>Pay</span></div>
+            </div>
+            <LangSelector />
+        </div>
+        <h2>@Lang.T("login_title")</h2>
+        <p class="sp-auth-subtitle">@Lang.T("login_subtitle")</p>
+
+        @if (!string.IsNullOrEmpty(error))
+        {
+            <div class="sp-alert-error"><i class="fa-solid fa-circle-exclamation"></i> @error</div>
+        }
+
+        <div class="sp-field">
+            <label>@Lang.T("login_email")</label>
+            <input type="email" @bind="email" placeholder="@Lang.T("login_email_ph")" />
+        </div>
+        <div class="sp-field">
+            <label>@Lang.T("login_password")</label>
+            <input type="password" @bind="password" placeholder="••••••••" />
+        </div>
+        <button class="sp-submit-btn" @onclick="HandleLogin" disabled="@loading">
+            @if (loading)
+            {
+                <i class="fa-solid fa-spinner fa-spin"></i>
+                <span> @Lang.T("login_loading")</span>
+            }
+            else
+            {
+                <span>@Lang.T("login_btn")</span>
+            }
+        </button>
+        <p class="sp-auth-switch">
+            @Lang.T("login_switch") <a href="/register">@Lang.T("login_switch_link")</a>
+        </p>
+        <p class="sp-auth-switch" style="margin-top:8px">
+            <a href="/">@Lang.T("login_home")</a>
+        </p>
+    </div>
+</div>
+
+@code {
+    string email = "", password = "", error = "";
+    bool loading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Lang.OnChanged += StateHasChanged;
+        var saved = await LocalStorage.GetItemAsync<string>("sp_lang");
+        if (!string.IsNullOrEmpty(saved)) Lang.Set(saved);
+    }
+
+    async Task HandleLogin()
+    {
+        error = "";
+        loading = true;
+        var (ok, data, err) = await Api.LoginAsync(email, password);
+        loading = false;
+
+        if (ok && data != null)
+        {
+            await LocalStorage.SetItemAsync("token", data.Token);
+            await LocalStorage.SetItemAsync("fullName", data.FullName);
+            await LocalStorage.SetItemAsync("isAdmin", data.IsAdmin);
+            await LocalStorage.SetItemAsync("userId", data.UserId);
+            Nav.NavigateTo(data.IsAdmin ? "/admin" : "/dashboard");
+        }
+        else error = err;
+    }
+
+    public void Dispose() => Lang.OnChanged -= StateHasChanged;
+}

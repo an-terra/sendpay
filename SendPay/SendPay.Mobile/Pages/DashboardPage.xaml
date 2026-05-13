@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SendPay.Mobile.Pages.DashboardPage"
+             BackgroundColor="#f5f5f7" Title="Trang chủ">
+    <RefreshView x:Name="Refresher" Refreshing="OnRefreshing" RefreshColor="#6c47ff">
+        <ScrollView>
+            <VerticalStackLayout Spacing="0">
+
+                <!-- Header -->
+                <Grid BackgroundColor="#6c47ff" Padding="20,50,20,20">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Label x:Name="GreetingLabel" Text="Xin chào!" TextColor="White"
+                           FontSize="16" VerticalOptions="Center"/>
+                    <Button Grid.Column="1" Text="Đăng xuất" Clicked="OnLogoutClicked"
+                            BackgroundColor="#ffffff33" TextColor="White"
+                            CornerRadius="8" FontSize="12" Padding="10,5"/>
+                </Grid>
+
+                <!-- Balance Card -->
+                <Frame BackgroundColor="#6c47ff" CornerRadius="0" Padding="20,24" HasShadow="False">
+                    <VerticalStackLayout HorizontalOptions="Center" Spacing="4">
+                        <Label Text="Số dư ví" TextColor="#ffffffcc" FontSize="14" HorizontalOptions="Center"/>
+                        <Label x:Name="BalanceLabel" Text="---" TextColor="White"
+                               FontSize="38" FontAttributes="Bold" HorizontalOptions="Center"/>
+                        <Label x:Name="PhoneLabel" Text="" TextColor="#ffffff99"
+                               FontSize="13" HorizontalOptions="Center"/>
+                    </VerticalStackLayout>
+                </Frame>
+
+                <!-- Action Buttons -->
+                <Grid Padding="16" ColumnSpacing="12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
+                    </Grid.ColumnDefinitions>
+                    <Frame Grid.Column="0" BackgroundColor="White" CornerRadius="14" Padding="0" HasShadow="True">
+                        <VerticalStackLayout Padding="16,12" Spacing="6" HorizontalOptions="Center">
+                            <Label Text="⬆️" FontSize="28" HorizontalOptions="Center"/>
+                            <Label Text="Nạp tiền" FontSize="12" FontAttributes="Bold" HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnTopUpTapped"/>
+                        </Frame.GestureRecognizers>
+                    </Frame>
+                    <Frame Grid.Column="1" BackgroundColor="White" CornerRadius="14" Padding="0" HasShadow="True">
+                        <VerticalStackLayout Padding="16,12" Spacing="6" HorizontalOptions="Center">
+                            <Label Text="↗️" FontSize="28" HorizontalOptions="Center"/>
+                            <Label Text="Chuyển tiền" FontSize="12" FontAttributes="Bold" HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnTransferTapped"/>
+                        </Frame.GestureRecognizers>
+                    </Frame>
+                    <Frame Grid.Column="2" BackgroundColor="White" CornerRadius="14" Padding="0" HasShadow="True">
+                        <VerticalStackLayout Padding="16,12" Spacing="6" HorizontalOptions="Center">
+                            <Label Text="📋" FontSize="28" HorizontalOptions="Center"/>
+                            <Label Text="Lịch sử" FontSize="12" FontAttributes="Bold" HorizontalOptions="Center"/>
+                        </VerticalStackLayout>
+                        <Frame.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnHistoryTapped"/>
+                        </Frame.GestureRecognizers>
+                    </Frame>
+                </Grid>
+
+                <!-- Recent Transactions -->
+                <Label Text="Giao dịch gần đây" FontSize="15" FontAttributes="Bold"
+                       Padding="20,8,20,8"/>
+                <CollectionView x:Name="RecentList" Margin="16,0">
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate x:DataType="local:TransactionItem">
+                            <Frame BackgroundColor="White" CornerRadius="12" Margin="0,4" Padding="14" HasShadow="True">
+                                <Grid ColumnSpacing="12">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Label Text="{Binding Icon}" FontSize="26" VerticalOptions="Center"/>
+                                    <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="2">
+                                        <Label Text="{Binding Name}" FontAttributes="Bold" FontSize="14"/>
+                                        <Label Text="{Binding Date}" FontSize="11" TextColor="#8b8b9b"/>
+                                    </VerticalStackLayout>
+                                    <Label Grid.Column="2" Text="{Binding AmountText}"
+                                           TextColor="{Binding AmountColor}" FontAttributes="Bold"
+                                           FontSize="14" VerticalOptions="Center"/>
+                                </Grid>
+                            </Frame>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+            </VerticalStackLayout>
+        </ScrollView>
+    </RefreshView>
+</ContentPage>

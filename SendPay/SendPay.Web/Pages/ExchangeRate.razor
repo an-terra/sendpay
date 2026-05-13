@@ -1,0 +1,208 @@
+@page "/rates"
+@inject ApiService Api
+@inject ILocalStorageService LocalStorage
+@inject NavigationManager Nav
+@inject LanguageService Lang
+@implements IDisposable
+
+<div class="sp-dash-page">
+    <DashNav Active="rates" />
+
+    <div class="sp-dash-content">
+        <div class="sp-page-header">
+            <a href="/dashboard" class="sp-back-circle"><i class="fa-solid fa-arrow-left"></i></a>
+            <div class="sp-page-icon qi-teal"><i class="fa-solid fa-chart-line"></i></div>
+            <div>
+                <div class="sp-page-title">@Lang.T("rates_title")</div>
+                <div class="sp-page-sub">
+                    @if (!string.IsNullOrEmpty(rateDate))
+                    { <span>@Lang.T("rates_updated"): @rateDate</span> }
+                    else
+                    { <span>@Lang.T("rates_sub")</span> }
+                </div>
+            </div>
+        </div>
+
+        @if (loading)
+        {
+            <div class="sp-dash-tx-card" style="text-align:center;padding:60px">
+                <i class="fa-solid fa-spinner fa-spin" style="font-size:28px;color:var(--text-muted)"></i>
+                <div style="margin-top:12px;color:var(--text-muted);font-size:14px">@Lang.T("rates_loading")</div>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(loadError))
+        {
+            <div class="sp-alert sp-alert-error">
+                <i class="fa-solid fa-triangle-exclamation" style="margin-right:6px"></i>@loadError
+            </div>
+        }
+        else
+        {
+            <div class="sp-rates-grid">
+                <!-- Main rate table -->
+                <div>
+                    <div class="sp-side-card" style="padding:0;overflow:hidden">
+                        <div style="padding:1rem 1.5rem;background:linear-gradient(135deg,#0B1E3D,#1a3260);display:flex;align-items:center;justify-content:space-between">
+                            <div style="color:white;font-weight:700;font-size:15px">
+                                <i class="fa-solid fa-yen-sign" style="margin-right:8px;color:#FFD166"></i>
+                                @Lang.T("rates_base") JPY
+                            </div>
+                            <div style="font-size:12px;color:rgba(255,255,255,.6)">
+                                <i class="fa-solid fa-clock" style="margin-right:4px"></i>@rateDate
+                            </div>
+                        </div>
+                        <div class="sp-rate-table">
+                            @foreach (var r in rates)
+                            {
+                                <div class="sp-rate-row">
+                                    <div class="sp-rate-flag">@r.Flag</div>
+                                    <div>
+                                        <div class="sp-rate-currency">@r.Code</div>
+                                        <div class="sp-rate-country">@r.Country</div>
+                                    </div>
+                                    <div class="sp-rate-value">
+                                        <div class="sp-rate-num">@r.Rate.ToString("N4")</div>
+                                        <div class="sp-rate-code">@r.Code / JPY</div>
+                                    </div>
+                                    <div class="sp-rate-change @(r.Up ? "up" : "down")">
+                                        <i class="fa-solid @(r.Up ? "fa-arrow-trend-up" : "fa-arrow-trend-down")"></i>
+                                        @r.Change%
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <div style="font-size:12px;color:var(--text-muted);margin-top:10px;padding:0 4px">
+                        <i class="fa-solid fa-circle-info" style="margin-right:4px"></i>
+                        @Lang.T("rates_source")
+                    </div>
+                </div>
+
+                <!-- RIGHT: converter -->
+                <div>
+                    <div class="sp-side-card">
+                        <div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:1.2rem">
+                            <i class="fa-solid fa-arrow-right-arrow-left" style="color:#0ca678;margin-right:6px"></i>
+                            @Lang.T("rates_convert")
+                        </div>
+                        <div class="sp-form-group">
+                            <label>@Lang.T("rates_amount")</label>
+                            <input type="number" class="sp-form-input sp-form-input-lg"
+                                   @bind="convertAmount" @bind:event="oninput" min="1" />
+                        </div>
+                        <div class="sp-form-group">
+                            <label>@Lang.T("rates_from")</label>
+                            <select class="sp-form-input sp-form-input-lg" @bind="fromCurrency">
+                                <option value="JPY">🇯🇵 JPY - Japanese Yen</option>
+                                @foreach (var r in rates)
+                                {
+                                    <option value="@r.Code">@r.Flag @r.Code - @r.Country</option>
+                                }
+                            </select>
+                        </div>
+                        <div style="text-align:center;margin:8px 0;color:var(--text-muted)">
+                            <i class="fa-solid fa-arrows-up-down"></i>
+                        </div>
+                        <div class="sp-form-group">
+                            <label>@Lang.T("rates_to")</label>
+                            <select class="sp-form-input sp-form-input-lg" @bind="toCurrency">
+                                <option value="JPY">🇯🇵 JPY - Japanese Yen</option>
+                                @foreach (var r in rates)
+                                {
+                                    <option value="@r.Code">@r.Flag @r.Code - @r.Country</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="sp-rate-result">
+                            <div style="font-size:13px;color:var(--text-sub);margin-bottom:6px">@Lang.T("rates_result")</div>
+                            <div style="font-size:28px;font-weight:800;color:var(--navy)">
+                                @ConvertedAmount.ToString("N2")
+                                <span style="font-size:16px;color:var(--text-sub)">@toCurrency</span>
+                            </div>
+                            <div style="font-size:12px;color:var(--text-muted);margin-top:6px">
+                                1 @fromCurrency = @GetRate(fromCurrency, toCurrency).ToString("N4") @toCurrency
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="sp-side-card" style="margin-top:1rem">
+                        <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:10px">
+                            <i class="fa-solid fa-circle-info" style="color:#3B5BDB;margin-right:6px"></i>
+                            @Lang.T("rates_notice_title")
+                        </div>
+                        <p style="font-size:13px;color:var(--text-sub);line-height:1.7">@Lang.T("rates_notice_body")</p>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    List<CurrencyRate> rates = [];
+    string rateDate = "";
+    string loadError = "";
+    bool loading = true;
+
+    decimal convertAmount = 10000;
+    string fromCurrency = "JPY";
+    string toCurrency = "VND";
+
+    protected override async Task OnInitializedAsync()
+    {
+        Lang.OnChanged += StateHasChanged;
+        var token = await LocalStorage.GetItemAsync<string>("token");
+        if (string.IsNullOrEmpty(token)) { Nav.NavigateTo("/login"); return; }
+        var saved = await LocalStorage.GetItemAsync<string>("sp_lang");
+        if (!string.IsNullOrEmpty(saved)) Lang.Set(saved);
+        await LoadRates();
+    }
+
+    async Task LoadRates()
+    {
+        loading = true;
+        try
+        {
+            var resp = await Api.GetRatesAsync();
+            if (resp != null)
+            {
+                rates = resp.Rates;
+                rateDate = resp.Date;
+            }
+            else loadError = Lang.T("rates_err");
+        }
+        catch
+        {
+            loadError = Lang.T("rates_err");
+        }
+        loading = false;
+    }
+
+    decimal ConvertedAmount => convertAmount * GetRate(fromCurrency, toCurrency);
+
+    decimal GetRate(string from, string to)
+    {
+        if (from == to) return 1m;
+
+        decimal toJpy = 1m;
+        if (from != "JPY")
+        {
+            var r = rates.FirstOrDefault(x => x.Code == from);
+            if (r == null || r.Rate == 0) return 0;
+            toJpy = 1m / r.Rate;
+        }
+
+        decimal fromJpy = 1m;
+        if (to != "JPY")
+        {
+            var r = rates.FirstOrDefault(x => x.Code == to);
+            if (r == null) return 0;
+            fromJpy = r.Rate;
+        }
+
+        return toJpy * fromJpy;
+    }
+
+    public void Dispose() => Lang.OnChanged -= StateHasChanged;
+}

@@ -1,0 +1,137 @@
+Using launch settings from SendPay.Api\Properties\launchSettings.json...
+Building...
+info: Microsoft.EntityFrameworkCore.Migrations[20411]
+      Acquiring an exclusive lock for migration application. See https://aka.ms/efcore-docs-migrations-lock for more information if this takes too long.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (11ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT COUNT(*) FROM "sqlite_master" WHERE "name" = '__EFMigrationsLock' AND "type" = 'table';
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (4ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      INSERT OR IGNORE INTO "__EFMigrationsLock"("Id", "Timestamp") VALUES(1, '2026-05-12 07:37:54.1641773+00:00');
+      SELECT changes();
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      CREATE TABLE IF NOT EXISTS "__EFMigrationsHistory" (
+          "MigrationId" TEXT NOT NULL CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY,
+          "ProductVersion" TEXT NOT NULL
+      );
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT COUNT(*) FROM "sqlite_master" WHERE "name" = '__EFMigrationsHistory' AND "type" = 'table';
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT "MigrationId", "ProductVersion"
+      FROM "__EFMigrationsHistory"
+      ORDER BY "MigrationId";
+info: Microsoft.EntityFrameworkCore.Migrations[20405]
+      No migrations were applied. The database is already up to date.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      DELETE FROM "__EFMigrationsLock";
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT EXISTS (
+          SELECT 1
+          FROM "Users" AS "u"
+          WHERE "u"."IsAdmin")
+warn: Microsoft.AspNetCore.StaticFiles.StaticFileMiddleware[16]
+      The WebRootPath was not found: D:\DotNetPractice\SendPay\SendPay.Api\wwwroot. Static files may be unavailable.
+warn: Microsoft.AspNetCore.StaticFiles.StaticFileMiddleware[16]
+      The WebRootPath was not found: D:\DotNetPractice\SendPay\SendPay.Api\wwwroot. Static files may be unavailable.
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5235
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Development
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: D:\DotNetPractice\SendPay\SendPay.Api
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (6ms) [Parameters=[@req_Email='?' (Size = 16)], CommandType='Text', CommandTimeout='30']
+      SELECT "u"."Id", "u"."Balance", "u"."CreatedAt", "u"."Email", "u"."FullName", "u"."IsActive", "u"."IsAdmin", "u"."PasswordHash", "u"."Phone"
+      FROM "Users" AS "u"
+      WHERE "u"."Email" = @req_Email
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (23ms) [Parameters=[@p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT "u"."Id", "u"."Balance", "u"."CreatedAt", "u"."Email", "u"."FullName", "u"."IsActive", "u"."IsAdmin", "u"."PasswordHash", "u"."Phone"
+      FROM "Users" AS "u"
+      WHERE "u"."Id" = @p
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@req_ReceiverPhone='?' (Size = 11)], CommandType='Text', CommandTimeout='30']
+      SELECT "u"."Id", "u"."Balance", "u"."CreatedAt", "u"."Email", "u"."FullName", "u"."IsActive", "u"."IsAdmin", "u"."PasswordHash", "u"."Phone"
+      FROM "Users" AS "u"
+      WHERE "u"."Phone" = @req_ReceiverPhone
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@p0='?' (DbType = Decimal), @p1='?' (DbType = DateTime), @p2='?' (Size = 2), @p3='?' (DbType = Int32), @p4='?' (DbType = Int32), @p5='?' (DbType = Int32), @p6='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "Transactions" ("Amount", "CreatedAt", "Note", "ReceiverId", "SenderId", "Status", "Type")
+      VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6)
+      RETURNING "Id";
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@p1='?' (DbType = Int32), @p0='?' (DbType = Decimal)], CommandType='Text', CommandTimeout='30']
+      UPDATE "Users" SET "Balance" = @p0
+      WHERE "Id" = @p1
+      RETURNING 1;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@p1='?' (DbType = Int32), @p0='?' (DbType = Decimal)], CommandType='Text', CommandTimeout='30']
+      UPDATE "Users" SET "Balance" = @p0
+      WHERE "Id" = @p1
+      RETURNING 1;
+info: System.Net.Http.HttpClient.RatesService.LogicalHandler[100]
+      Start processing HTTP request GET https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/jpy.json
+info: System.Net.Http.HttpClient.RatesService.ClientHandler[100]
+      Sending HTTP request GET https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/jpy.json
+info: System.Net.Http.HttpClient.RatesService.ClientHandler[101]
+      Received HTTP response headers after 235.1166ms - 200
+info: System.Net.Http.HttpClient.RatesService.LogicalHandler[101]
+      End processing HTTP request after 249.8724ms - 200
+info: System.Net.Http.HttpClient.RatesService.LogicalHandler[100]
+      Start processing HTTP request GET https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@2026-05-10/v1/currencies/jpy.json
+info: System.Net.Http.HttpClient.RatesService.ClientHandler[100]
+      Sending HTTP request GET https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@2026-05-10/v1/currencies/jpy.json
+info: System.Net.Http.HttpClient.RatesService.ClientHandler[101]
+      Received HTTP response headers after 24.516ms - 200
+info: System.Net.Http.HttpClient.RatesService.LogicalHandler[101]
+      End processing HTTP request after 24.8129ms - 200
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@req_Email='?' (Size = 17)], CommandType='Text', CommandTimeout='30']
+      SELECT "u"."Id", "u"."Balance", "u"."CreatedAt", "u"."Email", "u"."FullName", "u"."IsActive", "u"."IsAdmin", "u"."PasswordHash", "u"."Phone"
+      FROM "Users" AS "u"
+      WHERE "u"."Email" = @req_Email
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT COUNT(*)
+      FROM "Users" AS "u"
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT COUNT(*)
+      FROM "Users" AS "u"
+      WHERE "u"."IsActive"
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT COUNT(*)
+      FROM "Transactions" AS "t"
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (7ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT COALESCE(ef_sum("t"."Amount"), '0.0')
+      FROM "Transactions" AS "t"
+      WHERE "t"."Type" = 0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@today='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30']
+      SELECT COUNT(*)
+      FROM "Transactions" AS "t"
+      WHERE "t"."CreatedAt" >= @today
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@today='?' (DbType = DateTime)], CommandType='Text', CommandTimeout='30']
+      SELECT COALESCE(ef_sum("t"."Amount"), '0.0')
+      FROM "Transactions" AS "t"
+      WHERE "t"."CreatedAt" >= @today AND "t"."Type" = 0
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (0ms) [Parameters=[@p1='?' (DbType = Int32), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT "u"."Id", "u"."FullName", "u"."Email", "u"."Phone", "u"."Balance", "u"."IsActive", "u"."IsAdmin", "u"."CreatedAt"
+      FROM "Users" AS "u"
+      ORDER BY "u"."CreatedAt" DESC
+      LIMIT @p1 OFFSET @p

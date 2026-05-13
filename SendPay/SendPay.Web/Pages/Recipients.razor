@@ -1,0 +1,160 @@
+@page "/recipients"
+@inject ApiService Api
+@inject ILocalStorageService LocalStorage
+@inject NavigationManager Nav
+@inject LanguageService Lang
+@implements IDisposable
+
+<div class="sp-dash-page">
+    <DashNav Active="recipients" />
+
+    <div class="sp-dash-content">
+        <div class="sp-page-header">
+            <a href="/dashboard" class="sp-back-circle"><i class="fa-solid fa-arrow-left"></i></a>
+            <div class="sp-page-icon qi-purple"><i class="fa-solid fa-users"></i></div>
+            <div>
+                <div class="sp-page-title">@Lang.T("recip_title")</div>
+                <div class="sp-page-sub">@Lang.T("recip_sub")</div>
+            </div>
+        </div>
+
+        <div class="sp-recip-grid">
+            <!-- LEFT: list -->
+            <div>
+                @if (recipients.Count == 0 && !loading)
+                {
+                    <div class="sp-dash-tx-card">
+                        <div style="text-align:center;padding:48px;color:var(--text-muted);font-size:15px">
+                            <i class="fa-solid fa-user-plus" style="font-size:32px;margin-bottom:12px;display:block"></i>
+                            @Lang.T("recip_empty")
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="sp-dash-tx-card">
+                        @foreach (var r in recipients)
+                        {
+                            <div class="sp-recip-row">
+                                <div class="sp-tx-avatar" style="background:#7048e8;width:44px;height:44px">
+                                    @GetInitials(r.Name)
+                                </div>
+                                <div class="sp-tx-info" style="flex:1">
+                                    <div class="sp-tx-name">@r.Name</div>
+                                    <div class="sp-tx-meta">
+                                        <i class="fa-solid fa-phone fa-xs"></i> @r.Phone
+                                        @if (!string.IsNullOrEmpty(r.Note)) { <span> · @r.Note</span> }
+                                    </div>
+                                </div>
+                                <div style="display:flex;gap:8px">
+                                    <a href="/transfer?phone=@Uri.EscapeDataString(r.Phone)" class="btn-outline" style="padding:7px 14px;font-size:13px">
+                                        <i class="fa-solid fa-paper-plane fa-xs"></i> @Lang.T("recip_send")
+                                    </a>
+                                    <button class="btn-outline" style="padding:7px 14px;font-size:13px;color:#c92a2a;border-color:#c92a2a"
+                                            @onclick="() => DeleteRecipient(r.Id)">
+                                        <i class="fa-solid fa-trash fa-xs"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+
+            <!-- RIGHT: add form -->
+            <div class="sp-side-card">
+                <div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:1rem">
+                    <i class="fa-solid fa-user-plus" style="color:#7048e8;margin-right:6px"></i>
+                    @Lang.T("recip_add_title")
+                </div>
+
+                @if (!string.IsNullOrEmpty(addError))
+                {
+                    <div class="sp-alert sp-alert-error">@addError</div>
+                }
+                @if (!string.IsNullOrEmpty(addSuccess))
+                {
+                    <div class="sp-alert sp-alert-success">@addSuccess</div>
+                }
+
+                <div class="sp-form-group">
+                    <label>@Lang.T("recip_name")</label>
+                    <input class="sp-form-input sp-form-input-lg" @bind="newName" placeholder="Nguyen Van A" />
+                </div>
+                <div class="sp-form-group">
+                    <label>@Lang.T("recip_phone")</label>
+                    <input class="sp-form-input sp-form-input-lg" @bind="newPhone" placeholder="090-1234-5678" />
+                </div>
+                <div class="sp-form-group">
+                    <label>@Lang.T("recip_note")</label>
+                    <input class="sp-form-input sp-form-input-lg" @bind="newNote" placeholder="@Lang.T("recip_note_ph")" />
+                </div>
+                <button class="btn-red" style="width:100%;justify-content:center;margin-top:.5rem;padding:14px"
+                        @onclick="AddRecipient" disabled="@adding">
+                    @if (adding) { <i class="fa-solid fa-spinner fa-spin" style="margin-right:6px"></i> }
+                    @Lang.T("recip_add_btn")
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    List<RecipientResponse> recipients = [];
+    bool loading = true;
+    bool adding = false;
+    string newName = "", newPhone = "", newNote = "";
+    string addError = "", addSuccess = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        Lang.OnChanged += StateHasChanged;
+        var token = await LocalStorage.GetItemAsync<string>("token");
+        if (string.IsNullOrEmpty(token)) { Nav.NavigateTo("/login"); return; }
+        var saved = await LocalStorage.GetItemAsync<string>("sp_lang");
+        if (!string.IsNullOrEmpty(saved)) Lang.Set(saved);
+        await Reload();
+    }
+
+    async Task Reload()
+    {
+        loading = true;
+        recipients = await Api.GetRecipientsAsync();
+        loading = false;
+    }
+
+    async Task AddRecipient()
+    {
+        addError = ""; addSuccess = "";
+        if (string.IsNullOrWhiteSpace(newName) || string.IsNullOrWhiteSpace(newPhone))
+        {
+            addError = Lang.T("recip_err_required");
+            return;
+        }
+        adding = true;
+        var (ok, _, err) = await Api.AddRecipientAsync(newName.Trim(), newPhone.Trim(), newNote.Trim());
+        adding = false;
+        if (ok)
+        {
+            addSuccess = Lang.T("recip_added");
+            newName = newPhone = newNote = "";
+            await Reload();
+        }
+        else addError = err;
+    }
+
+    async Task DeleteRecipient(int id)
+    {
+        await Api.DeleteRecipientAsync(id);
+        await Reload();
+    }
+
+    static string GetInitials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var p = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return p.Length >= 2 ? $"{p[0][0]}{p[^1][0]}".ToUpper() : name[..Math.Min(2, name.Length)].ToUpper();
+    }
+
+    public void Dispose() => Lang.OnChanged -= StateHasChanged;
+}

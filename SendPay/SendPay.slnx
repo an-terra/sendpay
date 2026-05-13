@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="SendPay.Api/SendPay.Api.csproj" />
+  <Project Path="SendPay.Web/SendPay.Web.csproj" />
+</Solution>
