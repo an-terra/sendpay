@@ -1,0 +1,268 @@
+@page "/dashboard"
+@inject ApiService Api
+@inject ILocalStorageService LocalStorage
+@inject NavigationManager Nav
+@inject LanguageService Lang
+@implements IDisposable
+
+<div class="sp-dash-page">
+
+    <!-- TOP NAV -->
+    <nav class="sp-dash-nav">
+        <a class="sp-dash-logo" href="/dashboard">
+            <img src="/images/logo.png" alt="SendPay" class="sp-logo-img sp-logo-img--nav" />
+        </a>
+        <div class="sp-dash-nav-links">
+            <a href="/dashboard" class="sp-dash-nav-link active"><i class="fa-solid fa-house-chimney"></i> @Lang.T("dash_home")</a>
+            <a href="/transfer" class="sp-dash-nav-link"><i class="fa-solid fa-money-bill-transfer"></i> @Lang.T("dash_transfer")</a>
+            <a href="/topup" class="sp-dash-nav-link"><i class="fa-solid fa-circle-arrow-down"></i> @Lang.T("dash_topup")</a>
+            <a href="/history" class="sp-dash-nav-link"><i class="fa-solid fa-clock"></i> @Lang.T("dash_history")</a>
+        </div>
+        <div class="sp-dash-nav-right">
+            <LangSelector Dark="true" />
+            <div class="sp-dash-user">
+                <div class="sp-dash-avatar">@GetInitials(fullName)</div>
+                <span>@fullName</span>
+            </div>
+            <button class="sp-dash-logout" @onclick="Logout">
+                <i class="fa-solid fa-arrow-right-from-bracket"></i> @Lang.T("dash_logout")
+            </button>
+        </div>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <div class="sp-dash-content">
+
+        <!-- BALANCE + ACTIONS ROW -->
+        <div class="sp-dash-top">
+            <div class="sp-dash-balance-card">
+                <div class="sp-dash-bal-label">
+                    <i class="fa-solid fa-wallet"></i> @Lang.T("dash_bal_label")
+                </div>
+                <div class="sp-dash-bal-amount">
+                    ¥ @(wallet?.Balance.ToString("N0") ?? "---")
+                </div>
+                <div class="sp-dash-bal-sub">
+                    <span><i class="fa-solid fa-phone"></i> @(wallet?.Phone ?? "---")</span>
+                    <span><i class="fa-solid fa-user"></i> @fullName</span>
+                </div>
+                <div class="sp-dash-bal-actions">
+                    <a href="/transfer" class="sp-dash-act primary">
+                        <i class="fa-solid fa-paper-plane"></i> @Lang.T("dash_act_send")
+                    </a>
+                    <a href="/topup" class="sp-dash-act">
+                        <i class="fa-solid fa-plus"></i> @Lang.T("dash_act_topup")
+                    </a>
+                    <a href="/history" class="sp-dash-act">
+                        <i class="fa-solid fa-clock-rotate-left"></i> @Lang.T("dash_act_hist")
+                    </a>
+                </div>
+            </div>
+
+            <!-- RATE INFO (live) -->
+            <div class="sp-dash-rate-panel">
+                <div class="sp-dash-rate-title">
+                    <i class="fa-solid fa-chart-line"></i> @Lang.T("dash_rate_title")
+                    @if (!string.IsNullOrEmpty(rateDate))
+                    {
+                        <span style="float:right;font-size:10px;font-weight:400;color:var(--text-muted)">@rateDate</span>
+                    }
+                </div>
+                @if (liveRates.Count == 0)
+                {
+                    <div style="text-align:center;padding:16px;color:var(--text-muted);font-size:13px">
+                        <i class="fa-solid fa-spinner fa-spin"></i>
+                    </div>
+                }
+                else
+                {
+                    @foreach (var r in liveRates)
+                    {
+                        <div class="sp-dash-rate-row">
+                            <span class="sp-rate-flag-cell">
+                                <img src="@FlagUrl(r.Code)" class="sp-rate-flag-img" alt="@r.Code" />
+                                @r.Code
+                            </span>
+                            <strong>1 JPY = @r.Rate.ToString("N2") @r.Code</strong>
+                            <span style="font-size:11px;@(r.Up ? "color:#0D7A4E" : "color:#c92a2a")">@r.Change%</span>
+                        </div>
+                    }
+                }
+                <div style="font-size:11px;color:var(--text-muted);margin-top:12px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+                    <span>@Lang.T("dash_rate_note")</span>
+                    <a href="/rates" style="color:var(--red);text-decoration:none;font-weight:600;white-space:nowrap">@Lang.T("dash_see_all") →</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- QUICK ACTIONS -->
+        <div class="sp-dash-section-title">@Lang.T("dash_quick_title")</div>
+        <div class="sp-dash-quick-grid">
+            <a href="/transfer" class="sp-dash-quick-item">
+                <div class="sp-quick-icon qi-red"><i class="fa-solid fa-paper-plane"></i></div>
+                <span>@Lang.T("quick_transfer")</span>
+            </a>
+            <a href="/topup" class="sp-dash-quick-item">
+                <div class="sp-quick-icon qi-blue"><i class="fa-solid fa-wallet"></i></div>
+                <span>@Lang.T("quick_topup")</span>
+            </a>
+            <a href="/history" class="sp-dash-quick-item">
+                <div class="sp-quick-icon qi-gold"><i class="fa-solid fa-clock-rotate-left"></i></div>
+                <span>@Lang.T("quick_history")</span>
+            </a>
+            <a href="/receipt" class="sp-dash-quick-item">
+                <div class="sp-quick-icon qi-green"><i class="fa-solid fa-receipt"></i></div>
+                <span>@Lang.T("quick_receipt")</span>
+            </a>
+            <a href="/recipients" class="sp-dash-quick-item">
+                <div class="sp-quick-icon qi-purple"><i class="fa-solid fa-users"></i></div>
+                <span>@Lang.T("quick_contacts")</span>
+            </a>
+            <a href="/rates" class="sp-dash-quick-item">
+                <div class="sp-quick-icon qi-teal"><i class="fa-solid fa-chart-line"></i></div>
+                <span>@Lang.T("quick_rates")</span>
+            </a>
+            <a href="/support" class="sp-dash-quick-item">
+                <div class="sp-quick-icon qi-pink"><i class="fa-solid fa-headset"></i></div>
+                <span>@Lang.T("quick_support")</span>
+            </a>
+            <a href="/settings" class="sp-dash-quick-item">
+                <div class="sp-quick-icon qi-gray"><i class="fa-solid fa-gear"></i></div>
+                <span>@Lang.T("quick_settings")</span>
+            </a>
+        </div>
+
+        <!-- RECENT TRANSACTIONS -->
+        <div class="sp-dash-section-row">
+            <div class="sp-dash-section-title" style="margin-bottom:0">@Lang.T("dash_recent")</div>
+            <a href="/history" style="font-size:13px;color:var(--red);font-weight:600;text-decoration:none">@Lang.T("dash_see_all")</a>
+        </div>
+
+        @if (recentTx.Count == 0)
+        {
+            <div class="sp-dash-tx-card">
+                <div style="text-align:center;padding:48px;color:var(--text-muted);font-size:15px">
+                    <i class="fa-solid fa-inbox" style="font-size:36px;margin-bottom:12px;display:block"></i>
+                    @Lang.T("dash_empty")
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="sp-dash-tx-card">
+                @foreach (var tx in recentTx)
+                {
+                    bool isIncoming = tx.Type == 1 || (tx.Type == 0 && tx.SenderId != currentUserId);
+                    string otherName = tx.Type == 1 ? Lang.T("dash_topup_lbl")
+                                     : isIncoming ? tx.SenderName : tx.ReceiverName;
+                    string txIcon = tx.Type == 1 ? "fa-solid fa-plus" : "fa-solid fa-paper-plane";
+                    string avatarBg = tx.Type == 1 ? "linear-gradient(140deg,#38d9a9,#0C8599)"
+                                    : isIncoming  ? "linear-gradient(140deg,#51cf66,#0D7A4E)"
+                                    : "linear-gradient(140deg,#ff8fa3,#D0001F)";
+                    string avatarShadow = tx.Type == 1 ? "0 4px 14px rgba(12,133,153,.45)"
+                                       : isIncoming  ? "0 4px 14px rgba(13,122,78,.45)"
+                                       : "0 4px 14px rgba(208,0,31,.45)";
+                    <div class="sp-dash-tx-row">
+                        <div class="sp-tx-avatar" style="background:@avatarBg;box-shadow:@avatarShadow">
+                            <i class="@txIcon" style="font-size:17px"></i>
+                        </div>
+                        <div class="sp-tx-info">
+                            <div class="sp-tx-name">@otherName</div>
+                            <div class="sp-tx-meta">@tx.CreatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm") · @(tx.Type == 1 ? Lang.T("dash_topup_lbl") : Lang.T("dash_transfer_lbl"))</div>
+                        </div>
+                        <div class="sp-tx-amt-col">
+                            <div class="sp-tx-amt @(isIncoming ? "in" : "out")">
+                                @(isIncoming ? "+" : "−")¥@tx.Amount.ToString("N0")
+                            </div>
+                            @if (!isIncoming && tx.Fee > 0)
+                            {
+                                <div class="sp-tx-fee">@Lang.T("tr_fee_lbl"): ¥@tx.Fee.ToString("N0")</div>
+                            }
+                            <div class="sp-tx-status">✓ @Lang.T("dash_done")</div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+
+        <!-- NOTICE BANNER -->
+        <div class="sp-dash-notice">
+            <i class="fa-solid fa-circle-info"></i>
+            <span>
+                @Lang.T("dash_notice") <a href="mailto:support@sendpay.jp">@Lang.T("dash_contact_link")</a>@Lang.T("dash_notice2")
+            </span>
+        </div>
+
+    </div>
+</div>
+
+@code {
+    WalletResponse? wallet;
+    List<TransactionResponse> recentTx = [];
+    List<CurrencyRate> liveRates = [];
+    string fullName = "";
+    string rateDate = "";
+    int currentUserId;
+
+    // currencies to show on dashboard panel
+    static readonly string[] DashRateCodes = ["VND", "USD", "LKR", "NPR", "PHP"];
+
+    static readonly Dictionary<string, string> _currencyFlag = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["VND"] = "vn", ["USD"] = "us", ["EUR"] = "eu", ["CNY"] = "cn",
+        ["KRW"] = "kr", ["LKR"] = "lk", ["NPR"] = "np", ["PHP"] = "ph",
+        ["INR"] = "in", ["THB"] = "th",
+    };
+    static string FlagUrl(string code) =>
+        _currencyFlag.TryGetValue(code, out var cc) ? $"https://flagcdn.com/w40/{cc}.png" : "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        Lang.OnChanged += StateHasChanged;
+        var token = await LocalStorage.GetItemAsync<string>("token");
+        if (string.IsNullOrEmpty(token)) { Nav.NavigateTo("/login"); return; }
+
+        var saved = await LocalStorage.GetItemAsync<string>("sp_lang");
+        if (!string.IsNullOrEmpty(saved)) Lang.Set(saved);
+
+        fullName      = await LocalStorage.GetItemAsync<string>("fullName") ?? "";
+        currentUserId = await LocalStorage.GetItemAsync<int>("userId");
+
+        // load all in parallel — rates failure must not block wallet/history
+        var walletTask  = Api.GetWalletAsync();
+        var historyTask = Api.GetHistoryAsync();
+        var ratesTask   = Api.GetRatesAsync();
+
+        try { await Task.WhenAll(walletTask, historyTask, ratesTask); } catch { }
+
+        wallet   = walletTask.IsCompletedSuccessfully ? walletTask.Result : null;
+        recentTx = ((historyTask.IsCompletedSuccessfully ? historyTask.Result : null) ?? []).Take(5).ToList();
+
+        if (ratesTask.IsCompletedSuccessfully && ratesTask.Result != null)
+        {
+            rateDate  = ratesTask.Result.Date;
+            liveRates = ratesTask.Result.Rates
+                .Where(r => DashRateCodes.Contains(r.Code))
+                .ToList();
+        }
+    }
+
+    async Task Logout()
+    {
+        await LocalStorage.RemoveItemAsync("token");
+        await LocalStorage.RemoveItemAsync("fullName");
+        await LocalStorage.RemoveItemAsync("isAdmin");
+        Nav.NavigateTo("/login");
+    }
+
+    static string GetInitials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "??";
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2
+            ? $"{parts[0][0]}{parts[^1][0]}".ToUpper()
+            : name[..Math.Min(2, name.Length)].ToUpper();
+    }
+
+    public void Dispose() => Lang.OnChanged -= StateHasChanged;
+}

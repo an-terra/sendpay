@@ -1,0 +1,64 @@
+@inject ILocalStorageService LocalStorage
+@inject NavigationManager Nav
+@inject LanguageService Lang
+@implements IDisposable
+
+<nav class="sp-dash-nav">
+    <a class="sp-dash-logo" href="/dashboard">
+        <img src="/images/logo.png" alt="SendPay" class="sp-logo-img sp-logo-img--nav" />
+    </a>
+    <div class="sp-dash-nav-links">
+        <a href="/dashboard" class="sp-dash-nav-link @(Active=="dashboard"?"active":"")">
+            <i class="fa-solid fa-house-chimney"></i> @Lang.T("dash_home")
+        </a>
+        <a href="/transfer" class="sp-dash-nav-link @(Active=="transfer"?"active":"")">
+            <i class="fa-solid fa-money-bill-transfer"></i> @Lang.T("dash_transfer")
+        </a>
+        <a href="/topup" class="sp-dash-nav-link @(Active=="topup"?"active":"")">
+            <i class="fa-solid fa-circle-arrow-down"></i> @Lang.T("dash_topup")
+        </a>
+        <a href="/history" class="sp-dash-nav-link @(Active=="history"?"active":"")">
+            <i class="fa-solid fa-clock"></i> @Lang.T("dash_history")
+        </a>
+    </div>
+    <div class="sp-dash-nav-right">
+        <LangSelector Dark="true" />
+        <div class="sp-dash-user">
+            <div class="sp-dash-avatar">@GetInitials(fullName)</div>
+            <span>@fullName</span>
+        </div>
+        <button class="sp-dash-logout" @onclick="Logout">
+            <i class="fa-solid fa-right-from-bracket"></i> @Lang.T("dash_logout")
+        </button>
+    </div>
+</nav>
+
+@code {
+    [Parameter] public string Active { get; set; } = "";
+    string fullName = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        Lang.OnChanged += StateHasChanged;
+        fullName = await LocalStorage.GetItemAsync<string>("fullName") ?? "";
+    }
+
+    public void Dispose() => Lang.OnChanged -= StateHasChanged;
+
+    async Task Logout()
+    {
+        await LocalStorage.RemoveItemAsync("token");
+        await LocalStorage.RemoveItemAsync("fullName");
+        await LocalStorage.RemoveItemAsync("isAdmin");
+        Nav.NavigateTo("/login");
+    }
+
+    static string GetInitials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "??";
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length >= 2
+            ? $"{parts[0][0]}{parts[^1][0]}".ToUpper()
+            : name[..Math.Min(2, name.Length)].ToUpper();
+    }
+}

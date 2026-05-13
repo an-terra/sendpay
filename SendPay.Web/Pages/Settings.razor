@@ -1,0 +1,378 @@
+@page "/settings"
+@using Microsoft.AspNetCore.Components.Forms
+@inject ApiService Api
+@inject ILocalStorageService LocalStorage
+@inject NavigationManager Nav
+@inject LanguageService Lang
+@implements IDisposable
+
+<div class="sp-dash-page">
+    <DashNav Active="settings" />
+
+    <div class="sp-dash-content">
+        <div class="sp-page-header">
+            <a href="/dashboard" class="sp-back-circle"><i class="fa-solid fa-arrow-left"></i></a>
+            <div class="sp-page-icon qi-gray"><i class="fa-solid fa-gear"></i></div>
+            <div>
+                <div class="sp-page-title">@Lang.T("settings_title")</div>
+                <div class="sp-page-sub">@Lang.T("settings_sub")</div>
+            </div>
+        </div>
+
+        <!-- ═══ GROUP 1: Thông tin cá nhân & Bảo mật ═══ -->
+        <div class="sp-side-card">
+            <div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:1.4rem;display:flex;align-items:center;gap:8px">
+                <i class="fa-solid fa-user-pen" style="color:var(--red)"></i>
+                @Lang.T("settings_profile")
+            </div>
+
+            @if (!string.IsNullOrEmpty(group1Error))
+            {
+                <div class="sp-alert sp-alert-error" style="margin-bottom:1.2rem">@group1Error</div>
+            }
+            @if (!string.IsNullOrEmpty(group1Success))
+            {
+                <div class="sp-alert sp-alert-success" style="margin-bottom:1.2rem">@group1Success</div>
+            }
+
+            <div style="display:flex;gap:2.5rem;align-items:flex-start;flex-wrap:wrap;margin-bottom:1.8rem">
+                <!-- Avatar -->
+                <div style="display:flex;flex-direction:column;align-items:center;gap:8px;flex-shrink:0">
+                    <div class="sp-avatar-wrap">
+                        @if (!string.IsNullOrEmpty(avatarData))
+                        {
+                            <img src="@avatarData" class="sp-avatar-img" alt="avatar" />
+                        }
+                        else
+                        {
+                            <div class="sp-avatar-initials">@GetInitials(fullName)</div>
+                        }
+                        <label class="sp-avatar-cam" title="@Lang.T("settings_avatar_hint")">
+                            <i class="fa-solid fa-camera"></i>
+                            <InputFile OnChange="OnAvatarChanged" accept="image/*" style="display:none" />
+                        </label>
+                    </div>
+                    <div style="font-size:11px;color:var(--text-muted);text-align:center">
+                        @Lang.T("settings_avatar")<br>@Lang.T("settings_avatar_hint")
+                    </div>
+                </div>
+                <!-- Fields -->
+                <div style="flex:1;min-width:260px;display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1rem;align-items:end">
+                    <div class="sp-form-group" style="margin-bottom:0">
+                        <label>@Lang.T("settings_fullname")</label>
+                        <input class="sp-form-input sp-form-input-lg" @bind="fullName" />
+                    </div>
+                    <div class="sp-form-group" style="margin-bottom:0">
+                        <label>@Lang.T("settings_email")</label>
+                        <input class="sp-form-input sp-form-input-lg" type="email" @bind="email" />
+                    </div>
+                    <div class="sp-form-group" style="margin-bottom:0">
+                        <label>@Lang.T("settings_phone")</label>
+                        <input class="sp-form-input sp-form-input-lg" @bind="phone" />
+                    </div>
+                    <div style="border-left:3px solid var(--gray-border);padding-left:12px">
+                        <div style="font-size:11px;color:var(--text-muted);margin-bottom:4px">@Lang.T("settings_balance")</div>
+                        <div style="font-size:22px;font-weight:800;color:var(--navy)">¥@balance.ToString("N0")</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Divider -->
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:1.4rem">
+                <div style="flex:1;height:1px;background:var(--gray-border)"></div>
+                <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;display:flex;align-items:center;gap:5px">
+                    <i class="fa-solid fa-lock" style="color:#e67700"></i>
+                    @Lang.T("settings_password")
+                    <span style="opacity:.6">· @Lang.T("settings_pwd_optional")</span>
+                </span>
+                <div style="flex:1;height:1px;background:var(--gray-border)"></div>
+            </div>
+
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1rem;margin-bottom:1.8rem">
+                <div class="sp-form-group" style="margin-bottom:0">
+                    <label>@Lang.T("settings_cur_pwd")</label>
+                    <input class="sp-form-input sp-form-input-lg" type="password" @bind="currentPwd" />
+                </div>
+                <div class="sp-form-group" style="margin-bottom:0">
+                    <label>@Lang.T("settings_new_pwd")</label>
+                    <input class="sp-form-input sp-form-input-lg" type="password" @bind="newPwd" />
+                </div>
+                <div class="sp-form-group" style="margin-bottom:0">
+                    <label>@Lang.T("settings_confirm_pwd")</label>
+                    <input class="sp-form-input sp-form-input-lg" type="password" @bind="confirmPwd" />
+                </div>
+            </div>
+
+            <button class="btn-red" style="padding:13px 40px" @onclick="SaveAll" disabled="@savingGroup1">
+                @if (savingGroup1) { <i class="fa-solid fa-spinner fa-spin" style="margin-right:6px"></i> }
+                <i class="fa-solid fa-floppy-disk" style="margin-right:6px"></i>
+                @Lang.T("settings_save")
+            </button>
+        </div>
+
+        <!-- ═══ GROUP 2: Hồ sơ cư trú & Giấy tờ ═══ -->
+        <div class="sp-side-card" style="margin-top:1.5rem">
+            <div style="font-size:15px;font-weight:700;color:var(--navy);margin-bottom:1.4rem;display:flex;align-items:center;gap:8px">
+                <i class="fa-solid fa-location-dot" style="color:#3B5BDB"></i>
+                @Lang.T("settings_addr_title")
+            </div>
+
+            @if (!string.IsNullOrEmpty(group2Error))
+            {
+                <div class="sp-alert sp-alert-error" style="margin-bottom:1.2rem">@group2Error</div>
+            }
+            @if (!string.IsNullOrEmpty(group2Success))
+            {
+                <div class="sp-alert sp-alert-success" style="margin-bottom:1.2rem">@group2Success</div>
+            }
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1rem;margin-bottom:1.8rem">
+                <div class="sp-form-group" style="margin-bottom:0">
+                    <label>@Lang.T("settings_postal")</label>
+                    <input class="sp-form-input sp-form-input-lg" @bind="postalCode" placeholder="〒 000-0000" />
+                </div>
+                <div class="sp-form-group" style="margin-bottom:0">
+                    <label>@Lang.T("settings_prefecture")</label>
+                    <select class="sp-form-input sp-form-input-lg" @bind="prefecture">
+                        <option value="">---</option>
+                        @foreach (var pref in _prefectures)
+                        {
+                            <option value="@pref">@pref</option>
+                        }
+                    </select>
+                </div>
+                <div class="sp-form-group" style="margin-bottom:0">
+                    <label>@Lang.T("settings_city")</label>
+                    <input class="sp-form-input sp-form-input-lg" @bind="city" />
+                </div>
+                <div class="sp-form-group" style="margin-bottom:0">
+                    <label>@Lang.T("settings_street")</label>
+                    <input class="sp-form-input sp-form-input-lg" @bind="streetAddress" />
+                </div>
+            </div>
+
+            <!-- Divider -->
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:1.4rem">
+                <div style="flex:1;height:1px;background:var(--gray-border)"></div>
+                <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;display:flex;align-items:center;gap:5px">
+                    <i class="fa-solid fa-id-card" style="color:#6741D9"></i>
+                    @Lang.T("settings_kyc_title")
+                </span>
+                <div style="flex:1;height:1px;background:var(--gray-border)"></div>
+            </div>
+
+            <div class="sp-kyc-notice" style="margin-bottom:1.2rem">
+                <i class="fa-solid fa-circle-info"></i> @Lang.T("settings_kyc_notice")
+            </div>
+
+            <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:.8rem">@Lang.T("settings_kyc_doc")</div>
+            <div class="sp-kyc-options" style="margin-bottom:1.2rem">
+                <label class="sp-kyc-option @(kycDocType == "mynumber" ? "selected" : "")">
+                    <input type="radio" name="kycDocType" value="mynumber" @onchange='() => kycDocType = "mynumber"' />
+                    <div class="sp-kyc-opt-inner">
+                        <i class="fa-solid fa-id-card"></i>
+                        <div>
+                            <div class="sp-kyc-opt-title">@Lang.T("reg_mynumber")</div>
+                            <div class="sp-kyc-opt-sub">@Lang.T("reg_mynumber_sub")</div>
+                        </div>
+                    </div>
+                </label>
+                <label class="sp-kyc-option @(kycDocType == "zairyu" ? "selected" : "")">
+                    <input type="radio" name="kycDocType" value="zairyu" @onchange='() => kycDocType = "zairyu"' />
+                    <div class="sp-kyc-opt-inner">
+                        <i class="fa-solid fa-passport"></i>
+                        <div>
+                            <div class="sp-kyc-opt-title">@Lang.T("reg_zairyu")</div>
+                            <div class="sp-kyc-opt-sub">@Lang.T("reg_zairyu_sub")</div>
+                        </div>
+                    </div>
+                </label>
+                <label class="sp-kyc-option @(kycDocType == "license" ? "selected" : "")">
+                    <input type="radio" name="kycDocType" value="license" @onchange='() => kycDocType = "license"' />
+                    <div class="sp-kyc-opt-inner">
+                        <i class="fa-solid fa-car"></i>
+                        <div>
+                            <div class="sp-kyc-opt-title">@Lang.T("reg_license")</div>
+                            <div class="sp-kyc-opt-sub">@Lang.T("reg_license_sub")</div>
+                        </div>
+                    </div>
+                </label>
+            </div>
+
+            @if (!string.IsNullOrEmpty(kycDocType))
+            {
+                <div class="sp-kyc-upload-area" style="margin-bottom:1.2rem">
+                    <div class="sp-kyc-upload-box">
+                        <i class="fa-solid fa-camera" style="font-size:26px;color:var(--red);margin-bottom:8px"></i>
+                        <div style="font-weight:600;font-size:14px;color:var(--navy)">@Lang.T("settings_kyc_front")</div>
+                        <div style="font-size:12px;color:var(--text-muted);margin:4px 0 12px">@Lang.T("reg_upload_hint")</div>
+                        <input type="file" accept="image/*,.pdf" @onchange='e => kycFrontFile = e.Value?.ToString() ?? ""' style="display:none" id="kycFront" />
+                        <label for="kycFront" class="sp-kyc-upload-btn"><i class="fa-solid fa-upload"></i> @Lang.T("reg_upload_btn")</label>
+                        @if (!string.IsNullOrEmpty(kycFrontFile))
+                        {
+                            <div class="sp-kyc-file-ok"><i class="fa-solid fa-check-circle"></i> @Lang.T("reg_file_ok")</div>
+                        }
+                    </div>
+                    @if (kycDocType != "mynumber")
+                    {
+                        <div class="sp-kyc-upload-box">
+                            <i class="fa-solid fa-camera" style="font-size:26px;color:var(--text-muted);margin-bottom:8px"></i>
+                            <div style="font-weight:600;font-size:14px;color:var(--navy)">@Lang.T("settings_kyc_back")</div>
+                            <div style="font-size:12px;color:var(--text-muted);margin:4px 0 12px">@Lang.T("reg_upload_hint")</div>
+                            <input type="file" accept="image/*,.pdf" @onchange='e => kycBackFile = e.Value?.ToString() ?? ""' style="display:none" id="kycBack" />
+                            <label for="kycBack" class="sp-kyc-upload-btn secondary"><i class="fa-solid fa-upload"></i> @Lang.T("reg_upload_btn")</label>
+                            @if (!string.IsNullOrEmpty(kycBackFile))
+                            {
+                                <div class="sp-kyc-file-ok"><i class="fa-solid fa-check-circle"></i> @Lang.T("reg_file_ok")</div>
+                            }
+                        </div>
+                    }
+                </div>
+            }
+
+            <!-- Jumin -->
+            <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:.6rem">@Lang.T("settings_kyc_jumin")</div>
+            <div class="sp-jumin-box" style="margin-bottom:1.8rem">
+                <i class="fa-solid fa-file-lines" style="font-size:22px;color:var(--gold);margin-bottom:8px;display:block"></i>
+                <div style="font-size:13px;font-weight:600;color:var(--navy);margin-bottom:4px">@Lang.T("reg_jumin_title")</div>
+                <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px">@Lang.T("reg_jumin_sub")</div>
+                <input type="file" accept="image/*,.pdf" @onchange='e => kycJuminFile = e.Value?.ToString() ?? ""' style="display:none" id="kycJumin" />
+                <label for="kycJumin" class="sp-kyc-upload-btn"><i class="fa-solid fa-upload"></i> @Lang.T("reg_jumin_btn")</label>
+                @if (!string.IsNullOrEmpty(kycJuminFile))
+                {
+                    <div class="sp-kyc-file-ok" style="margin-top:8px"><i class="fa-solid fa-check-circle"></i> @Lang.T("reg_file_ok")</div>
+                }
+            </div>
+
+            <button class="btn-red" style="padding:13px 40px;background:linear-gradient(135deg,#3B5BDB,#6741D9);border:none"
+                    @onclick="SaveDocuments" disabled="@savingGroup2">
+                @if (savingGroup2) { <i class="fa-solid fa-spinner fa-spin" style="margin-right:6px"></i> }
+                <i class="fa-solid fa-cloud-arrow-up" style="margin-right:6px"></i>
+                @Lang.T("settings_save_addr")
+            </button>
+        </div>
+
+    </div>
+</div>
+
+@code {
+    string fullName = "", email = "", phone = "";
+    decimal balance = 0;
+    string currentPwd = "", newPwd = "", confirmPwd = "";
+    string avatarData = "";
+
+    string group1Error = "", group1Success = "";
+    string group2Error = "", group2Success = "";
+    bool savingGroup1 = false, savingGroup2 = false;
+
+    string postalCode = "", prefecture = "", city = "", streetAddress = "";
+    string kycDocType = "", kycFrontFile = "", kycBackFile = "", kycJuminFile = "";
+
+    static readonly string[] _prefectures = [
+        "北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県",
+        "茨城県","栃木県","群馬県","埼玉県","千葉県","東京都","神奈川県",
+        "新潟県","富山県","石川県","福井県","山梨県","長野県","岐阜県",
+        "静岡県","愛知県","三重県","滋賀県","京都府","大阪府","兵庫県",
+        "奈良県","和歌山県","鳥取県","島根県","岡山県","広島県","山口県",
+        "徳島県","香川県","愛媛県","高知県","福岡県","佐賀県","長崎県",
+        "熊本県","大分県","宮崎県","鹿児島県","沖縄県"
+    ];
+
+    protected override async Task OnInitializedAsync()
+    {
+        Lang.OnChanged += StateHasChanged;
+        var token = await LocalStorage.GetItemAsync<string>("token");
+        if (string.IsNullOrEmpty(token)) { Nav.NavigateTo("/login"); return; }
+        var saved = await LocalStorage.GetItemAsync<string>("sp_lang");
+        if (!string.IsNullOrEmpty(saved)) Lang.Set(saved);
+        avatarData = await LocalStorage.GetItemAsync<string>("sp_avatar") ?? "";
+        await LoadProfile();
+    }
+
+    async Task LoadProfile()
+    {
+        var p = await Api.GetProfileAsync();
+        if (p != null) { fullName = p.FullName; email = p.Email; phone = p.Phone; balance = p.Balance; }
+    }
+
+    async Task OnAvatarChanged(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file.Size > 2 * 1024 * 1024) { group1Error = Lang.T("settings_avatar_large"); return; }
+        using var stream = file.OpenReadStream(maxAllowedSize: 2 * 1024 * 1024);
+        using var ms = new MemoryStream();
+        await stream.CopyToAsync(ms);
+        avatarData = $"data:{file.ContentType};base64,{Convert.ToBase64String(ms.ToArray())}";
+        await LocalStorage.SetItemAsync("sp_avatar", avatarData);
+        group1Success = Lang.T("settings_avatar_saved");
+    }
+
+    async Task SaveAll()
+    {
+        group1Error = ""; group1Success = "";
+        if (string.IsNullOrWhiteSpace(fullName) || string.IsNullOrWhiteSpace(email))
+        {
+            group1Error = Lang.T("settings_err_required"); return;
+        }
+        if (!string.IsNullOrWhiteSpace(currentPwd) && newPwd != confirmPwd)
+        {
+            group1Error = Lang.T("settings_pwd_mismatch"); return;
+        }
+        savingGroup1 = true;
+
+        var (profOk, profErr) = await Api.UpdateProfileAsync(fullName.Trim(), email.Trim(), phone.Trim());
+        if (profOk) await LocalStorage.SetItemAsync("fullName", fullName.Trim());
+
+        bool pwdOk = true; string pwdErrMsg = "";
+        if (!string.IsNullOrWhiteSpace(currentPwd))
+        {
+            (pwdOk, pwdErrMsg) = await Api.ChangePasswordAsync(currentPwd, newPwd);
+            if (pwdOk) { currentPwd = newPwd = confirmPwd = ""; }
+        }
+
+        savingGroup1 = false;
+        if (!profOk) { group1Error = profErr; return; }
+        if (!pwdOk)  { group1Error = pwdErrMsg; return; }
+        group1Success = Lang.T("settings_saved");
+    }
+
+    async Task SaveDocuments()
+    {
+        group2Error = ""; group2Success = "";
+        bool hasAddr = !string.IsNullOrWhiteSpace(postalCode) || !string.IsNullOrWhiteSpace(city);
+        bool hasKyc  = !string.IsNullOrEmpty(kycDocType);
+
+        if (!hasAddr && !hasKyc) { group2Error = Lang.T("settings_err_required"); return; }
+
+        if (hasAddr && (string.IsNullOrWhiteSpace(postalCode) || string.IsNullOrWhiteSpace(prefecture) || string.IsNullOrWhiteSpace(city)))
+        {
+            group2Error = Lang.T("settings_err_required"); return;
+        }
+        if (hasKyc && string.IsNullOrEmpty(kycFrontFile))
+        {
+            group2Error = Lang.T("settings_kyc_err_front"); return;
+        }
+
+        savingGroup2 = true;
+        if (hasAddr)
+        {
+            var (ok, err) = await Api.UpdateAddressAsync(postalCode.Trim(), prefecture, city.Trim(), streetAddress.Trim());
+            if (!ok && !string.IsNullOrEmpty(err)) { group2Error = err; savingGroup2 = false; return; }
+        }
+        if (hasKyc)
+        {
+            // KYC API call would go here
+            kycDocType = kycFrontFile = kycBackFile = kycJuminFile = "";
+        }
+        savingGroup2 = false;
+        group2Success = Lang.T("settings_saved");
+    }
+
+    static string GetInitials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var p = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return p.Length >= 2 ? $"{p[0][0]}{p[^1][0]}".ToUpper() : name[..Math.Min(2, name.Length)].ToUpper();
+    }
+
+    public void Dispose() => Lang.OnChanged -= StateHasChanged;
+}

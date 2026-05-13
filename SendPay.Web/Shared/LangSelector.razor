@@ -1,0 +1,68 @@
+@inject LanguageService Lang
+@inject ILocalStorageService LocalStorage
+@implements IDisposable
+
+<div class="sp-lang-wrap">
+    @if (langOpen)
+    {
+        <div class="sp-lang-overlay" @onclick="Close"></div>
+    }
+    <button class="sp-lang-btn @(Dark ? "sp-lang-btn-dark" : "sp-lang-btn-light")"
+            @onclick="Toggle">
+        <span>@CurrentFlag</span>
+        <span>@Lang.Current.ToUpper()</span>
+        <i class="fa-solid fa-chevron-down" style="font-size:9px;opacity:.7;transition:transform .2s;@(langOpen?"transform:rotate(180deg)":"")"></i>
+    </button>
+    @if (langOpen)
+    {
+        <div class="sp-lang-dropdown">
+            @foreach (var l in LanguageService.Languages)
+            {
+                <div class="sp-lang-option @(Lang.Current == l.Code ? "sp-lang-active" : "")"
+                     @onclick="() => Select(l.Code)">
+                    <span style="font-size:18px">@l.Flag</span>
+                    <span>@l.Label</span>
+                    @if (Lang.Current == l.Code)
+                    {
+                        <i class="fa-solid fa-check" style="margin-left:auto;font-size:11px;color:var(--red)"></i>
+                    }
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public bool Dark { get; set; } = false;
+
+    bool langOpen = false;
+    bool initialized = false;
+
+    string CurrentFlag => LanguageService.Languages
+        .FirstOrDefault(l => l.Code == Lang.Current).Flag ?? "🌐";
+
+    protected override async Task OnInitializedAsync()
+    {
+        Lang.OnChanged += OnLangChanged;
+        if (!initialized)
+        {
+            initialized = true;
+            var saved = await LocalStorage.GetItemAsync<string>("sp_lang");
+            if (!string.IsNullOrEmpty(saved)) Lang.Set(saved);
+        }
+    }
+
+    void Toggle() => langOpen = !langOpen;
+    void Close() => langOpen = false;
+
+    async Task Select(string code)
+    {
+        langOpen = false;
+        Lang.Set(code);
+        await LocalStorage.SetItemAsync("sp_lang", code);
+    }
+
+    void OnLangChanged() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Lang.OnChanged -= OnLangChanged;
+}

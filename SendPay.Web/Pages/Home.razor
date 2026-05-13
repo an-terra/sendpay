@@ -1,0 +1,703 @@
+@page "/"
+@inject NavigationManager Nav
+@inject ILocalStorageService LocalStorage
+@inject LanguageService Lang
+@inject ApiService Api
+@implements IDisposable
+
+<!-- NAV -->
+<nav class="sp-nav">
+    <a class="sp-nav-logo" href="/">
+        <img src="/images/logo.png" alt="SendPay" class="sp-logo-img sp-logo-img--light" />
+    </a>
+    <div class="sp-nav-links">
+        <a href="#features">@Lang.T("nav_services")</a>
+        <a href="#countries">@Lang.T("nav_countries")</a>
+        <a href="#rates">@Lang.T("nav_rates")</a>
+        <a href="#how">@Lang.T("nav_how")</a>
+        <a href="#contact">@Lang.T("nav_contact")</a>
+    </div>
+    <div class="sp-nav-actions">
+        <LangSelector />
+        <a href="/login" class="btn-outline">@Lang.T("nav_login")</a>
+        <a href="/register" class="btn-red">@Lang.T("nav_register")</a>
+    </div>
+</nav>
+
+<!-- HERO -->
+<section class="sp-hero">
+    <div>
+        <div class="sp-hero-badge"><i class="fa-solid fa-bolt"></i> @Lang.T("hero_badge")</div>
+        <h1>@Lang.T("hero_title1")<br><span>@Lang.T("hero_accent")</span><br>@Lang.T("hero_title2")</h1>
+        <p style="color:rgba(255,255,255,.8);font-size:16px;line-height:1.8;margin-bottom:24px">
+            @Lang.T("hero_desc")
+        </p>
+        <div style="font-size:12px;color:rgba(255,255,255,.55);margin-bottom:18px">
+            🇻🇳 Việt Nam &nbsp;·&nbsp; 🇱🇰 Sri Lanka &nbsp;·&nbsp; 🇳🇵 Nepal &nbsp;·&nbsp; 🇵🇭 Philippines
+        </div>
+        <div class="sp-hero-stats">
+            <div class="sp-hero-stat"><div class="val">50K+</div><div class="lbl">@Lang.T("hero_stat1")</div></div>
+            <div class="sp-hero-stat"><div class="val">4</div><div class="lbl">@Lang.T("hero_stat2")</div></div>
+            <div class="sp-hero-stat"><div class="val">24/7</div><div class="lbl">@Lang.T("hero_stat3")</div></div>
+        </div>
+        <div class="sp-hero-btns">
+            <a href="/register" class="btn-gold"><i class="fa-solid fa-paper-plane"></i> @Lang.T("hero_btn_send")</a>
+            <a href="#how" class="btn-ghost"><i class="fa-solid fa-play"></i> @Lang.T("hero_btn_guide")</a>
+        </div>
+    </div>
+    <div>
+        <div class="sp-hero-card">
+            <h3><i class="fa-solid fa-calculator" style="color:var(--red);margin-right:6px"></i> @Lang.T("calc_title")</h3>
+            <div class="hero-field">
+                <div class="hero-field-label">@Lang.T("calc_from")</div>
+                <div class="hero-field-row">
+                    <input class="hero-field-input" type="number" @bind="calcAmount" @bind:event="oninput" min="1000" />
+                    <div class="hero-field-badge">
+                        <img src="https://flagcdn.com/w40/jp.png" class="hero-flag-img" alt="JP" />
+                        JPY
+                    </div>
+                </div>
+            </div>
+            <div class="hero-field">
+                <div class="hero-field-label">@Lang.T("calc_dest")</div>
+                <div class="hero-country-dropdown" @onclick:stopPropagation="true">
+                    <div class="hero-country-selected" @onclick="() => countryDropdownOpen = !countryDropdownOpen">
+                        <img src="https://flagcdn.com/w40/@(destCountry.ToLower()).png" class="hero-flag-img" alt="@destCountry" />
+                        <span>@CountryName</span>
+                        <i class="fa-solid fa-chevron-down" style="margin-left:auto;font-size:11px;color:var(--text-muted);transition:transform .2s;@(countryDropdownOpen ? "transform:rotate(180deg)" : "")"></i>
+                    </div>
+                    @if (countryDropdownOpen)
+                    {
+                        <div class="hero-country-list">
+                            @foreach (var c in _countries)
+                            {
+                                <div class="hero-country-item @(destCountry == c.Code ? "active" : "")"
+                                     @onclick="() => SelectCountry(c.Code)">
+                                    <img src="https://flagcdn.com/w40/@(c.Code.ToLower()).png" class="hero-flag-img" alt="@c.Code" />
+                                    <span>@c.Name</span>
+                                    @if (destCountry == c.Code) { <i class="fa-solid fa-check" style="margin-left:auto;color:#3B5BDB;font-size:11px"></i> }
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+            </div>
+            <div class="hero-field">
+                <div class="hero-field-label">@Lang.T("calc_receive")</div>
+                <div class="hero-field-row">
+                    <span style="font-size:20px;font-weight:800;color:var(--navy)">@ReceivedAmount.ToString("N0")</span>
+                    <div class="hero-field-badge">
+                        <img src="https://flagcdn.com/w40/@(destCountry.ToLower()).png" class="hero-flag-img" alt="@destCountry" />
+                        @CurrencyCode
+                    </div>
+                </div>
+            </div>
+            <div class="hero-rate-info">
+                <span>@Lang.T("calc_fee"): <span style="color:var(--green);font-weight:600">¥@ServiceFee.ToString("N0")</span></span>
+                <span class="fee-badge">@Lang.T("calc_instant")</span>
+            </div>
+            <div class="hero-rate-info" style="margin-top:6px;border-top:none;padding-top:0">
+                <span style="font-size:12px;color:var(--text-muted)">@Lang.T("calc_rate"): 1 JPY = @Rate.ToString("N2") @CurrencyCode</span>
+                <span style="font-size:12px;color:var(--text-muted)">SSL 256-bit</span>
+            </div>
+            <a href="/register" class="hero-cta">@Lang.T("calc_cta") <i class="fa-solid fa-arrow-right"></i></a>
+            <p class="hero-disclaimer">@Lang.T("calc_note")</p>
+        </div>
+    </div>
+</section>
+
+<!-- COUNTRIES -->
+<section class="sp-countries-section" id="countries">
+    <div class="section-tag sp-tag-glass"><i class="fa-solid fa-earth-asia"></i> @Lang.T("sec_countries_tag")</div>
+    <h2 class="section-title sp-title-light">@Lang.T("sec_countries_h2")</h2>
+    <div class="sp-country-grid">
+        <div class="sp-country-card sp-cc-vn">
+            <div class="sp-country-flag-wrap">
+                <img src="https://flagcdn.com/w80/vn.png" alt="VN" class="sp-country-flag-img" />
+            </div>
+            <div class="sp-country-code">VN</div>
+            <h4>Việt Nam</h4>
+            <div class="sp-country-rate">1 JPY ≈ <strong>@GetLiveRate("VND", 170)</strong> VND</div>
+            <div class="sp-country-banks">Vietcombank · BIDV · Agribank · MB Bank</div>
+            <span class="badge-fast"><i class="fa-solid fa-bolt"></i> @Lang.T("country_instant")</span>
+        </div>
+        <div class="sp-country-card sp-cc-lk">
+            <div class="sp-country-flag-wrap">
+                <img src="https://flagcdn.com/w80/lk.png" alt="LK" class="sp-country-flag-img" />
+            </div>
+            <div class="sp-country-code">LK</div>
+            <h4>Sri Lanka</h4>
+            <div class="sp-country-rate">1 JPY ≈ <strong>@GetLiveRate("LKR", 2.0m)</strong> LKR</div>
+            <div class="sp-country-banks">Bank of Ceylon · Sampath · HNB · People's</div>
+            <span class="badge-fast"><i class="fa-solid fa-bolt"></i> @Lang.T("country_instant")</span>
+        </div>
+        <div class="sp-country-card sp-cc-np">
+            <div class="sp-country-flag-wrap">
+                <img src="https://flagcdn.com/w80/np.png" alt="NP" class="sp-country-flag-img" />
+            </div>
+            <div class="sp-country-code">NP</div>
+            <h4>Nepal</h4>
+            <div class="sp-country-rate">1 JPY ≈ <strong>@GetLiveRate("NPR", 0.88m)</strong> NPR</div>
+            <div class="sp-country-banks">Nepal Bank · NIC Asia · Himalayan · Global IME</div>
+            <span class="badge-fast"><i class="fa-solid fa-bolt"></i> @Lang.T("country_instant")</span>
+        </div>
+        <div class="sp-country-card sp-cc-ph">
+            <div class="sp-country-flag-wrap">
+                <img src="https://flagcdn.com/w80/ph.png" alt="PH" class="sp-country-flag-img" />
+            </div>
+            <div class="sp-country-code">PH</div>
+            <h4>Philippines</h4>
+            <div class="sp-country-rate">1 JPY ≈ <strong>@GetLiveRate("PHP", 0.38m)</strong> PHP</div>
+            <div class="sp-country-banks">BDO · BPI · Metrobank · UnionBank</div>
+            <span class="badge-fast"><i class="fa-solid fa-bolt"></i> @Lang.T("country_instant")</span>
+        </div>
+    </div>
+</section>
+
+<!-- FEATURES -->
+<section class="sp-feat-section" id="features">
+    <div class="section-tag"><i class="fa-solid fa-star"></i> @Lang.T("sec_feat_tag")</div>
+    <h2 class="section-title">@Lang.T("sec_feat_h2")</h2>
+    <p class="section-sub">@Lang.T("sec_feat_sub")</p>
+    <div class="sp-features-grid">
+        <div class="feat-card">
+            <div class="feat-icon feat-icon--red"><i class="fa-solid fa-bolt"></i></div>
+            <h4>@Lang.T("feat1_title")</h4>
+            <p>@Lang.T("feat1_desc")</p>
+        </div>
+        <div class="feat-card">
+            <div class="feat-icon feat-icon--blue"><i class="fa-solid fa-shield-halved"></i></div>
+            <h4>@Lang.T("feat2_title")</h4>
+            <p>@Lang.T("feat2_desc")</p>
+        </div>
+        <div class="feat-card">
+            <div class="feat-icon feat-icon--green"><i class="fa-solid fa-yen-sign"></i></div>
+            <h4>@Lang.T("feat3_title")</h4>
+            <p>@Lang.T("feat3_desc")</p>
+        </div>
+        <div class="feat-card">
+            <div class="feat-icon feat-icon--purple"><i class="fa-solid fa-id-card"></i></div>
+            <h4>@Lang.T("feat4_title")</h4>
+            <p>@Lang.T("feat4_desc")</p>
+        </div>
+        <div class="feat-card">
+            <div class="feat-icon feat-icon--teal"><i class="fa-solid fa-headset"></i></div>
+            <h4>@Lang.T("feat5_title")</h4>
+            <p>@Lang.T("feat5_desc")</p>
+        </div>
+        <div class="feat-card">
+            <div class="feat-icon feat-icon--gold"><i class="fa-solid fa-receipt"></i></div>
+            <h4>@Lang.T("feat6_title")</h4>
+            <p>@Lang.T("feat6_desc")</p>
+        </div>
+    </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="sp-how" id="how">
+    <div class="section-tag"><i class="fa-solid fa-list-check"></i> @Lang.T("sec_how_tag")</div>
+    <h2 class="section-title">@Lang.T("sec_how_h2")</h2>
+    <p class="section-sub">@Lang.T("sec_how_sub")</p>
+    <div class="sp-steps">
+        <div class="sp-step">
+            <div class="sp-step-num">
+                <span class="sp-step-badge">01</span>
+                <i class="fa-solid fa-id-card"></i>
+            </div>
+            <div class="sp-step-body">
+                <h4>@Lang.T("step1_title")</h4>
+                <p>@Lang.T("step1_desc")</p>
+            </div>
+        </div>
+        <div class="sp-step">
+            <div class="sp-step-num">
+                <span class="sp-step-badge">02</span>
+                <i class="fa-solid fa-user-plus"></i>
+            </div>
+            <div class="sp-step-body">
+                <h4>@Lang.T("step2_title")</h4>
+                <p>@Lang.T("step2_desc")</p>
+            </div>
+        </div>
+        <div class="sp-step">
+            <div class="sp-step-num">
+                <span class="sp-step-badge">03</span>
+                <i class="fa-solid fa-money-bill-wave"></i>
+            </div>
+            <div class="sp-step-body">
+                <h4>@Lang.T("step3_title")</h4>
+                <p>@Lang.T("step3_desc")</p>
+            </div>
+        </div>
+        <div class="sp-step">
+            <div class="sp-step-num sp-step-num--last">
+                <span class="sp-step-badge sp-step-badge--gold">04</span>
+                <i class="fa-solid fa-circle-check"></i>
+            </div>
+            <div class="sp-step-body">
+                <h4>@Lang.T("step4_title")</h4>
+                <p>@Lang.T("step4_desc")</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- RATES TABLE -->
+<section class="sp-rates-section" id="rates">
+    <div class="section-tag"><i class="fa-solid fa-table"></i> @Lang.T("sec_rates_tag")</div>
+    <h2 class="section-title">@Lang.T("sec_rates_h2")</h2>
+    <p class="section-sub">@Lang.T("sec_rates_sub")</p>
+    <div class="sp-rate-table">
+        <table>
+            <thead>
+                <tr>
+                    <th>@Lang.T("rate_col1")</th>
+                    <th>@Lang.T("rate_col2")</th>
+                    <th>@Lang.T("rate_col3")</th>
+                    <th>@Lang.T("rate_col4")</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="rt-amount">〜 ¥10,000</td>
+                    <td><span class="rt-fee rt-fee--green">¥200</span></td>
+                    <td><span class="badge-fast"><i class="fa-solid fa-bolt"></i> @Lang.T("rate_instant")</span></td>
+                    <td class="rt-flags">
+                        <img src="https://flagcdn.com/w40/vn.png" alt="VN" /><img src="https://flagcdn.com/w40/lk.png" alt="LK" /><img src="https://flagcdn.com/w40/np.png" alt="NP" /><img src="https://flagcdn.com/w40/ph.png" alt="PH" />
+                    </td>
+                </tr>
+                <tr>
+                    <td class="rt-amount">¥10,001 〜 ¥50,000</td>
+                    <td><span class="rt-fee rt-fee--green">¥400</span></td>
+                    <td><span class="badge-fast"><i class="fa-solid fa-bolt"></i> @Lang.T("rate_instant")</span></td>
+                    <td class="rt-flags">
+                        <img src="https://flagcdn.com/w40/vn.png" alt="VN" /><img src="https://flagcdn.com/w40/lk.png" alt="LK" /><img src="https://flagcdn.com/w40/np.png" alt="NP" /><img src="https://flagcdn.com/w40/ph.png" alt="PH" />
+                    </td>
+                </tr>
+                <tr>
+                    <td class="rt-amount">¥50,001 〜 ¥200,000</td>
+                    <td><span class="rt-fee rt-fee--gold">¥800</span></td>
+                    <td><span class="badge-std"><i class="fa-solid fa-clock"></i> @Lang.T("rate_sameday")</span></td>
+                    <td class="rt-flags">
+                        <img src="https://flagcdn.com/w40/vn.png" alt="VN" /><img src="https://flagcdn.com/w40/lk.png" alt="LK" /><img src="https://flagcdn.com/w40/np.png" alt="NP" /><img src="https://flagcdn.com/w40/ph.png" alt="PH" />
+                    </td>
+                </tr>
+                <tr class="rt-vip-row">
+                    <td class="rt-amount">¥200,001〜</td>
+                    <td><span class="rt-fee rt-fee--gold">@Lang.T("rate_vip")</span></td>
+                    <td><span class="badge-vip"><i class="fa-solid fa-headset"></i> @Lang.T("rate_contact")</span></td>
+                    <td class="rt-flags">
+                        <img src="https://flagcdn.com/w40/vn.png" alt="VN" /><img src="https://flagcdn.com/w40/lk.png" alt="LK" /><img src="https://flagcdn.com/w40/np.png" alt="NP" /><img src="https://flagcdn.com/w40/ph.png" alt="PH" />
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <p class="sp-rate-note">@Lang.T("rate_note")</p>
+</section>
+
+<!-- TESTIMONIALS -->
+<section class="sp-testimonials">
+    <div class="section-tag"><i class="fa-solid fa-heart"></i> @Lang.T("sec_test_tag")</div>
+    <h2 class="section-title">@Lang.T("sec_test_h2")</h2>
+    <div class="sp-test-grid">
+        <div class="test-card">
+            <div class="stars">★★★★★</div>
+            <p>"Dùng SendPay được 1 năm rồi, chuyển tiền về Việt Nam rất nhanh, thường chỉ mất vài phút. Phí thấp hơn nhiều so với ngân hàng Nhật. Rất hài lòng!"</p>
+            <div class="test-author">
+                <div class="test-avatar" style="background:#D0001F">TN</div>
+                <div>
+                    <div class="test-name">Trần Nguyên</div>
+                    <div class="test-loc">🇻🇳 Việt Nam · 東京都 在住</div>
+                </div>
+            </div>
+        </div>
+        <div class="test-card">
+            <div class="stars">★★★★★</div>
+            <p>"SendPayを使い始めてから、スリランカの家族への仕送りが本当に楽になりました。手数料も安くて、操作も分かりやすいです。"</p>
+            <div class="test-author">
+                <div class="test-avatar" style="background:#0D7A4E">RP</div>
+                <div>
+                    <div class="test-name">Ravi Perera</div>
+                    <div class="test-loc">🇱🇰 Sri Lanka · 大阪府 在住</div>
+                </div>
+            </div>
+        </div>
+        <div class="test-card">
+            <div class="stars">★★★★★</div>
+            <p>"Nepal maa paise pathauna SendPay sabai bhanda sajilo chha. Turant paisa pugcha, commission pani kam chha. Dherai ramro service!"</p>
+            <div class="test-author">
+                <div class="test-avatar" style="background:#C8971A">BS</div>
+                <div>
+                    <div class="test-name">Bikash Sharma</div>
+                    <div class="test-loc">🇳🇵 Nepal · 愛知県 在住</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- APP PROMO -->
+<section class="sp-app-promo">
+    <div class="sp-app-promo-inner">
+        <div>
+            <h2>@Lang.T("promo_h2")</h2>
+            <p>@Lang.T("promo_sub")</p>
+            <div class="app-store-btns">
+                <a class="app-store-btn" href="javascript:void(0)" @onclick="() => showIosModal = true">
+                    <i class="fa-brands fa-apple"></i>
+                    <div><div class="sub">@Lang.T("promo_dl")</div><div class="main">App Store</div></div>
+                </a>
+                <a class="app-store-btn" href="javascript:void(0)" @onclick="() => showAndroidModal = true">
+                    <i class="fa-brands fa-google-play"></i>
+                    <div><div class="sub">@Lang.T("promo_dl")</div><div class="main">Google Play</div></div>
+                </a>
+            </div>
+        </div>
+        <div class="app-mockup">
+            <div class="app-mockup-inner">
+                <div style="font-size:9px;opacity:.6">@Lang.T("dash_bal_label")</div>
+                <div class="bal">¥125,000</div>
+                <div style="font-size:9px;opacity:.6;margin-bottom:10px">ID: SP-038712</div>
+                <div class="app-mockup-btns">
+                    <div class="app-mockup-btn">@Lang.T("dash_topup")</div>
+                    <div class="app-mockup-btn-red">@Lang.T("dash_transfer")</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="sp-footer" id="contact">
+    <div class="sp-footer-inner">
+        <div class="sp-footer-grid">
+            <div class="sp-footer-brand">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+                    <img src="/images/logo.png" alt="SendPay" class="sp-logo-img sp-logo-img--footer" />
+                </div>
+                <p>SendPay Japan 株式会社<br>
+                   関東財務局長（資移）第〇〇〇号<br>
+                   〒101-0047 東京都千代田区内神田1-1-1<br>
+                   SendPayビル 5F</p>
+                <div class="footer-socials">
+                    <a class="social-btn" href="https://facebook.com/sendpayjapan" target="_blank" rel="noopener"><i class="fa-brands fa-facebook-f"></i></a>
+                    <a class="social-btn" href="https://instagram.com/sendpayjapan" target="_blank" rel="noopener"><i class="fa-brands fa-instagram"></i></a>
+                    <a class="social-btn" href="https://youtube.com/@@sendpayjapan" target="_blank" rel="noopener"><i class="fa-brands fa-youtube"></i></a>
+                    <a class="social-btn" href="https://t.me/sendpayjapan" target="_blank" rel="noopener"><i class="fa-brands fa-telegram"></i></a>
+                </div>
+            </div>
+            <div class="sp-footer-col">
+                <h5>@Lang.T("footer_col1")</h5>
+                <a href="/transfer">@Lang.T("footer_transfer")</a>
+                <a href="#rates">@Lang.T("footer_rates")</a>
+                <a href="/history">@Lang.T("footer_history")</a>
+                <a href="/receipt">@Lang.T("footer_receipt")</a>
+            </div>
+            <div class="sp-footer-col">
+                <h5>@Lang.T("footer_col2")</h5>
+                <a href="/support">@Lang.T("footer_faq")</a>
+                <a href="/support">@Lang.T("footer_guide")</a>
+                <a href="#contact">@Lang.T("footer_contact")</a>
+                <a href="mailto:support@sendpay.jp" class="no-chevron"><i class="fa-regular fa-envelope" style="color:var(--red);font-size:13px"></i> support@sendpay.jp</a>
+            </div>
+            <div class="sp-footer-col">
+                <h5>@Lang.T("footer_col3")</h5>
+                <a href="javascript:void(0)" @onclick="() => showAboutModal = true">@Lang.T("footer_about")</a>
+                <a href="javascript:void(0)" @onclick="() => showTermsModal = true">@Lang.T("footer_terms")</a>
+                <a href="javascript:void(0)" @onclick="() => showPrivacyModal = true">@Lang.T("footer_privacy")</a>
+                <a href="javascript:void(0)" @onclick="() => showDisclosureModal = true">@Lang.T("footer_disclosure")</a>
+            </div>
+        </div>
+        <div class="sp-footer-bottom">
+            <div style="display:flex;align-items:center;gap:10px">
+                <i class="fa-solid fa-shield-halved" style="color:rgba(255,255,255,.3);font-size:20px;flex-shrink:0"></i>
+                <div>
+                    <p style="margin-bottom:3px">© 2022–@DateTime.Now.Year SendPay Japan 株式会社. All rights reserved.</p>
+                    <p style="font-size:11px;color:rgba(255,255,255,.28)">@Lang.T("footer_legal")</p>
+                </div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <div class="sp-flag-box"><img src="https://flagcdn.com/w40/jp.png" alt="JP" /></div>
+                <div class="sp-flag-box"><img src="https://flagcdn.com/w40/vn.png" alt="VN" /></div>
+                <div class="sp-flag-box"><img src="https://flagcdn.com/w40/lk.png" alt="LK" /></div>
+                <div class="sp-flag-box"><img src="https://flagcdn.com/w40/np.png" alt="NP" /></div>
+                <div class="sp-flag-box"><img src="https://flagcdn.com/w40/ph.png" alt="PH" /></div>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<!-- ===== MODAL: APP STORE (iOS) ===== -->
+@if (showIosModal)
+{
+    <div class="sp-modal-backdrop" @onclick="() => showIosModal = false">
+        <div class="sp-modal-box sp-modal-box-sm" @onclick:stopPropagation>
+            <div class="sp-modal-header">
+                <span><i class="fa-brands fa-apple" style="color:var(--navy);margin-right:8px"></i> App Store (iOS)</span>
+                <button class="sp-modal-close" @onclick="() => showIosModal = false"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div style="text-align:center;padding:8px 0 16px">
+                <div style="width:72px;height:72px;background:#f0f0f5;border-radius:20px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:36px;color:var(--navy)">
+                    <i class="fa-brands fa-apple"></i>
+                </div>
+                <h3 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:10px">SendPay cho iPhone / iPad</h3>
+                <p style="font-size:14px;color:var(--text-sub);line-height:1.7;margin-bottom:20px">
+                    Ứng dụng iOS đang được xây dựng.<br>Dự kiến ra mắt <strong>Q3 2026</strong>. Đăng ký để nhận thông báo sớm nhất.
+                </p>
+                <div style="display:flex;gap:8px">
+                    <input type="email" placeholder="email@example.com"
+                           class="sp-form-input" style="flex:1;padding:10px 14px"
+                           @bind="notifEmail" />
+                    <button class="sp-cta-full" style="width:auto;padding:10px 18px;white-space:nowrap"
+                            @onclick="SubmitNotif" disabled="@notifSent">
+                        @(notifSent ? "✓ Đã đăng ký" : "Nhận thông báo")
+                    </button>
+                </div>
+                @if (notifSent)
+                {
+                    <p style="font-size:12px;color:var(--green);margin-top:8px">
+                        <i class="fa-solid fa-circle-check"></i> Cảm ơn! Chúng tôi sẽ thông báo khi app ra mắt.
+                    </p>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ===== MODAL: GOOGLE PLAY (Android) ===== -->
+@if (showAndroidModal)
+{
+    <div class="sp-modal-backdrop" @onclick="() => showAndroidModal = false">
+        <div class="sp-modal-box sp-modal-box-sm" @onclick:stopPropagation>
+            <div class="sp-modal-header">
+                <span><i class="fa-brands fa-google-play" style="color:#01875f;margin-right:8px"></i> Google Play (Android)</span>
+                <button class="sp-modal-close" @onclick="() => showAndroidModal = false"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div style="text-align:center;padding:8px 0 16px">
+                <div style="width:72px;height:72px;background:#e6f4ea;border-radius:20px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;font-size:36px;color:#3ddc84">
+                    <i class="fa-brands fa-android"></i>
+                </div>
+                <h3 style="font-size:18px;font-weight:800;color:var(--navy);margin-bottom:10px">SendPay cho Android</h3>
+                <p style="font-size:14px;color:var(--text-sub);line-height:1.7;margin-bottom:20px">
+                    Ứng dụng Android đang được xây dựng.<br>Dự kiến ra mắt <strong>Q3 2026</strong>. Đăng ký để nhận thông báo sớm nhất.
+                </p>
+                <div style="display:flex;gap:8px">
+                    <input type="email" placeholder="email@example.com"
+                           class="sp-form-input" style="flex:1;padding:10px 14px"
+                           @bind="notifEmail" />
+                    <button class="sp-cta-full" style="width:auto;padding:10px 18px;white-space:nowrap"
+                            @onclick="SubmitNotif" disabled="@notifSent">
+                        @(notifSent ? "✓ Đã đăng ký" : "Nhận thông báo")
+                    </button>
+                </div>
+                @if (notifSent)
+                {
+                    <p style="font-size:12px;color:var(--green);margin-top:8px">
+                        <i class="fa-solid fa-circle-check"></i> Cảm ơn! Chúng tôi sẽ thông báo khi app ra mắt.
+                    </p>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ===== MODAL: VỀ SENDPAY ===== -->
+@if (showAboutModal)
+{
+    <div class="sp-modal-backdrop" @onclick="() => showAboutModal = false">
+        <div class="sp-modal-box" @onclick:stopPropagation style="max-width:540px">
+            <div class="sp-modal-header">
+                <span><i class="fa-solid fa-building" style="color:var(--red);margin-right:8px"></i> @Lang.T("footer_about")</span>
+                <button class="sp-modal-close" @onclick="() => showAboutModal = false"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div style="font-size:14px;color:var(--text-sub);line-height:1.8">
+                <div style="display:flex;align-items:center;gap:12px;background:var(--gray-bg);border-radius:12px;padding:16px;margin-bottom:16px">
+                    <img src="/images/logo.png" alt="SendPay" class="sp-logo-img sp-logo-img--modal" style="flex-shrink:0" />
+                    <div>
+                        <div style="font-weight:800;font-size:18px;color:var(--navy)">SendPay Japan</div>
+                        <div style="font-size:12px;color:var(--text-muted)">関東財務局長（資移）第〇〇〇号</div>
+                    </div>
+                </div>
+                <p style="margin-bottom:12px">@Lang.T("about_desc1")</p>
+                <p style="margin-bottom:16px">@Lang.T("about_desc2")</p>
+                <div style="border-top:1px solid var(--gray-border);padding-top:14px;font-size:12px;color:var(--text-muted)">
+                    <div><i class="fa-solid fa-location-dot" style="width:16px"></i> 〒101-0047 東京都千代田区内神田1-1-1 SendPayビル 5F</div>
+                    <div style="margin-top:6px"><i class="fa-solid fa-envelope" style="width:16px"></i> support@sendpay.jp</div>
+                    <div style="margin-top:6px"><i class="fa-solid fa-phone" style="width:16px"></i> 03-0000-0000</div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ===== MODAL: ĐIỀU KHOẢN ===== -->
+@if (showTermsModal)
+{
+    <div class="sp-modal-backdrop" @onclick="() => showTermsModal = false">
+        <div class="sp-modal-box" @onclick:stopPropagation style="max-width:600px;max-height:80vh;overflow-y:auto">
+            <div class="sp-modal-header" style="position:sticky;top:0;background:white;padding-bottom:12px">
+                <span><i class="fa-solid fa-file-contract" style="color:var(--red);margin-right:8px"></i> @Lang.T("footer_terms")</span>
+                <button class="sp-modal-close" @onclick="() => showTermsModal = false"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div style="font-size:13px;color:var(--text-sub);line-height:1.8">
+                @for (int i = 1; i <= 5; i++)
+                {
+                    var idx = i;
+                    <div style="margin-bottom:16px">
+                        <div style="font-weight:700;color:var(--navy);margin-bottom:4px">@Lang.T($"terms_{idx}_t")</div>
+                        <p>@Lang.T($"terms_{idx}_b")</p>
+                    </div>
+                }
+                <p style="font-size:11px;color:var(--text-muted);margin-top:16px;border-top:1px solid var(--gray-border);padding-top:12px">
+                    @Lang.T("modal_updated"): 2026年1月1日
+                </p>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ===== MODAL: CHÍNH SÁCH BẢO MẬT ===== -->
+@if (showPrivacyModal)
+{
+    <div class="sp-modal-backdrop" @onclick="() => showPrivacyModal = false">
+        <div class="sp-modal-box" @onclick:stopPropagation style="max-width:600px;max-height:80vh;overflow-y:auto">
+            <div class="sp-modal-header" style="position:sticky;top:0;background:white;padding-bottom:12px">
+                <span><i class="fa-solid fa-shield-halved" style="color:var(--red);margin-right:8px"></i> @Lang.T("footer_privacy")</span>
+                <button class="sp-modal-close" @onclick="() => showPrivacyModal = false"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div style="font-size:13px;color:var(--text-sub);line-height:1.8">
+                @for (int i = 1; i <= 5; i++)
+                {
+                    var idx = i;
+                    <div style="margin-bottom:16px">
+                        <div style="font-weight:700;color:var(--navy);margin-bottom:4px">@Lang.T($"privacy_{idx}_t")</div>
+                        <p>@Lang.T($"privacy_{idx}_b")</p>
+                    </div>
+                }
+                <p style="font-size:11px;color:var(--text-muted);margin-top:16px;border-top:1px solid var(--gray-border);padding-top:12px">
+                    @Lang.T("modal_updated"): 2026年1月1日
+                </p>
+            </div>
+        </div>
+    </div>
+}
+
+<!-- ===== MODAL: CÔNG BỐ LUẬT THANH TOÁN ===== -->
+@if (showDisclosureModal)
+{
+    <div class="sp-modal-backdrop" @onclick="() => showDisclosureModal = false">
+        <div class="sp-modal-box" @onclick:stopPropagation style="max-width:600px;max-height:80vh;overflow-y:auto">
+            <div class="sp-modal-header" style="position:sticky;top:0;background:white;padding-bottom:12px">
+                <span><i class="fa-solid fa-scale-balanced" style="color:var(--red);margin-right:8px"></i> @Lang.T("footer_disclosure")</span>
+                <button class="sp-modal-close" @onclick="() => showDisclosureModal = false"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div style="font-size:13px;color:var(--text-sub);line-height:1.8">
+                <div style="background:#EFF6FF;border:1px solid #BFDBFE;border-radius:10px;padding:12px 16px;margin-bottom:16px;color:#1E40AF;font-size:12px">
+                    <i class="fa-solid fa-circle-info" style="margin-right:6px"></i>
+                    資金決済に関する法律（資金決済法）第37条に基づく表示 / Công bố theo Điều 37 Luật Thanh toán Nhật Bản
+                </div>
+                @foreach (var (label, value) in DisclosureValues)
+                {
+                    <div style="display:flex;padding:10px 0;border-bottom:1px solid var(--gray-border);gap:12px">
+                        <div style="min-width:140px;font-weight:600;color:var(--navy);font-size:12px">@Lang.T(label)</div>
+                        <div>@value</div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    // ── Calculator ──────────────────────────────────────
+    decimal calcAmount = 30_000;
+    string destCountry = "VN";
+    Dictionary<string, decimal> liveRates = new();
+
+    // ── Modal state ──────────────────────────────────────
+    bool showIosModal      = false;
+    bool showAndroidModal  = false;
+    bool showAboutModal    = false;
+    bool showTermsModal    = false;
+    bool showPrivacyModal  = false;
+    bool showDisclosureModal = false;
+    string notifEmail = "";
+    bool notifSent    = false;
+
+    void SubmitNotif()
+    {
+        if (!string.IsNullOrWhiteSpace(notifEmail))
+            notifSent = true;
+    }
+
+    // disclosure: label = translation key, value = fixed regulatory data
+    static readonly (string LabelKey, string Value)[] DisclosureValues =
+    [
+        ("disc_1_l",  "SendPay Japan 株式会社"),
+        ("disc_2_l",  "関東財務局長（資移）第〇〇〇号"),
+        ("disc_3_l",  "〒101-0047 東京都千代田区内神田1-1-1 SendPayビル5F"),
+        ("disc_4_l",  "第二種資金移動業（送金上限 100万円）"),
+        ("disc_5_l",  "JPY → VND, LKR, NPR, PHP"),
+        ("disc_6_l",  "1回 ¥200,000 / 年間 ¥1,000,000"),
+        ("disc_7_l",  "¥200〜¥800"),
+        ("disc_8_l",  "即時〜翌営業日"),
+        ("disc_9_l",  "support@sendpay.jp / 03-0000-0000"),
+        ("disc_10_l", "法務局指定供託所に全額供託済み"),
+    ];
+
+    string CurrencyCode => destCountry switch {
+        "VN" => "VND", "LK" => "LKR", "NP" => "NPR", "PH" => "PHP", _ => "VND"
+    };
+    string CurrencyLabel => destCountry switch {
+        "VN" => "🇻🇳 VND", "LK" => "🇱🇰 LKR", "NP" => "🇳🇵 NPR", "PH" => "🇵🇭 PHP", _ => "🇻🇳 VND"
+    };
+
+    decimal Rate => liveRates.TryGetValue(CurrencyCode, out var r) ? r : destCountry switch {
+        "VN" => 170m, "LK" => 2.0m, "NP" => 0.88m, "PH" => 0.38m, _ => 170m
+    };
+
+    decimal ServiceFee => calcAmount <= 10_000 ? 200 : calcAmount <= 50_000 ? 400 : 800;
+    decimal ReceivedAmount => (calcAmount - ServiceFee) * Rate;
+
+    string GetLiveRate(string code, decimal fallback)
+    {
+        var val = liveRates.TryGetValue(code, out var r) ? r : fallback;
+        return val >= 10 ? val.ToString("N0") : val.ToString("N2").TrimEnd('0').TrimEnd('.');
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Lang.OnChanged += StateHasChanged;
+        var saved = await LocalStorage.GetItemAsync<string>("sp_lang");
+        if (!string.IsNullOrEmpty(saved)) Lang.Set(saved);
+
+        try
+        {
+            var resp = await Api.GetRatesAsync();
+            if (resp != null)
+                foreach (var r in resp.Rates)
+                    liveRates[r.Code] = r.Rate;
+        }
+        catch { }
+    }
+
+    void OnCountryChange(ChangeEventArgs e)
+    {
+        destCountry = e.Value?.ToString() ?? "VN";
+    }
+
+    bool countryDropdownOpen = false;
+
+    record CountryOption(string Code, string Name);
+    static readonly CountryOption[] _countries = [
+        new("VN", "Việt Nam"),
+        new("LK", "Sri Lanka"),
+        new("NP", "Nepal"),
+        new("PH", "Philippines"),
+    ];
+    string CountryName => _countries.First(c => c.Code == destCountry).Name;
+    void SelectCountry(string code) { destCountry = code; countryDropdownOpen = false; }
+
+    public void Dispose() => Lang.OnChanged -= StateHasChanged;
+}
