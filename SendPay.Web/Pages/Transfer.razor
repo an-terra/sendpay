@@ -47,11 +47,46 @@
                                @bind="phone" @bind:event="oninput" @bind:after="OnReceiverBindAfter" />
                     </div>
                     <div class="sp-form-group">
-                        <label>@Lang.T("tr_bank_lbl")</label>
-                        <input class="sp-form-input sp-form-input-lg" type="text"
-                               placeholder="@Lang.T("tr_bank_ph")"
-                               @bind="bankName" @bind:event="oninput" @bind:after="OnReceiverBindAfter" />
+                        <label>@Lang.T("recip_country")</label>
+                        <select class="sp-form-input sp-form-input-lg" @bind="countryCode" @bind:after="OnCountryChanged">
+                            <option value="VN">@Lang.T("recip_country_vn")</option>
+                            <option value="OTHER">@Lang.T("recip_country_other")</option>
+                        </select>
                     </div>
+                    @if (countryCode == "VN")
+                    {
+                        <div class="sp-form-group">
+                            <label>@Lang.T("recip_bank_search_vn")</label>
+                            <input class="sp-form-input sp-form-input-lg" type="text" autocomplete="off"
+                                   placeholder="@Lang.T("recip_bank_ph")"
+                                   @bind="vnBankSearch" @bind:event="oninput" @bind:after="OnReceiverBindAfter" />
+                            @if (FilteredTransferVnBanks.Count > 0 && (string.IsNullOrEmpty(bankName) || !string.Equals(vnBankSearch, bankName, StringComparison.Ordinal)))
+                            {
+                                <div style="max-height:180px;overflow-y:auto;border:1px solid var(--gray-border);border-radius:10px;margin-top:8px">
+                                    @foreach (var b in FilteredTransferVnBanks.Take(25))
+                                    {
+                                        <button type="button" class="sp-btn-gray" style="width:100%;text-align:left;padding:10px 12px;border-radius:0;border:none;border-bottom:1px solid var(--gray-border);font-size:13px;background:white"
+                                                @onclick="@(() => PickTransferVnBank(b))">
+                                            @b.Name
+                                        </button>
+                                    }
+                                </div>
+                            }
+                            @if (!string.IsNullOrEmpty(bankName) && countryCode == "VN")
+                            {
+                                <div style="font-size:12px;color:var(--green);margin-top:6px">@Lang.T("recip_bank_picked"): @bankName</div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="sp-form-group">
+                            <label>@Lang.T("tr_bank_lbl")</label>
+                            <input class="sp-form-input sp-form-input-lg" type="text"
+                                   placeholder="@Lang.T("tr_bank_ph")"
+                                   @bind="bankName" @bind:event="oninput" @bind:after="OnReceiverBindAfter" />
+                        </div>
+                    }
                     <div class="sp-form-group">
                         <label>@Lang.T("tr_account_lbl")</label>
                         <input class="sp-form-input sp-form-input-lg" type="text" inputmode="numeric"
@@ -80,12 +115,6 @@
                             </div>
                         </div>
                     }
-                    <div class="sp-form-group">
-                        <label>@Lang.T("recip_swift")</label>
-                        <input class="sp-form-input sp-form-input-lg" type="text" autocomplete="off"
-                               placeholder="@Lang.T("recip_swift_help")"
-                               @bind="bankSwift" @bind:event="oninput" @bind:after="OnReceiverBindAfter" />
-                    </div>
                     <div class="sp-form-group">
                         @if (receiverLookupLoading)
                         {
@@ -181,13 +210,6 @@
                         <span class="dval" style="text-align:right;font-size:13px">@TransferBankSummaryLine</span>
                     </div>
                 }
-                @if (!string.IsNullOrEmpty(TransferSwiftSummary))
-                {
-                    <div class="sp-detail-row" style="border-bottom:none;padding-top:4px">
-                        <span class="dlabel">@Lang.T("recip_swift")</span>
-                        <span class="dval" style="text-align:right;font-size:13px;font-family:monospace">@TransferSwiftSummary</span>
-                    </div>
-                }
                 @if (!string.IsNullOrWhiteSpace(bankHolder))
                 {
                     <div class="sp-detail-row" style="border-bottom:none;padding-top:4px">
@@ -223,10 +245,6 @@
                 @if (!string.IsNullOrEmpty(TransferBankSummaryLine))
                 {
                     <div class="sp-detail-row"><span class="dlabel">@Lang.T("tr_bank_lbl") / @Lang.T("tr_account_lbl")</span><span class="dval">@TransferBankSummaryLine</span></div>
-                }
-                @if (!string.IsNullOrEmpty(TransferSwiftSummary))
-                {
-                    <div class="sp-detail-row"><span class="dlabel">@Lang.T("recip_swift")</span><span class="dval" style="font-family:monospace">@TransferSwiftSummary</span></div>
                 }
                 <div class="sp-detail-row"><span class="dlabel">@Lang.T("tr_send_amt")</span><span class="dval">¥@amount.ToString("N0")</span></div>
                 <div class="sp-detail-row"><span class="dlabel">@Lang.T("tr_fee")</span><span class="dval" style="color:var(--green)">¥@Fee.ToString("N0")</span></div>
@@ -328,9 +346,11 @@
 
 @code {
     string step = "form";
-    string phone = "", bankAccount = "", bankName = "", bankHolder = "", bankSwift = "", note = "", error = "", purpose = "tr_purpose_1";
+    string phone = "", bankAccount = "", bankName = "", bankHolder = "", countryCode = "VN", vnBankSearch = "";
+    string note = "", error = "", purpose = "tr_purpose_1";
     decimal amount;
     List<CurrencyRate> allRates = [];
+    List<VietnamBankOption> transferVnBanks = [];
     decimal balance;
     bool loading;
     TransactionResponse? successData;
@@ -349,6 +369,17 @@
 
     List<RecipientResponse> allRecipients = [];
     List<RecipientResponse> recipientSuggestions = [];
+
+    List<VietnamBankOption> FilteredTransferVnBanks
+    {
+        get
+        {
+            if (transferVnBanks.Count == 0) return [];
+            var q = (vnBankSearch ?? "").Trim();
+            if (string.IsNullOrEmpty(q)) return transferVnBanks;
+            return [.. transferVnBanks.Where(b => b.Name.Contains(q, StringComparison.OrdinalIgnoreCase))];
+        }
+    }
 
     static readonly Dictionary<string, string> _langCurrency = new()
     {
@@ -376,8 +407,6 @@
             return $"{bn} · ****{tail}";
         }
     }
-
-    string? TransferSwiftSummary => string.IsNullOrWhiteSpace(bankSwift) ? null : bankSwift.Trim().ToUpperInvariant();
 
     static string DigitsOnly(string? s) =>
         string.IsNullOrEmpty(s) ? "" : new string(s.Where(char.IsDigit).ToArray());
@@ -414,6 +443,9 @@
         try { allRecipients = await Api.GetRecipientsAsync(); }
         catch { allRecipients = []; }
 
+        try { transferVnBanks = await Api.GetVietnamBanksAsync(); }
+        catch { transferVnBanks = []; }
+
         await ApplyTransferQueryAsync();
     }
 
@@ -430,9 +462,10 @@
                 {
                     phone = rec.Phone ?? "";
                     bankAccount = rec.AccountNumber ?? "";
+                    countryCode = IsRecipientVietnam(rec) ? "VN" : "OTHER";
                     bankName = rec.BankName ?? "";
+                    vnBankSearch = countryCode == "VN" ? bankName : "";
                     bankHolder = rec.AccountHolderName ?? "";
-                    bankSwift = rec.SwiftBic ?? "";
                     if (string.IsNullOrEmpty(note))
                         note = rec.Note ?? "";
                     await RefreshReceiverLookupAsync(forContinueButton: true);
@@ -487,7 +520,6 @@
         addTerm(bankName);
         addTerm(bankAccount);
         addTerm(bankHolder);
-        addTerm(bankSwift);
         if (terms.Count == 0)
         {
             recipientSuggestions = [];
@@ -500,8 +532,7 @@
                 (r.Phone?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false) ||
                 (r.BankName?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false) ||
                 (r.AccountNumber?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (r.AccountHolderName?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (r.SwiftBic?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false));
+                (r.AccountHolderName?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false));
 
         recipientSuggestions = allRecipients.Where(Match).Take(8).ToList();
     }
@@ -516,13 +547,32 @@
         return $"{ph} · {string.Join(" · ", parts)}";
     }
 
+    static bool IsRecipientVietnam(RecipientResponse r) =>
+        string.Equals(r.CountryCode, "VN", StringComparison.OrdinalIgnoreCase)
+        || (string.IsNullOrEmpty(r.CountryCode) && !string.IsNullOrEmpty(r.SwiftBic));
+
+    async Task PickTransferVnBank(VietnamBankOption b)
+    {
+        bankName = b.Name;
+        vnBankSearch = b.Name;
+        await OnReceiverBindAfter();
+    }
+
+    Task OnCountryChanged()
+    {
+        vnBankSearch = "";
+        bankName = "";
+        return OnReceiverBindAfter();
+    }
+
     async Task ApplyRecipientFromBookAsync(RecipientResponse r)
     {
         phone = r.Phone ?? "";
+        countryCode = IsRecipientVietnam(r) ? "VN" : "OTHER";
         bankName = r.BankName ?? "";
+        vnBankSearch = countryCode == "VN" ? bankName : "";
         bankAccount = r.AccountNumber ?? "";
         bankHolder = r.AccountHolderName ?? "";
-        bankSwift = r.SwiftBic ?? "";
         if (string.IsNullOrEmpty(note))
             note = r.Note ?? "";
         recipientSuggestions = [];
@@ -603,6 +653,15 @@
         if (DigitsOnly(eff).Length < 8)
         { error = Lang.T("tr_receiver_need_phone"); return; }
 
+        if (countryCode == "VN")
+        {
+            if (string.IsNullOrWhiteSpace(bankName) ||
+                !transferVnBanks.Exists(b => string.Equals(b.Name, bankName.Trim(), StringComparison.OrdinalIgnoreCase)))
+            { error = Lang.T("recip_err_bank_vn"); return; }
+        }
+        else if (string.IsNullOrWhiteSpace(bankName))
+        { error = Lang.T("tr_bank_required"); return; }
+
         step = "confirm";
     }
 
@@ -638,7 +697,9 @@
 
     void Reset()
     {
-        step = "form"; phone = bankAccount = bankName = bankHolder = bankSwift = note = error = ""; amount = 0; successData = null;
+        step = "form"; phone = bankAccount = bankName = bankHolder = vnBankSearch = note = error = "";
+        countryCode = "VN";
+        amount = 0; successData = null;
         recipientSuggestions = [];
         purpose = "tr_purpose_1";
         verificationId = null;

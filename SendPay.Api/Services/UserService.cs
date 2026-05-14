@@ -135,8 +135,6 @@ public class UserService(AppDbContext db) : IUserService
             return string.IsNullOrWhiteSpace(r.BankName) ? null : r.BankName;
         var tail = acct.Length <= 4 ? acct : acct[^4..];
         var bank = string.IsNullOrWhiteSpace(r.BankName) ? "STK" : r.BankName!;
-        var swift = string.IsNullOrWhiteSpace(r.SwiftBic) ? null : r.SwiftBic.Trim().ToUpperInvariant();
-        var swiftPart = string.IsNullOrEmpty(swift) ? "" : $" · SWIFT {swift}";
-        return $"{bank}{swiftPart} · ****{tail}";
+        return $"{bank} · ****{tail}";
     }
 }

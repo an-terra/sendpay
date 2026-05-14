@@ -27,7 +27,10 @@ public record AdminTransactionResponse(
 
 public record RecipientResponse(
     int Id, string Name, string? Phone, string Note,
+    string? CountryCode,
     string? BankName, string? AccountNumber, string? AccountHolderName, string? SwiftBic, DateTime CreatedAt);
+
+public record VietnamBankOption(string Name, string Swift);
 public record UserProfileResponse(int Id, string FullName, string Email, string Phone, decimal Balance, DateTime CreatedAt);
 public record CurrencyRate(string Code, string Flag, string Country, decimal Rate, string Change, bool Up);
 public record ExchangeRateResponse(string Date, List<CurrencyRate> Rates);
@@ -167,6 +170,19 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
         return await http.GetFromJsonAsync<ExchangeRateResponse>("api/rates");
     }
 
+    public async Task<List<VietnamBankOption>> GetVietnamBanksAsync()
+    {
+        await SetAuthHeader();
+        var raw = await http.GetFromJsonAsync<List<VietnamBankJsonDto>>("api/reference/vietnam-banks");
+        return raw?.Select(x => new VietnamBankOption(x.name, x.swift)).ToList() ?? [];
+    }
+
+    sealed class VietnamBankJsonDto
+    {
+        public string name { get; set; } = "";
+        public string swift { get; set; } = "";
+    }
+
     // ── Recipients ─────────────────────────────────────────────
     public async Task<List<RecipientResponse>> GetRecipientsAsync()
     {
@@ -182,11 +198,12 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
 
     public async Task<(bool ok, RecipientResponse? data, string error)> AddRecipientAsync(
         string name, string? phone, string note,
-        string? bankName = null, string? accountNumber = null, string? accountHolderName = null, string? swiftBic = null)
+        string? countryCode = null,
+        string? bankName = null, string? accountNumber = null, string? accountHolderName = null)
     {
         await SetAuthHeader();
         var res = await http.PostAsJsonAsync("api/recipient",
-            new { name, phone, note, bankName, accountNumber, accountHolderName, swiftBic });
+            new { name, phone, note, countryCode, bankName, accountNumber, accountHolderName });
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<RecipientResponse>(), "");
         return (false, null, await ReadErrorMessageAsync(res, "Thêm thất bại"));
@@ -194,11 +211,12 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
 
     public async Task<(bool ok, RecipientResponse? data, string error)> UpdateRecipientAsync(
         int id, string name, string? phone, string note,
-        string? bankName = null, string? accountNumber = null, string? accountHolderName = null, string? swiftBic = null)
+        string? countryCode = null,
+        string? bankName = null, string? accountNumber = null, string? accountHolderName = null)
     {
         await SetAuthHeader();
         var res = await http.PutAsJsonAsync($"api/recipient/{id}",
-            new { name, phone, note, bankName, accountNumber, accountHolderName, swiftBic });
+            new { name, phone, note, countryCode, bankName, accountNumber, accountHolderName });
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<RecipientResponse>(), "");
         return (false, null, await ReadErrorMessageAsync(res, "Cập nhật thất bại"));

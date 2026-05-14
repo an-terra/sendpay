@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using SendPay.Api.Data;
 using SendPay.Api.DTOs.Recipient;
@@ -8,8 +7,6 @@ namespace SendPay.Api.Services;
 
 public class RecipientService(AppDbContext db) : IRecipientService
 {
-    private static readonly Regex BicRegex = new("^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$", RegexOptions.Compiled);
-
     public async Task<List<RecipientResponse>> GetAllAsync(int userId)
     {
         var rows = await db.Recipients.AsNoTracking()
@@ -44,10 +41,9 @@ public class RecipientService(AppDbContext db) : IRecipientService
         r.Name              = req.Name.Trim();
         r.Phone             = req.Phone?.Trim() ?? "";
         r.Note              = req.Note?.Trim() ?? "";
-        r.BankName          = req.BankName!.Trim();
         r.AccountNumber     = req.AccountNumber!.Trim();
         r.AccountHolderName = req.AccountHolderName!.Trim();
-        r.SwiftBic          = NormalizeSwiftOrThrow(req.SwiftBic);
+        ApplyCountryBankSwift(r, req);
         await db.SaveChangesAsync();
         return ToResponse(r);
     }
@@ -73,37 +69,60 @@ public class RecipientService(AppDbContext db) : IRecipientService
         var acctKey = OtpPayloadBuilder.NormalizeAccountKey(req.AccountNumber);
         if (acctKey.Length < 6)
             throw new InvalidOperationException("Số tài khoản không hợp lệ (ít nhất 6 ký tự chữ hoặc số).");
-        _ = NormalizeSwiftOrThrow(req.SwiftBic);
+
+        var cc = NormalizeCountry(req.CountryCode);
+        if (cc == "VN")
+        {
+            if (!VietnamBankCatalog.TryGetSwiftByBankName(req.BankName, out _))
+                throw new InvalidOperationException(
+                    "Với Việt Nam, hãy chọn ngân hàng từ danh sách gợi ý (để hệ thống lấy mã SWIFT).");
+        }
     }
 
-    private static string NormalizeSwiftOrThrow(string? swift)
+    private static string NormalizeCountry(string? countryCode)
     {
-        if (string.IsNullOrWhiteSpace(swift))
-            throw new InvalidOperationException("Mã SWIFT/BIC không được để trống.");
-        var s = string.Concat(swift.Trim().ToUpperInvariant().Where(c => c is >= 'A' and <= 'Z' || char.IsDigit(c)));
-        if (!BicRegex.IsMatch(s))
-            throw new InvalidOperationException("Mã SWIFT/BIC không hợp lệ (8 hoặc 11 ký tự, ví dụ BIDVVNVX).");
-        return s;
+        if (string.IsNullOrWhiteSpace(countryCode)) return "OTHER";
+        var c = countryCode.Trim().ToUpperInvariant();
+        return c == "VN" ? "VN" : "OTHER";
+    }
+
+    private static void ApplyCountryBankSwift(Recipient r, RecipientRequest req)
+    {
+        var cc = NormalizeCountry(req.CountryCode);
+        r.CountryCode = cc;
+        if (cc == "VN")
+        {
+            if (!VietnamBankCatalog.TryGetSwiftByBankName(req.BankName, out var swift))
+                throw new InvalidOperationException("Không xác định được mã SWIFT cho ngân hàng đã chọn.");
+            r.SwiftBic = swift;
+            r.BankName = VietnamBankCatalog.CanonicalBankName(req.BankName) ?? req.BankName!.Trim();
+        }
+        else
+        {
+            r.SwiftBic = null;
+            r.BankName = req.BankName!.Trim();
+        }
     }
 
     private static Recipient FromRequest(int userId, RecipientRequest req)
     {
-        var swift = NormalizeSwiftOrThrow(req.SwiftBic);
-        return new Recipient
+        var r = new Recipient
         {
             UserId            = userId,
             Name              = req.Name.Trim(),
             Phone             = req.Phone?.Trim() ?? "",
             Note              = req.Note?.Trim() ?? "",
-            BankName          = req.BankName!.Trim(),
             AccountNumber     = req.AccountNumber!.Trim(),
-            AccountHolderName = req.AccountHolderName!.Trim(),
-            SwiftBic          = swift
+            AccountHolderName = req.AccountHolderName!.Trim()
         };
+        ApplyCountryBankSwift(r, req);
+        return r;
     }
 
     private static RecipientResponse ToResponse(Recipient r) =>
         new(r.Id, r.Name,
             string.IsNullOrWhiteSpace(r.Phone) ? null : r.Phone,
-            r.Note, r.BankName, r.AccountNumber, r.AccountHolderName, r.SwiftBic, r.CreatedAt);
+            r.Note,
+            string.IsNullOrWhiteSpace(r.CountryCode) ? null : r.CountryCode,
+            r.BankName, r.AccountNumber, r.AccountHolderName, r.SwiftBic, r.CreatedAt);
 }

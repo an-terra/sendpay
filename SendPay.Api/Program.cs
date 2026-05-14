@@ -167,6 +167,7 @@ static void TryRecipientBankColumns(AppDbContext db)
         db.Database.ExecuteSqlRaw("""ALTER TABLE "Recipients" ADD COLUMN IF NOT EXISTS "AccountNumber" text NULL;""");
         db.Database.ExecuteSqlRaw("""ALTER TABLE "Recipients" ADD COLUMN IF NOT EXISTS "AccountHolderName" text NULL;""");
         db.Database.ExecuteSqlRaw("""ALTER TABLE "Recipients" ADD COLUMN IF NOT EXISTS "SwiftBic" text NULL;""");
+        db.Database.ExecuteSqlRaw("""ALTER TABLE "Recipients" ADD COLUMN IF NOT EXISTS "CountryCode" text NULL;""");
     }
     catch
     {

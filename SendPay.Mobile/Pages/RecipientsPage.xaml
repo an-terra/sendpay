@@ -43,10 +43,16 @@
                     <Label x:Name="FormTitleLabel" Text="Thêm người nhận" FontAttributes="Bold" FontSize="15"/>
                     <Entry x:Name="NameEntry" Placeholder="Họ tên"/>
                     <Entry x:Name="PhoneEntryForm" Placeholder="SĐT SendPay (tuỳ chọn)" Keyboard="Telephone"/>
-                    <Entry x:Name="BankEntry" Placeholder="Tên ngân hàng (bắt buộc)"/>
+                    <Label Text="Quốc gia nhận" FontSize="13" TextColor="#8b8b9b" FontAttributes="Bold"/>
+                    <Picker x:Name="CountryPicker" Title="Chọn" SelectedIndexChanged="OnCountryPickerChanged"/>
+                    <Label x:Name="BankFieldLabel" Text="Tìm ngân hàng (Việt Nam)" FontSize="13" TextColor="#8b8b9b" FontAttributes="Bold"/>
+                    <Entry x:Name="BankEntry" Placeholder="Gõ tên ngân hàng..." Keyboard="Default" TextChanged="OnBankSearchTextChanged"/>
+                    <Border x:Name="VnBankSuggestBorder" IsVisible="False" Stroke="#e2e8f0" StrokeThickness="1" Padding="6" BackgroundColor="#f8fafc">
+                        <VerticalStackLayout x:Name="VnBankSuggestStack" Spacing="4"/>
+                    </Border>
+                    <Label x:Name="BankPickedLabel" FontSize="12" TextColor="#16a34a" IsVisible="False"/>
                     <Entry x:Name="AccountEntry" Placeholder="Số tài khoản (bắt buộc)" Keyboard="Default"/>
                     <Entry x:Name="HolderEntry" Placeholder="Chủ TK đúng sổ ngân hàng (bắt buộc)"/>
-                    <Entry x:Name="SwiftEntry" Placeholder="SWIFT/BIC (bắt buộc, VD: BIDVVNVX)" Keyboard="Default"/>
                     <Entry x:Name="NoteEntryForm" Placeholder="Ghi chú"/>
                     <Button x:Name="CancelEditBtn" Text="Hủy sửa" Clicked="OnCancelEditClicked" BackgroundColor="#f1f5f9"
                             TextColor="#334155" CornerRadius="10" HeightRequest="44" FontAttributes="Bold" IsVisible="False"/>

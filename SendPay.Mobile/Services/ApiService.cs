@@ -41,7 +41,10 @@ public record ReceiverLookupDto(
 
 public record RecipientResponse(
     int Id, string Name, string? Phone, string Note,
+    string? CountryCode,
     string? BankName, string? AccountNumber, string? AccountHolderName, string? SwiftBic, DateTime CreatedAt);
+
+public record VietnamBankOption(string Name, string Swift);
 
 public class ApiService
 {
@@ -148,13 +151,27 @@ public class ApiService
         return await _http.GetFromJsonAsync<List<RecipientResponse>>("api/recipient") ?? [];
     }
 
+    public async Task<List<VietnamBankOption>> GetVietnamBanksAsync()
+    {
+        SetToken();
+        var raw = await _http.GetFromJsonAsync<List<VnBankJsonDto>>("api/reference/vietnam-banks") ?? [];
+        return raw.Select(x => new VietnamBankOption(x.name, x.swift)).ToList();
+    }
+
+    sealed class VnBankJsonDto
+    {
+        public string name { get; set; } = "";
+        public string swift { get; set; } = "";
+    }
+
     public async Task<(bool ok, RecipientResponse? data, string error)> AddRecipientAsync(
         string name, string? phone, string note,
-        string? bankName = null, string? accountNumber = null, string? accountHolderName = null, string? swiftBic = null)
+        string? countryCode,
+        string? bankName = null, string? accountNumber = null, string? accountHolderName = null)
     {
         SetToken();
         var res = await _http.PostAsJsonAsync("api/recipient",
-            new { name, phone, note, bankName, accountNumber, accountHolderName, swiftBic });
+            new { name, phone, note, countryCode, bankName, accountNumber, accountHolderName });
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<RecipientResponse>(), "");
         var err = await res.Content.ReadAsStringAsync();
@@ -163,11 +180,12 @@ public class ApiService
 
     public async Task<(bool ok, RecipientResponse? data, string error)> UpdateRecipientAsync(
         int id, string name, string? phone, string note,
-        string? bankName = null, string? accountNumber = null, string? accountHolderName = null, string? swiftBic = null)
+        string? countryCode,
+        string? bankName = null, string? accountNumber = null, string? accountHolderName = null)
     {
         SetToken();
         var res = await _http.PutAsJsonAsync($"api/recipient/{id}",
-            new { name, phone, note, bankName, accountNumber, accountHolderName, swiftBic });
+            new { name, phone, note, countryCode, bankName, accountNumber, accountHolderName });
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<RecipientResponse>(), "");
         var err = await res.Content.ReadAsStringAsync();

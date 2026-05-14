@@ -56,13 +56,9 @@
                                                 {
                                                     <span style="color:var(--text-muted)">—</span>
                                                 }
-                                                @if (!string.IsNullOrEmpty(r.BankName) || !string.IsNullOrEmpty(r.AccountNumber) || !string.IsNullOrEmpty(r.SwiftBic))
+                                                @if (!string.IsNullOrEmpty(r.BankName) || !string.IsNullOrEmpty(r.AccountNumber))
                                                 {
                                                     <span> · @(string.IsNullOrEmpty(r.BankName) ? "" : r.BankName + " ")</span>
-                                                    @if (!string.IsNullOrEmpty(r.SwiftBic))
-                                                    {
-                                                        <span>SWIFT @r.SwiftBic </span>
-                                                    }
                                                     @if (!string.IsNullOrEmpty(r.AccountNumber))
                                                     {
                                                         <span>****@Last4Digits(r.AccountNumber)</span>
@@ -127,13 +123,51 @@
                               FullWidth="true"
                               Class="mb-3" />
 
-                <MudTextField @bind-Value="newBank"
-                              Label="@Lang.T("recip_bank")"
-                              Variant="Variant.Outlined"
-                              Adornment="Adornment.Start"
-                              AdornmentIcon="@Icons.Material.Filled.AccountBalance"
-                              FullWidth="true"
-                              Class="mb-3" />
+                <MudText Typo="Typo.caption" Style="font-weight:600;color:var(--text-muted);margin-bottom:4px">@Lang.T("recip_country")</MudText>
+                <MudSelect T="string" @bind-Value="newCountry" Variant="Variant.Outlined" FullWidth="true" Class="mb-3"
+                           AnchorOrigin="Origin.BottomCenter">
+                    <MudSelectItem Value="@("VN")">@Lang.T("recip_country_vn")</MudSelectItem>
+                    <MudSelectItem Value="@("OTHER")">@Lang.T("recip_country_other")</MudSelectItem>
+                </MudSelect>
+
+                @if (newCountry == "VN")
+                {
+                    <MudTextField @bind-Value="newBankFilter"
+                                  Immediate="true"
+                                  Label="@Lang.T("recip_bank_search_vn")"
+                                  Placeholder="@Lang.T("recip_bank_ph")"
+                                  Variant="Variant.Outlined"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.Search"
+                                  FullWidth="true"
+                                  Class="mb-2" />
+                    @if (FilteredVnBanks.Count > 0 && (string.IsNullOrEmpty(newBank) || !string.Equals(newBankFilter, newBank, StringComparison.Ordinal)))
+                    {
+                        <div style="max-height:180px;overflow-y:auto;border:1px solid var(--gray-border);border-radius:10px;margin-bottom:12px">
+                            @foreach (var b in FilteredVnBanks.Take(25))
+                            {
+                                <div style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--gray-border);font-size:13px"
+                                     @onclick="@(() => SelectVnBank(b))" @onclick:stopPropagation="true">
+                                    @b.Name
+                                </div>
+                            }
+                        </div>
+                    }
+                    @if (!string.IsNullOrEmpty(newBank))
+                    {
+                        <MudAlert Severity="Severity.Success" Dense="true" Class="mb-3" Style="font-size:12px">@Lang.T("recip_bank_picked"): @newBank</MudAlert>
+                    }
+                }
+                else
+                {
+                    <MudTextField @bind-Value="newBank"
+                                  Label="@Lang.T("recip_bank")"
+                                  Variant="Variant.Outlined"
+                                  Adornment="Adornment.Start"
+                                  AdornmentIcon="@Icons.Material.Filled.AccountBalance"
+                                  FullWidth="true"
+                                  Class="mb-3" />
+                }
 
                 <MudTextField @bind-Value="newAccount"
                               Label="@Lang.T("recip_account")"
@@ -147,17 +181,6 @@
                               Variant="Variant.Outlined"
                               FullWidth="true"
                               Class="mb-3" />
-
-                <MudTextField @bind-Value="newSwift"
-                              Label="@Lang.T("recip_swift")"
-                              Placeholder="BIDVVNVX"
-                              Variant="Variant.Outlined"
-                              Adornment="Adornment.Start"
-                              AdornmentIcon="@Icons.Material.Filled.Numbers"
-                              FullWidth="true"
-                              Class="mb-3"
-                              HelperText="@Lang.T("recip_swift_help")"
-                              HelperTextOnFocus="true" />
 
                 <MudTextField @bind-Value="newNote"
                               Label="@Lang.T("recip_note")"
@@ -193,11 +216,24 @@
 
 @code {
     List<RecipientResponse> recipients = [];
+    List<VietnamBankOption> vnBanks = [];
     bool loading = true;
     bool adding;
     int? editingId;
-    string newName = "", newPhone = "", newNote = "", newBank = "", newAccount = "", newHolder = "", newSwift = "";
+    string newName = "", newPhone = "", newNote = "", newCountry = "VN", newBank = "", newBankFilter = "";
+    string newAccount = "", newHolder = "";
     string addError = "", addSuccess = "";
+
+    List<VietnamBankOption> FilteredVnBanks
+    {
+        get
+        {
+            if (vnBanks.Count == 0) return [];
+            var q = (newBankFilter ?? "").Trim();
+            if (string.IsNullOrEmpty(q)) return vnBanks;
+            return [.. vnBanks.Where(b => b.Name.Contains(q, StringComparison.OrdinalIgnoreCase))];
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -206,8 +242,20 @@
         if (string.IsNullOrEmpty(token)) { Nav.NavigateTo("/login"); return; }
         var saved = await LocalStorage.GetItemAsync<string>("sp_lang");
         if (!string.IsNullOrEmpty(saved)) Lang.Set(saved);
+        vnBanks = await Api.GetVietnamBanksAsync();
         await Reload();
     }
+
+    void SelectVnBank(VietnamBankOption b)
+    {
+        newBank = b.Name;
+        newBankFilter = b.Name;
+        addError = "";
+    }
+
+    static bool IsRecipientVietnam(RecipientResponse r) =>
+        string.Equals(r.CountryCode, "VN", StringComparison.OrdinalIgnoreCase)
+        || (string.IsNullOrEmpty(r.CountryCode) && !string.IsNullOrEmpty(r.SwiftBic));
 
     async Task Reload()
     {
@@ -223,10 +271,11 @@
         newName = r.Name;
         newPhone = r.Phone ?? "";
         newNote = r.Note;
+        newCountry = IsRecipientVietnam(r) ? "VN" : "OTHER";
         newBank = r.BankName ?? "";
+        newBankFilter = newCountry == "VN" ? newBank : "";
         newAccount = r.AccountNumber ?? "";
         newHolder = r.AccountHolderName ?? "";
-        newSwift = r.SwiftBic ?? "";
     }
 
     void CancelEdit()
@@ -238,7 +287,8 @@
 
     void ClearFormFields()
     {
-        newName = newPhone = newNote = newBank = newAccount = newHolder = newSwift = "";
+        newName = newPhone = newNote = newBank = newBankFilter = newAccount = newHolder = "";
+        newCountry = "VN";
     }
 
     async Task SaveRecipient()
@@ -251,21 +301,24 @@
         var bk = string.IsNullOrWhiteSpace(newBank) ? null : newBank.Trim();
         var ac = string.IsNullOrWhiteSpace(newAccount) ? null : newAccount.Trim();
         var ho = string.IsNullOrWhiteSpace(newHolder) ? null : newHolder.Trim();
-        var sw = string.IsNullOrWhiteSpace(newSwift) ? null : newSwift.Trim();
 
-        if (string.IsNullOrEmpty(bk) || string.IsNullOrEmpty(ac) || string.IsNullOrEmpty(ho) || string.IsNullOrEmpty(sw))
+        if (string.IsNullOrEmpty(bk) || string.IsNullOrEmpty(ac) || string.IsNullOrEmpty(ho))
         { addError = Lang.T("recip_err_bank_full"); return; }
+
+        if (newCountry == "VN")
+        {
+            var match = vnBanks.Any(b => string.Equals(b.Name, bk, StringComparison.OrdinalIgnoreCase));
+            if (!match)
+            { addError = Lang.T("recip_err_bank_vn"); return; }
+        }
 
         if (AccountKey(ac).Length < 6)
         { addError = Lang.T("recip_err_account"); return; }
 
-        if (!IsValidBic(sw))
-        { addError = Lang.T("recip_err_swift"); return; }
-
         adding = true;
         (bool ok, _, string err) = editingId is int eid
-            ? await Api.UpdateRecipientAsync(eid, newName.Trim(), ph, newNote.Trim(), bk, ac, ho, sw)
-            : await Api.AddRecipientAsync(newName.Trim(), ph, newNote.Trim(), bk, ac, ho, sw);
+            ? await Api.UpdateRecipientAsync(eid, newName.Trim(), ph, newNote.Trim(), newCountry, bk, ac, ho)
+            : await Api.AddRecipientAsync(newName.Trim(), ph, newNote.Trim(), newCountry, bk, ac, ho);
         adding = false;
 
         if (ok)
@@ -281,21 +334,6 @@
 
     static string AccountKey(string? s) =>
         string.IsNullOrEmpty(s) ? "" : string.Concat(s.Where(char.IsLetterOrDigit)).ToUpperInvariant();
-
-    static bool IsValidBic(string swift)
-    {
-        var s = string.Concat(swift.Trim().ToUpperInvariant().Where(c =>
-            c is >= 'A' and <= 'Z' || char.IsDigit(c)));
-        if (s.Length is not (8 or 11)) return false;
-        for (var i = 0; i < 6; i++)
-            if (!char.IsLetter(s[i])) return false;
-        for (var i = 6; i < 8; i++)
-            if (!char.IsLetterOrDigit(s[i])) return false;
-        if (s.Length == 11)
-            for (var i = 8; i < 11; i++)
-                if (!char.IsLetterOrDigit(s[i])) return false;
-        return true;
-    }
 
     static string Last4Digits(string? acct)
     {

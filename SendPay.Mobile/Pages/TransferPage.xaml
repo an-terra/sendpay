@@ -20,8 +20,23 @@
                     </VerticalStackLayout>
 
                     <VerticalStackLayout Spacing="4">
-                        <Label Text="Ngân hàng (tùy chọn)" FontSize="13" TextColor="#8b8b9b" FontAttributes="Bold"/>
-                        <Entry x:Name="BankNameEntry" Placeholder="Vietcombank"
+                        <Label Text="Quốc gia nhận" FontSize="13" TextColor="#8b8b9b" FontAttributes="Bold"/>
+                        <Picker x:Name="CountryPicker" Title="Chọn" SelectedIndexChanged="OnCountryPickerChanged"/>
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout x:Name="VnBankLayout" Spacing="4">
+                        <Label Text="Tìm ngân hàng (Việt Nam)" FontSize="13" TextColor="#8b8b9b" FontAttributes="Bold"/>
+                        <Entry x:Name="VnBankSearchEntry" Placeholder="Gõ để tìm…" Keyboard="Default"
+                               TextChanged="OnVnBankSearchChanged"/>
+                        <Border x:Name="VnBankSuggestBorder" IsVisible="False" Stroke="#e2e8f0" StrokeThickness="1"
+                                Padding="6" BackgroundColor="#f8fafc">
+                            <VerticalStackLayout x:Name="VnBankSuggestStack" Spacing="4"/>
+                        </Border>
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout x:Name="OtherBankLayout" Spacing="4" IsVisible="False">
+                        <Label Text="Ngân hàng" FontSize="13" TextColor="#8b8b9b" FontAttributes="Bold"/>
+                        <Entry x:Name="OtherBankEntry" Placeholder="Tên ngân hàng"
                                TextChanged="OnReceiverFieldTextChanged"/>
                     </VerticalStackLayout>
 
@@ -37,12 +52,6 @@
                                TextChanged="OnReceiverFieldTextChanged"/>
                     </VerticalStackLayout>
 
-                    <VerticalStackLayout Spacing="4">
-                        <Label Text="SWIFT / BIC" FontSize="13" TextColor="#8b8b9b" FontAttributes="Bold"/>
-                        <Entry x:Name="SwiftEntry" Placeholder="VD: BIDVVNVX" Keyboard="Default"
-                               TextChanged="OnReceiverFieldTextChanged"/>
-                    </VerticalStackLayout>
-
                     <Border x:Name="SuggestBorder" IsVisible="False" Stroke="#e2e8f0" StrokeThickness="1"
                             BackgroundColor="#f8fafc" Padding="10" Margin="0,4,0,0">
                         <VerticalStackLayout Spacing="8">
@@ -54,8 +63,8 @@
                     <Label x:Name="ReceiverHintLabel" FontSize="13" IsVisible="False" Margin="0,0,0,4"/>
 
                     <VerticalStackLayout Spacing="4">
-                        <Label Text="Số tiền (VND)" FontSize="13" TextColor="#8b8b9b" FontAttributes="Bold"/>
-                        <Entry x:Name="AmountEntry" Placeholder="100,000" Keyboard="Numeric"/>
+                        <Label Text="Số tiền (JPY)" FontSize="13" TextColor="#8b8b9b" FontAttributes="Bold"/>
+                        <Entry x:Name="AmountEntry" Placeholder="10000" Keyboard="Numeric"/>
                     </VerticalStackLayout>
 
                     <VerticalStackLayout Spacing="4">

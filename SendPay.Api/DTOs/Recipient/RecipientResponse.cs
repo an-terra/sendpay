@@ -5,6 +5,7 @@ public record RecipientResponse(
     string Name,
     string? Phone,
     string Note,
+    string? CountryCode,
     string? BankName,
     string? AccountNumber,
     string? AccountHolderName,

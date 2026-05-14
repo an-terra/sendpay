@@ -15,6 +15,7 @@ public partial class TransferPage : ContentPage
     private Guid? _verificationId;
     CancellationTokenSource? _phoneLookupCts;
     List<RecipientResponse> _recipients = [];
+    List<VietnamBankOption> _vnBanks = [];
     bool _skipNextSuggestUpdate;
 
     string _recipientIdQuery = "";
@@ -38,6 +39,10 @@ public partial class TransferPage : ContentPage
     {
         InitializeComponent();
         _api = api;
+        CountryPicker.Items.Add("Việt Nam");
+        CountryPicker.Items.Add("Khác");
+        CountryPicker.SelectedIndex = 0;
+        ApplyCountryBankUi();
     }
 
     protected override async void OnAppearing()
@@ -45,7 +50,87 @@ public partial class TransferPage : ContentPage
         base.OnAppearing();
         try { _recipients = await _api.GetRecipientsAsync(); }
         catch { _recipients = []; }
+        try { _vnBanks = await _api.GetVietnamBanksAsync(); }
+        catch { _vnBanks = []; }
     }
+
+    void ApplyCountryBankUi()
+    {
+        var vn = CountryPicker.SelectedIndex == 0;
+        VnBankLayout.IsVisible = vn;
+        OtherBankLayout.IsVisible = !vn;
+    }
+
+    void OnCountryPickerChanged(object? sender, EventArgs e)
+    {
+        ApplyCountryBankUi();
+        if (CountryPicker.SelectedIndex == 0)
+            OtherBankEntry.Text = "";
+        else
+            VnBankSearchEntry.Text = "";
+        VnBankSuggestBorder.IsVisible = false;
+        VnBankSuggestStack.Children.Clear();
+        _ = DebouncedLookupAsync();
+    }
+
+    void OnVnBankSearchChanged(object? sender, TextChangedEventArgs e)
+    {
+        var q = (VnBankSearchEntry.Text ?? "").Trim();
+        VnBankSuggestStack.Children.Clear();
+        if (string.IsNullOrEmpty(q) || _vnBanks.Count == 0)
+        {
+            VnBankSuggestBorder.IsVisible = false;
+            _ = DebouncedLookupAsync();
+            return;
+        }
+
+        var hits = _vnBanks.Where(b => b.Name.Contains(q, StringComparison.OrdinalIgnoreCase)).Take(20).ToList();
+        if (hits.Count == 0)
+        {
+            VnBankSuggestBorder.IsVisible = false;
+            _ = DebouncedLookupAsync();
+            return;
+        }
+
+        VnBankSuggestBorder.IsVisible = true;
+        foreach (var bank in hits)
+        {
+            var captured = bank;
+            var btn = new Button
+            {
+                Text = bank.Name,
+                BackgroundColor = Colors.White,
+                TextColor = Colors.Black,
+                BorderColor = Color.FromArgb("#e2e8f0"),
+                BorderWidth = 1,
+                CornerRadius = 6,
+                Padding = new Thickness(8, 6),
+                FontSize = 12,
+                LineBreakMode = LineBreakMode.WordWrap
+            };
+            btn.Clicked += async (_, _) =>
+            {
+                VnBankSearchEntry.Text = captured.Name;
+                VnBankSuggestBorder.IsVisible = false;
+                VnBankSuggestStack.Children.Clear();
+                await DebouncedLookupAsync();
+            };
+            VnBankSuggestStack.Children.Add(btn);
+        }
+
+        _ = DebouncedLookupAsync();
+    }
+
+    string BankForApi()
+    {
+        if (CountryPicker.SelectedIndex == 0)
+            return (VnBankSearchEntry.Text ?? "").Trim();
+        return (OtherBankEntry.Text ?? "").Trim();
+    }
+
+    static bool IsRecipientVietnam(RecipientResponse r) =>
+        string.Equals(r.CountryCode, "VN", StringComparison.OrdinalIgnoreCase)
+        || (string.IsNullOrEmpty(r.CountryCode) && !string.IsNullOrEmpty(r.SwiftBic));
 
     async Task LoadFromRecipientAsync(string raw)
     {
@@ -56,13 +141,26 @@ public partial class TransferPage : ContentPage
         await MainThread.InvokeOnMainThreadAsync(() =>
         {
             PhoneEntry.Text = rec.Phone ?? "";
-            BankNameEntry.Text = rec.BankName ?? "";
+            var vn = IsRecipientVietnam(rec);
+            CountryPicker.SelectedIndex = vn ? 0 : 1;
+            ApplyCountryBankUi();
+            if (vn)
+            {
+                VnBankSearchEntry.Text = rec.BankName ?? "";
+                OtherBankEntry.Text = "";
+            }
+            else
+            {
+                OtherBankEntry.Text = rec.BankName ?? "";
+                VnBankSearchEntry.Text = "";
+            }
             AccountEntry.Text = rec.AccountNumber ?? "";
             HolderEntry.Text = rec.AccountHolderName ?? "";
-            SwiftEntry.Text = rec.SwiftBic ?? "";
             NoteEntry.Text = rec.Note ?? "";
             SuggestBorder.IsVisible = false;
             SuggestStack.Children.Clear();
+            VnBankSuggestBorder.IsVisible = false;
+            VnBankSuggestStack.Children.Clear();
         });
         await DebouncedLookupAsync();
     }
@@ -73,6 +171,19 @@ public partial class TransferPage : ContentPage
         if (!decimal.TryParse(AmountEntry.Text?.Replace(",", ""), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal amount))
         {
             ShowMsg("Số tiền không hợp lệ", "#dc2626");
+            return;
+        }
+
+        var bank = BankForApi();
+        if (CountryPicker.SelectedIndex == 0 &&
+            !_vnBanks.Exists(b => string.Equals(b.Name, bank, StringComparison.OrdinalIgnoreCase)))
+        {
+            ShowMsg("Chọn ngân hàng Việt Nam từ danh sách gợi ý.", "#dc2626");
+            return;
+        }
+        if (CountryPicker.SelectedIndex == 1 && string.IsNullOrWhiteSpace(bank))
+        {
+            ShowMsg("Nhập tên ngân hàng người nhận.", "#dc2626");
             return;
         }
 
@@ -87,7 +198,7 @@ public partial class TransferPage : ContentPage
         var lookup = await _api.LookupTransferCounterpartyAsync(
             string.IsNullOrWhiteSpace(PhoneEntry.Text) ? null : PhoneEntry.Text.Trim(),
             string.IsNullOrWhiteSpace(AccountEntry.Text) ? null : AccountEntry.Text.Trim(),
-            string.IsNullOrWhiteSpace(BankNameEntry.Text) ? null : BankNameEntry.Text.Trim());
+            string.IsNullOrWhiteSpace(bank) ? null : bank);
 
         if (lookup?.IsSelf == true)
         {
@@ -161,10 +272,11 @@ public partial class TransferPage : ContentPage
             return;
         }
 
+        var bank = BankForApi();
         var lookup = await _api.LookupTransferCounterpartyAsync(
             string.IsNullOrWhiteSpace(PhoneEntry.Text) ? null : PhoneEntry.Text.Trim(),
             string.IsNullOrWhiteSpace(AccountEntry.Text) ? null : AccountEntry.Text.Trim(),
-            string.IsNullOrWhiteSpace(BankNameEntry.Text) ? null : BankNameEntry.Text.Trim());
+            string.IsNullOrWhiteSpace(bank) ? null : bank);
         var eff = string.IsNullOrWhiteSpace(lookup?.ResolvedPhone)
             ? PhoneEntry.Text?.Trim() ?? ""
             : lookup!.ResolvedPhone!.Trim();
@@ -177,7 +289,7 @@ public partial class TransferPage : ContentPage
         TransferBtn.IsEnabled = false;
         TransferBtn.Text = "Đang xử lý...";
 
-        var rb = string.IsNullOrWhiteSpace(BankNameEntry.Text) ? null : BankNameEntry.Text.Trim();
+        var rb = string.IsNullOrWhiteSpace(bank) ? null : bank;
         var racct = string.IsNullOrWhiteSpace(AccountEntry.Text) ? null : AccountEntry.Text.Trim();
         var (ok, data, err) = await _api.TransferAsync(eff, amount, NoteEntry.Text ?? "", _verificationId.Value, otp, rb, racct);
 
@@ -186,9 +298,11 @@ public partial class TransferPage : ContentPage
 
         if (ok && data != null)
         {
-            ShowMsg($"✓ Đã chuyển {data.Amount:N0}₫ cho {data.ReceiverName} thành công!", "#16a34a");
+            ShowMsg($"✓ Đã chuyển {data.Amount:N0} JPY cho {data.ReceiverName} thành công!", "#16a34a");
             PhoneEntry.Text = AmountEntry.Text = NoteEntry.Text = "";
-            BankNameEntry.Text = AccountEntry.Text = SwiftEntry.Text = HolderEntry.Text = "";
+            VnBankSearchEntry.Text = OtherBankEntry.Text = AccountEntry.Text = HolderEntry.Text = "";
+            CountryPicker.SelectedIndex = 0;
+            ApplyCountryBankUi();
             OtpEntry.Text = "";
             ReceiverHintLabel.Text = "";
             ReceiverHintLabel.IsVisible = false;
@@ -196,6 +310,8 @@ public partial class TransferPage : ContentPage
             OtpHintLabel.IsVisible = false;
             SuggestBorder.IsVisible = false;
             SuggestStack.Children.Clear();
+            VnBankSuggestBorder.IsVisible = false;
+            VnBankSuggestStack.Children.Clear();
         }
         else ShowMsg(err, "#dc2626");
     }
@@ -218,6 +334,7 @@ public partial class TransferPage : ContentPage
         try { await Task.Delay(400, token); }
         catch (TaskCanceledException) { return; }
 
+        var bank = BankForApi();
         var phD = DigitsOnly(PhoneEntry.Text);
         var acK = AccountKey(AccountEntry.Text);
         ReceiverLookupDto? res = null;
@@ -226,7 +343,7 @@ public partial class TransferPage : ContentPage
             res = await _api.LookupTransferCounterpartyAsync(
                 string.IsNullOrWhiteSpace(PhoneEntry.Text) ? null : PhoneEntry.Text.Trim(),
                 string.IsNullOrWhiteSpace(AccountEntry.Text) ? null : AccountEntry.Text.Trim(),
-                string.IsNullOrWhiteSpace(BankNameEntry.Text) ? null : BankNameEntry.Text.Trim());
+                string.IsNullOrWhiteSpace(bank) ? null : bank);
         }
 
         await MainThread.InvokeOnMainThreadAsync(() =>
@@ -247,8 +364,8 @@ public partial class TransferPage : ContentPage
                 else if (res is { Found: true, FullName: { } n } && !string.IsNullOrWhiteSpace(n))
                 {
                     ReceiverHintLabel.TextColor = Color.FromArgb("#16a34a");
-                    var bank = string.IsNullOrEmpty(res.BankDisplay) ? "" : $" · {res.BankDisplay}";
-                    ReceiverHintLabel.Text = $"Tài khoản nhận: {n}{bank}";
+                    var bd = string.IsNullOrEmpty(res.BankDisplay) ? "" : $" · {res.BankDisplay}";
+                    ReceiverHintLabel.Text = $"Tài khoản nhận: {n}{bd}";
                 }
                 else
                 {
@@ -277,10 +394,9 @@ public partial class TransferPage : ContentPage
         }
 
         T(PhoneEntry.Text);
-        T(BankNameEntry.Text);
+        T(BankForApi());
         T(AccountEntry.Text);
         T(HolderEntry.Text);
-        T(SwiftEntry.Text);
 
         SuggestStack.Children.Clear();
         if (terms.Count == 0)
@@ -295,8 +411,7 @@ public partial class TransferPage : ContentPage
                 (r.Phone?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false) ||
                 (r.BankName?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false) ||
                 (r.AccountNumber?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (r.AccountHolderName?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (r.SwiftBic?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false)))
+                (r.AccountHolderName?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false)))
             .Take(8)
             .ToList();
 
@@ -337,14 +452,27 @@ public partial class TransferPage : ContentPage
         await MainThread.InvokeOnMainThreadAsync(() =>
         {
             PhoneEntry.Text = r.Phone ?? "";
-            BankNameEntry.Text = r.BankName ?? "";
+            var vn = IsRecipientVietnam(r);
+            CountryPicker.SelectedIndex = vn ? 0 : 1;
+            ApplyCountryBankUi();
+            if (vn)
+            {
+                VnBankSearchEntry.Text = r.BankName ?? "";
+                OtherBankEntry.Text = "";
+            }
+            else
+            {
+                OtherBankEntry.Text = r.BankName ?? "";
+                VnBankSearchEntry.Text = "";
+            }
             AccountEntry.Text = r.AccountNumber ?? "";
             HolderEntry.Text = r.AccountHolderName ?? "";
-            SwiftEntry.Text = r.SwiftBic ?? "";
             if (string.IsNullOrEmpty(NoteEntry.Text))
                 NoteEntry.Text = r.Note ?? "";
             SuggestBorder.IsVisible = false;
             SuggestStack.Children.Clear();
+            VnBankSuggestBorder.IsVisible = false;
+            VnBankSuggestStack.Children.Clear();
         });
         _skipNextSuggestUpdate = true;
         await DebouncedLookupAsync();
