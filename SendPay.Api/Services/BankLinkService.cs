@@ -1,14 +1,22 @@
 using System.Security.Cryptography;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using SendPay.Api.Data;
 using SendPay.Api.DTOs.BankLink;
 using SendPay.Api.Models;
+using SendPay.Api.Services.BankLink;
 
 namespace SendPay.Api.Services;
 
-public class BankLinkService(AppDbContext db, ILogger<BankLinkService> logger) : IBankLinkService
+public class BankLinkService(
+    AppDbContext db,
+    ILogger<BankLinkService> logger,
+    IBankLinkAuthorizePathBuilder authorizePaths,
+    IDataProtectionProvider dataProtection,
+    IAuditService audit) : IBankLinkService
 {
     private static readonly TimeSpan SessionLifetime = TimeSpan.FromMinutes(10);
+    private readonly IDataProtector _refProtector = dataProtection.CreateProtector("sendpay.banklink.ref.v1");
 
     public async Task<BankLinkStartResponse> StartAsync(
         int userId, BankLinkStartRequest req, string? ipAddress, CancellationToken ct = default)
@@ -40,8 +48,9 @@ public class BankLinkService(AppDbContext db, ILogger<BankLinkService> logger) :
         db.BankLinkSessions.Add(session);
         await db.SaveChangesAsync(ct);
 
-        var authorizeUrl = $"/fake-bank/{Uri.EscapeDataString(bank.Code)}?state={Uri.EscapeDataString(state)}";
+        var authorizeUrl = authorizePaths.BuildAuthorizeUrl(bank.Code, state, safeReturn);
         logger.LogInformation("BankLink start: user={UserId} bank={Bank}", userId, bank.Code);
+        await audit.WriteAsync("banklink.start", $"bank={bank.Code}", userId, ipAddress, ct);
 
         return new BankLinkStartResponse(state, authorizeUrl, session.ExpiresAt);
     }
@@ -76,7 +85,8 @@ public class BankLinkService(AppDbContext db, ILogger<BankLinkService> logger) :
             rawAccount = GenerateDemoAccount();
 
         var masked = MaskAccount(rawAccount);
-        var providerRef = $"fake-{bank.Code}-{Guid.NewGuid():N}";
+        var providerRefPlain = $"fake-{bank.Code}-{Guid.NewGuid():N}";
+        var providerRefProtected = _refProtector.Protect(providerRefPlain);
 
         var hasActive = await db.UserBankLinks.AnyAsync(l => l.UserId == session.UserId && l.IsActive && l.IsPrimary, ct);
 
@@ -86,7 +96,7 @@ public class BankLinkService(AppDbContext db, ILogger<BankLinkService> logger) :
             BankCode      = bank.Code,
             BankName      = bank.NameJa,
             AccountMasked = masked,
-            ProviderRef   = providerRef,
+            ProviderRef   = providerRefProtected,
             Provider      = "fake",
             IsPrimary     = !hasActive,
             IsActive      = true,
@@ -103,6 +113,7 @@ public class BankLinkService(AppDbContext db, ILogger<BankLinkService> logger) :
 
         logger.LogInformation("BankLink linked: user={UserId} bank={Bank} link={LinkId}",
             session.UserId, bank.Code, link.Id);
+        await audit.WriteAsync("banklink.linked", $"bank={bank.Code} link={link.Id}", session.UserId, ipAddress, ct);
 
         var redirectBase = string.IsNullOrWhiteSpace(session.ReturnUrl) ? "/settings" : session.ReturnUrl;
         var sep = redirectBase.Contains('?') ? "&" : "?";
@@ -161,6 +172,7 @@ public class BankLinkService(AppDbContext db, ILogger<BankLinkService> logger) :
         }
 
         logger.LogInformation("BankLink unlinked: user={UserId} link={LinkId}", userId, linkId);
+        await audit.WriteAsync("banklink.unlink", $"linkId={linkId}", userId, null, ct);
         return true;
     }
 

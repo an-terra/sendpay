@@ -2,6 +2,7 @@
 @inject NavigationManager Nav
 @inject LanguageService Lang
 @inject UserStateService UserState
+@inject ApiService Api
 @implements IDisposable
 
 <nav class="sp-dash-nav">
@@ -76,9 +77,7 @@
 
     async Task Logout()
     {
-        await LocalStorage.RemoveItemAsync("token");
-        await LocalStorage.RemoveItemAsync("fullName");
-        await LocalStorage.RemoveItemAsync("isAdmin");
+        await Api.LogoutAsync();
         Nav.NavigateTo("/login");
     }
 

@@ -13,6 +13,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<DailyTransactionStat> DailyTransactionStats => Set<DailyTransactionStat>();
     public DbSet<BankLinkSession>    BankLinkSessions       => Set<BankLinkSession>();
     public DbSet<UserBankLink>       UserBankLinks          => Set<UserBankLink>();
+    public DbSet<UserRefreshToken>   UserRefreshTokens      => Set<UserRefreshToken>();
+    public DbSet<JwtBlacklistEntry>  JwtBlacklistEntries    => Set<JwtBlacklistEntry>();
+    public DbSet<AuditLog>           AuditLogs              => Set<AuditLog>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -99,6 +102,22 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
              .WithMany()
              .HasForeignKey(x => x.LinkId)
              .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        mb.Entity<JwtBlacklistEntry>(e => { e.HasKey(x => x.Jti); });
+
+        mb.Entity<UserRefreshToken>(e =>
+        {
+            e.HasIndex(x => x.TokenHash);
+            e.HasOne(x => x.User)
+             .WithMany()
+             .HasForeignKey(x => x.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        mb.Entity<AuditLog>(e =>
+        {
+            e.HasIndex(x => x.CreatedAtUtc);
         });
     }
 }

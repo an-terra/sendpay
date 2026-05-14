@@ -1,15 +1,30 @@
+using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
-using BCrypt.Net;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Npgsql;
 using Scalar.AspNetCore;
 using SendPay.Api.Data;
+using SendPay.Api.Infrastructure;
+using SendPay.Api.Models;
+using SendPay.Api.Security;
+using SendPay.Api.Services;
+using SendPay.Api.Services.BankLink;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// ── Data Protection (mã hóa ProviderRef trong DB, khóa lưu DataProtectionKeys/) ──
+var keysPath = Path.Combine(builder.Environment.ContentRootPath, "DataProtectionKeys");
+Directory.CreateDirectory(keysPath);
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(keysPath))
+    .SetApplicationName("SendPay.Api");
 
 // ── Database ───────────────────────────────────────────────
 var rawConn = builder.Configuration.GetConnectionString("DefaultConnection") ?? "";
@@ -25,10 +40,21 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
         opt.UseNpgsql(NormalizePostgresConnectionString(rawConn));
 });
 
+builder.Services.Configure<ForwardedHeadersOptions>(o =>
+{
+    o.ForwardedHeaders = ForwardedHeaders.XForwardedProto | ForwardedHeaders.XForwardedFor;
+    o.KnownIPNetworks.Clear();
+    o.KnownProxies.Clear();
+});
+
 // ── Services ──────────────────────────────────────────────
 builder.Services.AddMemoryCache();
+builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient<RatesService>();
+builder.Services.AddScoped<IRefreshTokenService, RefreshTokenService>();
+builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddSingleton<IBankLinkAuthorizePathBuilder, FakeBankLinkAuthorizePathBuilder>();
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddScoped<ITransactionService, TransactionService>();
@@ -41,6 +67,7 @@ var jwtKey = JwtKeyResolver.ResolveSigningKey(builder.Configuration, builder.Env
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(opt =>
     {
+        opt.RequireHttpsMetadata = !builder.Environment.IsDevelopment();
         opt.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
@@ -49,7 +76,40 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidIssuer              = builder.Configuration["Jwt:Issuer"],
             ValidateAudience         = true,
             ValidAudience            = builder.Configuration["Jwt:Audience"],
-            ValidateLifetime         = true
+            ValidateLifetime         = true,
+            ClockSkew                = TimeSpan.FromMinutes(1),
+        };
+        opt.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = async ctx =>
+            {
+                await using var scope = ctx.HttpContext.RequestServices.CreateAsyncScope();
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                if (ctx.SecurityToken is JwtSecurityToken jwt)
+                {
+                    var jti = jwt.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Jti)?.Value;
+                    if (!string.IsNullOrEmpty(jti) &&
+                        await db.JwtBlacklistEntries.AsNoTracking().AnyAsync(x => x.Jti == jti))
+                    {
+                        ctx.Fail("Token đã thu hồi.");
+                        ctx.Response.Headers.TryAdd("X-Token-Revoked", "1");
+                        return;
+                    }
+                }
+
+                var sub = ctx.Principal?.FindFirstValue(ClaimTypes.NameIdentifier);
+                if (!int.TryParse(sub, out var uid))
+                    return;
+                var active = await db.Users.AsNoTracking()
+                    .Where(u => u.Id == uid)
+                    .Select(u => u.IsActive)
+                    .FirstOrDefaultAsync();
+                if (!active)
+                {
+                    ctx.Fail("Tài khoản đã bị khóa.");
+                    ctx.Response.Headers.TryAdd("X-User-Inactive", "1");
+                }
+            },
         };
     });
 
@@ -111,13 +171,10 @@ builder.Services.AddCors(opt =>
         }
         else if (builder.Environment.IsDevelopment())
         {
-            // Dev: cho phép mọi origin để tiện chạy WASM dev server.
             p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
         }
         else
         {
-            // Prod mặc định: chặn cross-origin. WASM được host cùng origin
-            // qua app.UseBlazorFrameworkFiles() nên không cần CORS.
             p.WithOrigins().AllowAnyHeader().AllowAnyMethod();
         }
     }));
@@ -134,25 +191,22 @@ using (var scope = app.Services.CreateScope())
     TryRecipientBankColumns(db);
     TryTransactionTransferColumns(db);
     TryUserJapanBankColumns(db);
-    SendPay.Api.Infrastructure.ReconciliationSchema.EnsureTables(db);
-    SendPay.Api.Infrastructure.BankLinkSchema.EnsureTables(db);
+    ReconciliationSchema.EnsureTables(db);
+    BankLinkSchema.EnsureTables(db);
+    SecuritySchema.EnsureTables(db);
 
-    if (!db.Users.Any(u => u.IsAdmin))
-    {
-        db.Users.Add(new User
-        {
-            FullName     = "Admin",
-            Email        = "admin@sendpay.com",
-            Phone        = "0000000000",
-            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin@123"),
-            IsAdmin      = true,
-            IsActive     = true
-        });
-        db.SaveChanges();
-    }
+    SeedInitialAdmin(app);
 }
 
 // ── Middleware pipeline ────────────────────────────────────
+app.UseForwardedHeaders();
+
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+    app.UseHttpsRedirection();
+}
+
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 
@@ -176,6 +230,50 @@ app.MapFallbackToFile("index.html");
 app.Run();
 
 
+static void SeedInitialAdmin(WebApplication app)
+{
+    using var scope = app.Services.CreateScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    var cfg = scope.ServiceProvider.GetRequiredService<IConfiguration>();
+    var env = scope.ServiceProvider.GetRequiredService<IWebHostEnvironment>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>()
+        .CreateLogger("InitialAdmin");
+
+    if (db.Users.Any(u => u.IsAdmin)) return;
+
+    var email = (cfg["InitialAdmin:Email"] ?? "admin@sendpay.com").Trim();
+    var phone = (cfg["InitialAdmin:Phone"] ?? "0000000000").Trim();
+    var name  = (cfg["InitialAdmin:FullName"] ?? "Admin").Trim();
+    var pwd   = cfg["InitialAdmin:Password"]?.Trim();
+
+    if (string.IsNullOrEmpty(pwd))
+    {
+        if (env.IsProduction())
+            throw new InvalidOperationException(
+                "Production: đặt biến môi trường InitialAdmin__Password (mật khẩu mạnh, xem PasswordPolicy) trước khi chạy lần đầu.");
+
+        pwd = "Dev-Admin-ChangeMe-9!";
+        logger.LogWarning(
+            "InitialAdmin:Password chưa cấu hình — dùng mật khẩu dev mặc định. Hãy đổi ngay hoặc đặt trong User Secrets.");
+    }
+    else
+    {
+        PasswordPolicy.EnsureStrongOrThrow(pwd);
+    }
+
+    db.Users.Add(new User
+    {
+        FullName     = name,
+        Email        = email,
+        Phone        = phone,
+        PasswordHash = BCrypt.Net.BCrypt.HashPassword(pwd),
+        IsAdmin      = true,
+        IsActive     = true
+    });
+    db.SaveChanges();
+    logger.LogInformation("Đã tạo tài khoản admin đầu tiên: {Email}", email);
+}
+
 static void TryRecipientBankColumns(AppDbContext db)
 {
     try
@@ -188,7 +286,7 @@ static void TryRecipientBankColumns(AppDbContext db)
     }
     catch
     {
-        // ignore nếu không phải Postgres / DB đã đồng bộ
+        // ignore
     }
 }
 
@@ -218,9 +316,6 @@ static void TryUserJapanBankColumns(AppDbContext db)
     }
 }
 
-
-// Convert URI dạng `postgresql://user:pass@host/db?sslmode=require`
-// sang Npgsql key=value format. Hỗ trợ paste trực tiếp connection string từ Neon/Supabase.
 static string? NormalizePostgresConnectionString(string? raw)
 {
     if (string.IsNullOrWhiteSpace(raw)) return raw;
@@ -237,12 +332,12 @@ static string? NormalizePostgresConnectionString(string? raw)
 
     var nb = new NpgsqlConnectionStringBuilder
     {
-        Host = uri.Host,
-        Port = uri.IsDefaultPort ? 5432 : uri.Port,
+        Host     = uri.Host,
+        Port     = uri.IsDefaultPort ? 5432 : uri.Port,
         Database = uri.AbsolutePath.TrimStart('/'),
         Username = Uri.UnescapeDataString(userInfo[0]),
         Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : null,
-        SslMode = SslMode.Require
+        SslMode  = SslMode.Require
     };
 
     return nb.ConnectionString;

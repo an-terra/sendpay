@@ -91,10 +91,7 @@
 
         if (ok && data != null)
         {
-            await LocalStorage.SetItemAsync("token", data.Token);
-            await LocalStorage.SetItemAsync("fullName", data.FullName);
-            await LocalStorage.SetItemAsync("isAdmin", data.IsAdmin);
-            await LocalStorage.SetItemAsync("userId", data.UserId);
+            await Api.PersistAuthAsync(data);
             Nav.NavigateTo(data.IsAdmin ? "/admin" : "/dashboard");
         }
         else error = err;

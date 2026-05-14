@@ -2,11 +2,16 @@ using System.Data;
 using Microsoft.EntityFrameworkCore;
 using SendPay.Api.Data;
 using SendPay.Api.DTOs.Transaction;
+using SendPay.Api.Infrastructure;
 using SendPay.Api.Models;
 
 namespace SendPay.Api.Services;
 
-public class TransactionService(AppDbContext db, ILogger<TransactionService> logger) : ITransactionService
+public class TransactionService(
+    AppDbContext db,
+    ILogger<TransactionService> logger,
+    IAuditService audit,
+    IHttpContextAccessor httpContextAccessor) : ITransactionService
 {
     public async Task<TransactionResponse> TransferAsync(int senderId, TransferRequest req)
     {
@@ -69,6 +74,13 @@ public class TransactionService(AppDbContext db, ILogger<TransactionService> log
             logger.LogInformation(
                 "Transfer ok: from={Sender} to={Receiver} amount={Amount} fee={Fee} txId={TxId}",
                 sender.Id, receiver.Id, req.Amount, fee, entity.Id);
+
+            var ip = httpContextAccessor.HttpContext?.GetClientIpAddress();
+            await audit.WriteAsync(
+                "transfer.success",
+                $"txId={entity.Id} receiverId={receiver.Id} amount={req.Amount} fee={fee}",
+                senderId,
+                ip);
 
             return ToResponse(entity, sender.FullName, receiver.FullName);
         }

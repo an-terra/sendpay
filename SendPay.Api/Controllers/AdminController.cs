@@ -1,8 +1,10 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using SendPay.Api.Data;
 using SendPay.Api.DTOs.Admin;
+using SendPay.Api.Infrastructure;
 using SendPay.Api.Models;
 using SendPay.Api.Services;
 
@@ -11,7 +13,11 @@ namespace SendPay.Api.Controllers;
 [Authorize(Roles = "Admin")]
 [ApiController]
 [Route("api/admin")]
-public class AdminController(AppDbContext db, IReconciliationService reconciliation) : ControllerBase
+public class AdminController(
+    AppDbContext db,
+    IReconciliationService reconciliation,
+    IRefreshTokenService refreshTokens,
+    IAuditService audit) : ControllerBase
 {
     // GET /api/admin/stats
     [HttpGet("stats")]
@@ -59,12 +65,23 @@ public class AdminController(AppDbContext db, IReconciliationService reconciliat
     [HttpPut("users/{id}/toggle")]
     public async Task<IActionResult> ToggleUser(int id)
     {
+        var adminId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var ip = HttpContext.GetClientIpAddress();
+
         var user = await db.Users.FindAsync(id);
         if (user is null) return NotFound();
         if (user.IsAdmin) return BadRequest(new { message = "Không thể khóa tài khoản admin." });
 
         user.IsActive = !user.IsActive;
         await db.SaveChangesAsync();
+
+        if (!user.IsActive)
+        {
+            await refreshTokens.RevokeAllForUserAsync(id);
+            await audit.WriteAsync("admin.user_deactivated", $"targetUserId={id}", adminId, ip);
+        }
+        else
+            await audit.WriteAsync("admin.user_activated", $"targetUserId={id}", adminId, ip);
 
         return Ok(new AdminUserResponse(
             user.Id, user.FullName, user.Email, user.Phone,
@@ -111,9 +128,15 @@ public class AdminController(AppDbContext db, IReconciliationService reconciliat
     [HttpDelete("users/{id}")]
     public async Task<IActionResult> DeleteUser(int id)
     {
+        var adminId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var ip = HttpContext.GetClientIpAddress();
+
         var user = await db.Users.FindAsync(id);
         if (user is null) return NotFound();
         if (user.IsAdmin) return BadRequest(new { message = "Không thể xóa tài khoản admin." });
+
+        await refreshTokens.RevokeAllForUserAsync(id);
+        await audit.WriteAsync("admin.user_deleted", $"targetUserId={id} email={user.Email}", adminId, ip);
 
         db.Users.Remove(user);
         await db.SaveChangesAsync();

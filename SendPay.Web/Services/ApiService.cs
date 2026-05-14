@@ -6,7 +6,15 @@ using Blazored.LocalStorage;
 
 namespace SendPay.Web.Services;
 
-public record AuthResponse(int UserId, string Token, string FullName, string Email, string Phone, bool IsAdmin = false);
+public record AuthResponse(
+    int UserId,
+    string Token,
+    string FullName,
+    string Email,
+    string Phone,
+    bool IsAdmin = false,
+    string? RefreshToken = null,
+    DateTime? AccessTokenExpiresAtUtc = null);
 public record WalletResponse(string FullName, string Phone, decimal Balance);
 public record TransactionResponse(int Id, int SenderId, string SenderName, string ReceiverName,
     decimal Amount, decimal Fee, string Note, int Type, int Status, DateTime CreatedAt,
@@ -106,11 +114,69 @@ public record ReceiverLookupDto(
 
 public class ApiService(HttpClient http, ILocalStorageService localStorage)
 {
+    static readonly TimeSpan AccessRefreshSkew = TimeSpan.FromMinutes(2);
+
+    public async Task PersistAuthAsync(AuthResponse data)
+    {
+        await localStorage.SetItemAsync("token", data.Token);
+        if (!string.IsNullOrEmpty(data.RefreshToken))
+            await localStorage.SetItemAsync("sp_refresh", data.RefreshToken);
+        if (data.AccessTokenExpiresAtUtc is { } exp)
+            await localStorage.SetItemAsync("sp_access_exp", exp.ToUniversalTime().ToString("o"));
+        await localStorage.SetItemAsync("fullName", data.FullName);
+        await localStorage.SetItemAsync("isAdmin", data.IsAdmin);
+        await localStorage.SetItemAsync("userId", data.UserId);
+    }
+
+    async Task EnsureFreshAccessTokenAsync()
+    {
+        var expStr = await localStorage.GetItemAsync<string>("sp_access_exp");
+        if (string.IsNullOrEmpty(expStr)) return;
+        if (!DateTime.TryParse(expStr, null, System.Globalization.DateTimeStyles.RoundtripKind, out var expUtc))
+            return;
+        if (expUtc.ToUniversalTime() > DateTime.UtcNow.Add(AccessRefreshSkew)) return;
+
+        var refresh = await localStorage.GetItemAsync<string>("sp_refresh");
+        if (string.IsNullOrEmpty(refresh)) return;
+
+        var res = await http.PostAsJsonAsync("api/auth/refresh", new { refreshToken = refresh });
+        if (!res.IsSuccessStatusCode) return;
+
+        var data = await res.Content.ReadFromJsonAsync<AuthResponse>();
+        if (data != null)
+            await PersistAuthAsync(data);
+    }
+
     private async Task SetAuthHeader()
+    {
+        await EnsureFreshAccessTokenAsync();
+        var token = await localStorage.GetItemAsync<string>("token");
+        http.DefaultRequestHeaders.Authorization =
+            string.IsNullOrEmpty(token) ? null : new AuthenticationHeaderValue("Bearer", token);
+    }
+
+    /// <summary>Thu hồi JWT/refresh trên server và xóa bộ nhớ cục bộ.</summary>
+    public async Task LogoutAsync()
     {
         var token = await localStorage.GetItemAsync<string>("token");
         http.DefaultRequestHeaders.Authorization =
             string.IsNullOrEmpty(token) ? null : new AuthenticationHeaderValue("Bearer", token);
+        try
+        {
+            await http.PostAsync("api/auth/logout", null);
+        }
+        catch
+        {
+            /* best-effort */
+        }
+
+        http.DefaultRequestHeaders.Authorization = null;
+        await localStorage.RemoveItemAsync("token");
+        await localStorage.RemoveItemAsync("sp_refresh");
+        await localStorage.RemoveItemAsync("sp_access_exp");
+        await localStorage.RemoveItemAsync("fullName");
+        await localStorage.RemoveItemAsync("isAdmin");
+        await localStorage.RemoveItemAsync("userId");
     }
 
     public async Task<(bool ok, AuthResponse? data, string error)> RegisterAsync(

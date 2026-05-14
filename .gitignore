@@ -19,3 +19,4 @@ obj/
 
 SendPay.Api/appsettings.Development.json
 SendPay.Api/sendpay.db
+SendPay.Api/DataProtectionKeys/

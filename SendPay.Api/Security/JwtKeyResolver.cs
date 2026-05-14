@@ -15,8 +15,12 @@ public static class JwtKeyResolver
                 "Thiếu Jwt:Key. Trên Production hãy đặt biến môi trường Jwt__Key (>= 32 ký tự).");
         }
 
-        if (jwtKey.Length < 32)
-            throw new InvalidOperationException("Jwt:Key phải dài ít nhất 32 ký tự.");
+        var minLen = environment.IsDevelopment() ? 32 : 64;
+        if (jwtKey.Length < minLen)
+            throw new InvalidOperationException(
+                environment.IsDevelopment()
+                    ? "Jwt:Key phải dài ít nhất 32 ký tự (Development)."
+                    : "Jwt:Key phải dài ít nhất 64 ký tự (Production). Dùng Jwt__Key trong secrets / env.");
 
         return jwtKey;
     }

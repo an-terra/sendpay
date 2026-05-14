@@ -1,3 +1,6 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using SendPay.Api.Data;
 using SendPay.Api.Services;
 
 namespace SendPay.Api.Background;
@@ -8,6 +11,7 @@ public class ReconciliationBackgroundService(
     ILogger<ReconciliationBackgroundService> logger) : BackgroundService
 {
     DateTime? _lastDailyStatsDayComputed;
+    DateTime? _lastSecurityCleanupUtc;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -29,6 +33,7 @@ public class ReconciliationBackgroundService(
                     logger.LogInformation("Đối soát: khớp {Matched} ghi có, hết hạn {Expired} lệnh nạp.", matched, expired);
 
                 await MaybeRunDailyStatsAsync(recon, statsHour, stoppingToken);
+                await MaybeCleanupSecurityTablesAsync(scope, stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -64,5 +69,22 @@ public class ReconciliationBackgroundService(
         await recon.RebuildDailyStatsForUtcDateAsync(yesterday, ct);
         _lastDailyStatsDayComputed = dayMarker;
         logger.LogInformation("Đã cập nhật DailyTransactionStats cho UTC {Day:yyyy-MM-dd}.", yesterday);
+    }
+
+    async Task MaybeCleanupSecurityTablesAsync(IServiceScope scope, CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+        if (_lastSecurityCleanupUtc.HasValue && (now - _lastSecurityCleanupUtc.Value) < TimeSpan.FromHours(6))
+            return;
+        _lastSecurityCleanupUtc = now;
+
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var n1 = await db.Database.ExecuteSqlInterpolatedAsync(
+            $"""DELETE FROM "JwtBlacklistEntries" WHERE "ExpiresAtUtc" < {now}""", ct);
+        var cutoff = now.AddDays(-90);
+        var n2 = await db.Database.ExecuteSqlInterpolatedAsync(
+            $"""DELETE FROM "UserRefreshTokens" WHERE "ExpiresAt" < {cutoff}""", ct);
+        if (n1 > 0 || n2 > 0)
+            logger.LogInformation("Security cleanup: JWT blacklist={N1}, old refresh tokens={N2}", n1, n2);
     }
 }

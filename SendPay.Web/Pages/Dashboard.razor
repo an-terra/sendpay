@@ -251,9 +251,7 @@
 
     async Task Logout()
     {
-        await LocalStorage.RemoveItemAsync("token");
-        await LocalStorage.RemoveItemAsync("fullName");
-        await LocalStorage.RemoveItemAsync("isAdmin");
+        await Api.LogoutAsync();
         Nav.NavigateTo("/login");
     }
 
