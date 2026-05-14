@@ -15,7 +15,8 @@ public partial class TransferPage : ContentPage
     private Guid? _verificationId;
     CancellationTokenSource? _phoneLookupCts;
     List<RecipientResponse> _recipients = [];
-    List<VietnamBankOption> _vnBanks = [];
+    private readonly Dictionary<string, List<CatalogBankOption>> _bankCache = new(StringComparer.OrdinalIgnoreCase);
+    List<CatalogBankOption> _catalogBanks = [];
     bool _skipNextSuggestUpdate;
 
     string _recipientIdQuery = "";
@@ -39,10 +40,41 @@ public partial class TransferPage : ContentPage
     {
         InitializeComponent();
         _api = api;
-        CountryPicker.Items.Add("Việt Nam");
-        CountryPicker.Items.Add("Khác");
+        foreach (var label in RecipientCatalogCountries.PickerLabels)
+            CountryPicker.Items.Add(label);
         CountryPicker.SelectedIndex = 0;
         ApplyCountryBankUi();
+    }
+
+    bool IsCatalogCountrySelected =>
+        CountryPicker.SelectedIndex >= 0 &&
+        CountryPicker.SelectedIndex < RecipientCatalogCountries.Codes.Length;
+
+    async Task LoadCatalogBanksAsync()
+    {
+        if (!IsCatalogCountrySelected)
+        {
+            _catalogBanks = [];
+            return;
+        }
+
+        var code = RecipientCatalogCountries.CodeFromPickerIndex(CountryPicker.SelectedIndex);
+        if (_bankCache.TryGetValue(code, out var hit))
+        {
+            _catalogBanks = hit;
+            return;
+        }
+
+        try
+        {
+            var list = await _api.GetCatalogBanksAsync(code);
+            _bankCache[code] = list;
+            _catalogBanks = list;
+        }
+        catch
+        {
+            _catalogBanks = [];
+        }
     }
 
     protected override async void OnAppearing()
@@ -50,26 +82,30 @@ public partial class TransferPage : ContentPage
         base.OnAppearing();
         try { _recipients = await _api.GetRecipientsAsync(); }
         catch { _recipients = []; }
-        try { _vnBanks = await _api.GetVietnamBanksAsync(); }
-        catch { _vnBanks = []; }
+        try { await LoadCatalogBanksAsync(); }
+        catch { _catalogBanks = []; }
     }
 
     void ApplyCountryBankUi()
     {
-        var vn = CountryPicker.SelectedIndex == 0;
-        VnBankLayout.IsVisible = vn;
-        OtherBankLayout.IsVisible = !vn;
+        CatalogBankSearchLabel.Text = IsCatalogCountrySelected
+            ? "Tìm ngân hàng (danh sách)"
+            : "Ngân hàng";
+        VnBankLayout.IsVisible = IsCatalogCountrySelected;
+        OtherBankLayout.IsVisible = !IsCatalogCountrySelected;
     }
 
-    void OnCountryPickerChanged(object? sender, EventArgs e)
+    async void OnCountryPickerChanged(object? sender, EventArgs e)
     {
         ApplyCountryBankUi();
-        if (CountryPicker.SelectedIndex == 0)
+        if (IsCatalogCountrySelected)
             OtherBankEntry.Text = "";
         else
             VnBankSearchEntry.Text = "";
         VnBankSuggestBorder.IsVisible = false;
         VnBankSuggestStack.Children.Clear();
+        try { await LoadCatalogBanksAsync(); }
+        catch { _catalogBanks = []; }
         _ = DebouncedLookupAsync();
     }
 
@@ -77,14 +113,14 @@ public partial class TransferPage : ContentPage
     {
         var q = (VnBankSearchEntry.Text ?? "").Trim();
         VnBankSuggestStack.Children.Clear();
-        if (string.IsNullOrEmpty(q) || _vnBanks.Count == 0)
+        if (string.IsNullOrEmpty(q) || _catalogBanks.Count == 0)
         {
             VnBankSuggestBorder.IsVisible = false;
             _ = DebouncedLookupAsync();
             return;
         }
 
-        var hits = _vnBanks.Where(b => b.Name.Contains(q, StringComparison.OrdinalIgnoreCase)).Take(20).ToList();
+        var hits = _catalogBanks.Where(b => b.Name.Contains(q, StringComparison.OrdinalIgnoreCase)).Take(20).ToList();
         if (hits.Count == 0)
         {
             VnBankSuggestBorder.IsVisible = false;
@@ -123,14 +159,10 @@ public partial class TransferPage : ContentPage
 
     string BankForApi()
     {
-        if (CountryPicker.SelectedIndex == 0)
+        if (IsCatalogCountrySelected)
             return (VnBankSearchEntry.Text ?? "").Trim();
         return (OtherBankEntry.Text ?? "").Trim();
     }
-
-    static bool IsRecipientVietnam(RecipientResponse r) =>
-        string.Equals(r.CountryCode, "VN", StringComparison.OrdinalIgnoreCase)
-        || (string.IsNullOrEmpty(r.CountryCode) && !string.IsNullOrEmpty(r.SwiftBic));
 
     async Task LoadFromRecipientAsync(string raw)
     {
@@ -138,13 +170,15 @@ public partial class TransferPage : ContentPage
         var rec = await _api.GetRecipientByIdAsync(rid);
         if (rec == null) return;
         _skipNextSuggestUpdate = true;
-        await MainThread.InvokeOnMainThreadAsync(() =>
+        await MainThread.InvokeOnMainThreadAsync(async () =>
         {
             PhoneEntry.Text = rec.Phone ?? "";
-            var vn = IsRecipientVietnam(rec);
-            CountryPicker.SelectedIndex = vn ? 0 : 1;
+            CountryPicker.SelectedIndex = RecipientCatalogCountries.PickerIndexFromCode(
+                RecipientCatalogCountries.FormCountryFromRecipient(rec));
             ApplyCountryBankUi();
-            if (vn)
+            try { await LoadCatalogBanksAsync(); }
+            catch { _catalogBanks = []; }
+            if (IsCatalogCountrySelected)
             {
                 VnBankSearchEntry.Text = rec.BankName ?? "";
                 OtherBankEntry.Text = "";
@@ -175,13 +209,14 @@ public partial class TransferPage : ContentPage
         }
 
         var bank = BankForApi();
-        if (CountryPicker.SelectedIndex == 0 &&
-            !_vnBanks.Exists(b => string.Equals(b.Name, bank, StringComparison.OrdinalIgnoreCase)))
+        if (IsCatalogCountrySelected &&
+            !_catalogBanks.Exists(b => string.Equals(b.Name, bank, StringComparison.OrdinalIgnoreCase)))
         {
-            ShowMsg("Chọn ngân hàng Việt Nam từ danh sách gợi ý.", "#dc2626");
+            ShowMsg("Chọn ngân hàng từ danh sách gợi ý đúng quốc gia.", "#dc2626");
             return;
         }
-        if (CountryPicker.SelectedIndex == 1 && string.IsNullOrWhiteSpace(bank))
+
+        if (!IsCatalogCountrySelected && string.IsNullOrWhiteSpace(bank))
         {
             ShowMsg("Nhập tên ngân hàng người nhận.", "#dc2626");
             return;
@@ -273,6 +308,19 @@ public partial class TransferPage : ContentPage
         }
 
         var bank = BankForApi();
+        if (IsCatalogCountrySelected &&
+            !_catalogBanks.Exists(b => string.Equals(b.Name, bank, StringComparison.OrdinalIgnoreCase)))
+        {
+            ShowMsg("Chọn ngân hàng từ danh sách gợi ý đúng quốc gia.", "#dc2626");
+            return;
+        }
+
+        if (!IsCatalogCountrySelected && string.IsNullOrWhiteSpace(bank))
+        {
+            ShowMsg("Nhập tên ngân hàng người nhận.", "#dc2626");
+            return;
+        }
+
         var lookup = await _api.LookupTransferCounterpartyAsync(
             string.IsNullOrWhiteSpace(PhoneEntry.Text) ? null : PhoneEntry.Text.Trim(),
             string.IsNullOrWhiteSpace(AccountEntry.Text) ? null : AccountEntry.Text.Trim(),
@@ -303,6 +351,8 @@ public partial class TransferPage : ContentPage
             VnBankSearchEntry.Text = OtherBankEntry.Text = AccountEntry.Text = HolderEntry.Text = "";
             CountryPicker.SelectedIndex = 0;
             ApplyCountryBankUi();
+            try { await LoadCatalogBanksAsync(); }
+            catch { _catalogBanks = []; }
             OtpEntry.Text = "";
             ReceiverHintLabel.Text = "";
             ReceiverHintLabel.IsVisible = false;
@@ -449,13 +499,15 @@ public partial class TransferPage : ContentPage
 
     async Task ApplyRecipientFromBookAsync(RecipientResponse r)
     {
-        await MainThread.InvokeOnMainThreadAsync(() =>
+        await MainThread.InvokeOnMainThreadAsync(async () =>
         {
             PhoneEntry.Text = r.Phone ?? "";
-            var vn = IsRecipientVietnam(r);
-            CountryPicker.SelectedIndex = vn ? 0 : 1;
+            CountryPicker.SelectedIndex = RecipientCatalogCountries.PickerIndexFromCode(
+                RecipientCatalogCountries.FormCountryFromRecipient(r));
             ApplyCountryBankUi();
-            if (vn)
+            try { await LoadCatalogBanksAsync(); }
+            catch { _catalogBanks = []; }
+            if (IsCatalogCountrySelected)
             {
                 VnBankSearchEntry.Text = r.BankName ?? "";
                 OtherBankEntry.Text = "";

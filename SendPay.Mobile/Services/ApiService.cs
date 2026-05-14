@@ -44,7 +44,7 @@ public record RecipientResponse(
     string? CountryCode,
     string? BankName, string? AccountNumber, string? AccountHolderName, string? SwiftBic, DateTime CreatedAt);
 
-public record VietnamBankOption(string Name, string Swift);
+public record CatalogBankOption(string Name, string Swift);
 
 public class ApiService
 {
@@ -151,14 +151,18 @@ public class ApiService
         return await _http.GetFromJsonAsync<List<RecipientResponse>>("api/recipient") ?? [];
     }
 
-    public async Task<List<VietnamBankOption>> GetVietnamBanksAsync()
+    public async Task<List<CatalogBankOption>> GetCatalogBanksAsync(string countryCode)
     {
         SetToken();
-        var raw = await _http.GetFromJsonAsync<List<VnBankJsonDto>>("api/reference/vietnam-banks") ?? [];
-        return raw.Select(x => new VietnamBankOption(x.name, x.swift)).ToList();
+        var c = (countryCode ?? "").Trim().ToUpperInvariant();
+        var raw = await _http.GetFromJsonAsync<List<BankCatalogJsonDto>>(
+            $"api/reference/banks/{Uri.EscapeDataString(c)}") ?? [];
+        return raw.Select(x => new CatalogBankOption(x.name, x.swift)).ToList();
     }
 
-    sealed class VnBankJsonDto
+    public Task<List<CatalogBankOption>> GetVietnamBanksAsync() => GetCatalogBanksAsync("VN");
+
+    sealed class BankCatalogJsonDto
     {
         public string name { get; set; } = "";
         public string swift { get; set; } = "";

@@ -15,7 +15,8 @@ public partial class RecipientsPage : ContentPage
 {
     private readonly ApiService _api;
     private int? _editingId;
-    private List<VietnamBankOption> _vnBanks = [];
+    private readonly Dictionary<string, List<CatalogBankOption>> _bankCache = new(StringComparer.OrdinalIgnoreCase);
+    private List<CatalogBankOption> _catalogBanks = [];
 
     public ObservableCollection<RecipientRow> Rows { get; } = new();
 
@@ -23,8 +24,8 @@ public partial class RecipientsPage : ContentPage
     {
         InitializeComponent();
         _api = api;
-        CountryPicker.Items.Add("Việt Nam");
-        CountryPicker.Items.Add("Khác");
+        foreach (var label in RecipientCatalogCountries.PickerLabels)
+            CountryPicker.Items.Add(label);
         CountryPicker.SelectedIndex = 0;
         BindingContext = this;
         ApplyCountryUi();
@@ -33,34 +34,69 @@ public partial class RecipientsPage : ContentPage
     protected override async void OnAppearing()
     {
         base.OnAppearing();
-        try { _vnBanks = await _api.GetVietnamBanksAsync(); }
-        catch { _vnBanks = []; }
+        try { await LoadCatalogBanksAsync(); }
+        catch { _catalogBanks = []; }
         await ReloadAsync();
+    }
+
+    string CurrentCountryCode => RecipientCatalogCountries.CodeFromPickerIndex(CountryPicker.SelectedIndex);
+
+    bool IsCatalogCountrySelected =>
+        CountryPicker.SelectedIndex >= 0 &&
+        CountryPicker.SelectedIndex < RecipientCatalogCountries.Codes.Length;
+
+    async Task LoadCatalogBanksAsync()
+    {
+        if (!IsCatalogCountrySelected)
+        {
+            _catalogBanks = [];
+            return;
+        }
+
+        var code = CurrentCountryCode;
+        if (_bankCache.TryGetValue(code, out var hit))
+        {
+            _catalogBanks = hit;
+            return;
+        }
+
+        try
+        {
+            var list = await _api.GetCatalogBanksAsync(code);
+            _bankCache[code] = list;
+            _catalogBanks = list;
+        }
+        catch
+        {
+            _catalogBanks = [];
+        }
     }
 
     void ApplyCountryUi()
     {
-        var vn = CountryPicker.SelectedIndex == 0;
-        BankFieldLabel.Text = vn ? "Tìm ngân hàng (Việt Nam)" : "Tên ngân hàng";
-        BankEntry.Placeholder = vn ? "Gõ để tìm…" : "Nhập tên ngân hàng";
+        var cat = IsCatalogCountrySelected;
+        BankFieldLabel.Text = cat ? "Tìm ngân hàng (danh sách)" : "Tên ngân hàng";
+        BankEntry.Placeholder = cat ? "Gõ để tìm…" : "Nhập tên ngân hàng";
         VnBankSuggestBorder.IsVisible = false;
         VnBankSuggestStack.Children.Clear();
-        if (!vn)
+        if (!cat)
             BankPickedLabel.IsVisible = false;
     }
 
-    void OnCountryPickerChanged(object? sender, EventArgs e)
+    async void OnCountryPickerChanged(object? sender, EventArgs e)
     {
         BankEntry.Text = "";
         BankPickedLabel.IsVisible = false;
         VnBankSuggestBorder.IsVisible = false;
         VnBankSuggestStack.Children.Clear();
         ApplyCountryUi();
+        try { await LoadCatalogBanksAsync(); }
+        catch { _catalogBanks = []; }
     }
 
     void OnBankSearchTextChanged(object? sender, TextChangedEventArgs e)
     {
-        if (CountryPicker.SelectedIndex != 0)
+        if (!IsCatalogCountrySelected)
         {
             VnBankSuggestBorder.IsVisible = false;
             VnBankSuggestStack.Children.Clear();
@@ -69,13 +105,13 @@ public partial class RecipientsPage : ContentPage
 
         var q = (BankEntry.Text ?? "").Trim();
         VnBankSuggestStack.Children.Clear();
-        if (string.IsNullOrEmpty(q) || _vnBanks.Count == 0)
+        if (string.IsNullOrEmpty(q) || _catalogBanks.Count == 0)
         {
             VnBankSuggestBorder.IsVisible = false;
             return;
         }
 
-        var hits = _vnBanks.Where(b => b.Name.Contains(q, StringComparison.OrdinalIgnoreCase)).Take(20).ToList();
+        var hits = _catalogBanks.Where(b => b.Name.Contains(q, StringComparison.OrdinalIgnoreCase)).Take(20).ToList();
         if (hits.Count == 0)
         {
             VnBankSuggestBorder.IsVisible = false;
@@ -98,12 +134,12 @@ public partial class RecipientsPage : ContentPage
                 FontSize = 12,
                 LineBreakMode = LineBreakMode.WordWrap
             };
-            btn.Clicked += (_, _) => OnVnBankPicked(captured);
+            btn.Clicked += (_, _) => OnCatalogBankPicked(captured);
             VnBankSuggestStack.Children.Add(btn);
         }
     }
 
-    void OnVnBankPicked(VietnamBankOption b)
+    void OnCatalogBankPicked(CatalogBankOption b)
     {
         BankEntry.Text = b.Name;
         BankPickedLabel.Text = "Đã chọn: " + b.Name;
@@ -135,10 +171,6 @@ public partial class RecipientsPage : ContentPage
     static string AccountKey(string? s) =>
         string.IsNullOrEmpty(s) ? "" : string.Concat(s.Where(char.IsLetterOrDigit)).ToUpperInvariant();
 
-    static bool IsRecipientVietnam(RecipientResponse r) =>
-        string.Equals(r.CountryCode, "VN", StringComparison.OrdinalIgnoreCase)
-        || (string.IsNullOrEmpty(r.CountryCode) && !string.IsNullOrEmpty(r.SwiftBic));
-
     async void OnSendClicked(object sender, EventArgs e)
     {
         if (sender is not Button b || b.CommandParameter is not int id) return;
@@ -151,14 +183,17 @@ public partial class RecipientsPage : ContentPage
         var r = await _api.GetRecipientByIdAsync(id);
         if (r == null) return;
         _editingId = id;
-        await MainThread.InvokeOnMainThreadAsync(() =>
+        await MainThread.InvokeOnMainThreadAsync(async () =>
         {
             NameEntry.Text = r.Name;
             PhoneEntryForm.Text = r.Phone ?? "";
-            CountryPicker.SelectedIndex = IsRecipientVietnam(r) ? 0 : 1;
+            CountryPicker.SelectedIndex = RecipientCatalogCountries.PickerIndexFromCode(
+                RecipientCatalogCountries.FormCountryFromRecipient(r));
             ApplyCountryUi();
+            try { await LoadCatalogBanksAsync(); }
+            catch { _catalogBanks = []; }
             BankEntry.Text = r.BankName ?? "";
-            BankPickedLabel.IsVisible = IsRecipientVietnam(r) && !string.IsNullOrEmpty(r.BankName);
+            BankPickedLabel.IsVisible = IsCatalogCountrySelected && !string.IsNullOrEmpty(r.BankName);
             BankPickedLabel.Text = "Đã chọn: " + (r.BankName ?? "");
             AccountEntry.Text = r.AccountNumber ?? "";
             HolderEntry.Text = r.AccountHolderName ?? "";
@@ -203,7 +238,7 @@ public partial class RecipientsPage : ContentPage
         var note = (NoteEntryForm.Text ?? "").Trim();
         var ac = string.IsNullOrWhiteSpace(AccountEntry.Text) ? null : AccountEntry.Text.Trim();
         var ho = string.IsNullOrWhiteSpace(HolderEntry.Text) ? null : HolderEntry.Text.Trim();
-        var country = CountryPicker.SelectedIndex == 0 ? "VN" : "OTHER";
+        var country = CurrentCountryCode;
         var bk = string.IsNullOrWhiteSpace(BankEntry.Text) ? null : BankEntry.Text.Trim();
 
         if (string.IsNullOrWhiteSpace(name))
@@ -222,9 +257,9 @@ public partial class RecipientsPage : ContentPage
             return;
         }
 
-        if (country == "VN" && !_vnBanks.Exists(b => string.Equals(b.Name, bk, StringComparison.OrdinalIgnoreCase)))
+        if (IsCatalogCountrySelected && !_catalogBanks.Exists(b => string.Equals(b.Name, bk, StringComparison.OrdinalIgnoreCase)))
         {
-            StatusLabel.Text = "Chọn ngân hàng từ danh sách gợi ý (Việt Nam).";
+            StatusLabel.Text = "Chọn ngân hàng từ danh sách gợi ý đúng quốc gia.";
             StatusLabel.TextColor = Colors.Red;
             StatusLabel.IsVisible = true;
             return;
@@ -264,6 +299,8 @@ public partial class RecipientsPage : ContentPage
                 NameEntry.Text = PhoneEntryForm.Text = BankEntry.Text = AccountEntry.Text = HolderEntry.Text = NoteEntryForm.Text = "";
                 CountryPicker.SelectedIndex = 0;
                 ApplyCountryUi();
+                try { await LoadCatalogBanksAsync(); }
+                catch { _catalogBanks = []; }
                 BankPickedLabel.IsVisible = false;
                 await ReloadAsync();
                 StatusLabel.Text = "Đã thêm.";

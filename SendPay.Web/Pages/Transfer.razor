@@ -50,29 +50,32 @@
                         <label>@Lang.T("recip_country")</label>
                         <select class="sp-form-input sp-form-input-lg" @bind="countryCode" @bind:after="OnCountryChanged">
                             <option value="VN">@Lang.T("recip_country_vn")</option>
+                            <option value="LK">@Lang.T("recip_country_lk")</option>
+                            <option value="NP">@Lang.T("recip_country_np")</option>
+                            <option value="PH">@Lang.T("recip_country_ph")</option>
                             <option value="OTHER">@Lang.T("recip_country_other")</option>
                         </select>
                     </div>
-                    @if (countryCode == "VN")
+                    @if (RecipientCatalogCountries.UsesCatalog(countryCode))
                     {
                         <div class="sp-form-group">
-                            <label>@Lang.T("recip_bank_search_vn")</label>
+                            <label>@Lang.T("recip_bank_search")</label>
                             <input class="sp-form-input sp-form-input-lg" type="text" autocomplete="off"
                                    placeholder="@Lang.T("recip_bank_ph")"
-                                   @bind="vnBankSearch" @bind:event="oninput" @bind:after="OnReceiverBindAfter" />
-                            @if (FilteredTransferVnBanks.Count > 0 && (string.IsNullOrEmpty(bankName) || !string.Equals(vnBankSearch, bankName, StringComparison.Ordinal)))
+                                   @bind="catalogBankSearch" @bind:event="oninput" @bind:after="OnReceiverBindAfter" />
+                            @if (FilteredTransferCatalogBanks.Count > 0 && (string.IsNullOrEmpty(bankName) || !string.Equals(catalogBankSearch, bankName, StringComparison.Ordinal)))
                             {
                                 <div style="max-height:180px;overflow-y:auto;border:1px solid var(--gray-border);border-radius:10px;margin-top:8px">
-                                    @foreach (var b in FilteredTransferVnBanks.Take(25))
+                                    @foreach (var b in FilteredTransferCatalogBanks.Take(25))
                                     {
                                         <button type="button" class="sp-btn-gray" style="width:100%;text-align:left;padding:10px 12px;border-radius:0;border:none;border-bottom:1px solid var(--gray-border);font-size:13px;background:white"
-                                                @onclick="@(() => PickTransferVnBank(b))">
+                                                @onclick="@(() => PickTransferCatalogBank(b))">
                                             @b.Name
                                         </button>
                                     }
                                 </div>
                             }
-                            @if (!string.IsNullOrEmpty(bankName) && countryCode == "VN")
+                            @if (!string.IsNullOrEmpty(bankName) && RecipientCatalogCountries.UsesCatalog(countryCode))
                             {
                                 <div style="font-size:12px;color:var(--green);margin-top:6px">@Lang.T("recip_bank_picked"): @bankName</div>
                             }
@@ -346,11 +349,12 @@
 
 @code {
     string step = "form";
-    string phone = "", bankAccount = "", bankName = "", bankHolder = "", countryCode = "VN", vnBankSearch = "";
+    string phone = "", bankAccount = "", bankName = "", bankHolder = "", countryCode = "VN", catalogBankSearch = "";
     string note = "", error = "", purpose = "tr_purpose_1";
     decimal amount;
     List<CurrencyRate> allRates = [];
-    List<VietnamBankOption> transferVnBanks = [];
+    readonly Dictionary<string, List<CatalogBankOption>> _transferBankCache = new(StringComparer.OrdinalIgnoreCase);
+    List<CatalogBankOption> transferCatalogBanks = [];
     decimal balance;
     bool loading;
     TransactionResponse? successData;
@@ -370,14 +374,14 @@
     List<RecipientResponse> allRecipients = [];
     List<RecipientResponse> recipientSuggestions = [];
 
-    List<VietnamBankOption> FilteredTransferVnBanks
+    List<CatalogBankOption> FilteredTransferCatalogBanks
     {
         get
         {
-            if (transferVnBanks.Count == 0) return [];
-            var q = (vnBankSearch ?? "").Trim();
-            if (string.IsNullOrEmpty(q)) return transferVnBanks;
-            return [.. transferVnBanks.Where(b => b.Name.Contains(q, StringComparison.OrdinalIgnoreCase))];
+            if (transferCatalogBanks.Count == 0) return [];
+            var q = (catalogBankSearch ?? "").Trim();
+            if (string.IsNullOrEmpty(q)) return transferCatalogBanks;
+            return [.. transferCatalogBanks.Where(b => b.Name.Contains(q, StringComparison.OrdinalIgnoreCase))];
         }
     }
 
@@ -443,10 +447,34 @@
         try { allRecipients = await Api.GetRecipientsAsync(); }
         catch { allRecipients = []; }
 
-        try { transferVnBanks = await Api.GetVietnamBanksAsync(); }
-        catch { transferVnBanks = []; }
-
         await ApplyTransferQueryAsync();
+        await EnsureTransferCatalogLoadedAsync(countryCode);
+    }
+
+    async Task EnsureTransferCatalogLoadedAsync(string country)
+    {
+        if (!RecipientCatalogCountries.UsesCatalog(country))
+        {
+            transferCatalogBanks = [];
+            return;
+        }
+
+        if (_transferBankCache.TryGetValue(country, out var hit))
+        {
+            transferCatalogBanks = hit;
+            return;
+        }
+
+        try
+        {
+            var list = await Api.GetCatalogBanksAsync(country);
+            _transferBankCache[country] = list;
+            transferCatalogBanks = list;
+        }
+        catch
+        {
+            transferCatalogBanks = [];
+        }
     }
 
     async Task ApplyTransferQueryAsync()
@@ -462,9 +490,10 @@
                 {
                     phone = rec.Phone ?? "";
                     bankAccount = rec.AccountNumber ?? "";
-                    countryCode = IsRecipientVietnam(rec) ? "VN" : "OTHER";
+                    countryCode = RecipientCatalogCountries.FormCountryFromRecipient(rec);
                     bankName = rec.BankName ?? "";
-                    vnBankSearch = countryCode == "VN" ? bankName : "";
+                    catalogBankSearch = RecipientCatalogCountries.UsesCatalog(countryCode) ? bankName : "";
+                    await EnsureTransferCatalogLoadedAsync(countryCode);
                     bankHolder = rec.AccountHolderName ?? "";
                     if (string.IsNullOrEmpty(note))
                         note = rec.Note ?? "";
@@ -547,31 +576,29 @@
         return $"{ph} · {string.Join(" · ", parts)}";
     }
 
-    static bool IsRecipientVietnam(RecipientResponse r) =>
-        string.Equals(r.CountryCode, "VN", StringComparison.OrdinalIgnoreCase)
-        || (string.IsNullOrEmpty(r.CountryCode) && !string.IsNullOrEmpty(r.SwiftBic));
-
-    async Task PickTransferVnBank(VietnamBankOption b)
+    async Task PickTransferCatalogBank(CatalogBankOption b)
     {
         bankName = b.Name;
-        vnBankSearch = b.Name;
+        catalogBankSearch = b.Name;
         await OnReceiverBindAfter();
     }
 
-    Task OnCountryChanged()
+    async Task OnCountryChanged()
     {
-        vnBankSearch = "";
+        catalogBankSearch = "";
         bankName = "";
-        return OnReceiverBindAfter();
+        await EnsureTransferCatalogLoadedAsync(countryCode);
+        await OnReceiverBindAfter();
     }
 
     async Task ApplyRecipientFromBookAsync(RecipientResponse r)
     {
         phone = r.Phone ?? "";
-        countryCode = IsRecipientVietnam(r) ? "VN" : "OTHER";
+        countryCode = RecipientCatalogCountries.FormCountryFromRecipient(r);
         bankName = r.BankName ?? "";
-        vnBankSearch = countryCode == "VN" ? bankName : "";
+        catalogBankSearch = RecipientCatalogCountries.UsesCatalog(countryCode) ? bankName : "";
         bankAccount = r.AccountNumber ?? "";
+        await EnsureTransferCatalogLoadedAsync(countryCode);
         bankHolder = r.AccountHolderName ?? "";
         if (string.IsNullOrEmpty(note))
             note = r.Note ?? "";
@@ -653,11 +680,11 @@
         if (DigitsOnly(eff).Length < 8)
         { error = Lang.T("tr_receiver_need_phone"); return; }
 
-        if (countryCode == "VN")
+        if (RecipientCatalogCountries.UsesCatalog(countryCode))
         {
             if (string.IsNullOrWhiteSpace(bankName) ||
-                !transferVnBanks.Exists(b => string.Equals(b.Name, bankName.Trim(), StringComparison.OrdinalIgnoreCase)))
-            { error = Lang.T("recip_err_bank_vn"); return; }
+                !transferCatalogBanks.Exists(b => string.Equals(b.Name, bankName.Trim(), StringComparison.OrdinalIgnoreCase)))
+            { error = Lang.T("recip_err_bank_catalog"); return; }
         }
         else if (string.IsNullOrWhiteSpace(bankName))
         { error = Lang.T("tr_bank_required"); return; }
@@ -697,8 +724,9 @@
 
     void Reset()
     {
-        step = "form"; phone = bankAccount = bankName = bankHolder = vnBankSearch = note = error = "";
+        step = "form"; phone = bankAccount = bankName = bankHolder = catalogBankSearch = note = error = "";
         countryCode = "VN";
+        _ = EnsureTransferCatalogLoadedAsync("VN");
         amount = 0; successData = null;
         recipientSuggestions = [];
         purpose = "tr_purpose_1";

@@ -69,7 +69,7 @@
                                         </div>
                                         <div style="display:flex;flex-wrap:wrap;gap:6px;flex-shrink:0;justify-content:flex-end">
                                             <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small"
-                                                       OnClick="() => StartEdit(r)" Style="border-radius:8px;font-size:11px">
+                                                       OnClick="@(async _ => await StartEdit(r))" Style="border-radius:8px;font-size:11px">
                                                 @Lang.T("recip_edit")
                                             </MudButton>
                                             <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
@@ -124,30 +124,33 @@
                               Class="mb-3" />
 
                 <MudText Typo="Typo.caption" Style="font-weight:600;color:var(--text-muted);margin-bottom:4px">@Lang.T("recip_country")</MudText>
-                <MudSelect T="string" @bind-Value="newCountry" Variant="Variant.Outlined" FullWidth="true" Class="mb-3"
+                <MudSelect T="string" @bind-Value="newCountry" @bind-Value:after="OnNewCountryChanged" Variant="Variant.Outlined" FullWidth="true" Class="mb-3"
                            AnchorOrigin="Origin.BottomCenter">
                     <MudSelectItem Value="@("VN")">@Lang.T("recip_country_vn")</MudSelectItem>
+                    <MudSelectItem Value="@("LK")">@Lang.T("recip_country_lk")</MudSelectItem>
+                    <MudSelectItem Value="@("NP")">@Lang.T("recip_country_np")</MudSelectItem>
+                    <MudSelectItem Value="@("PH")">@Lang.T("recip_country_ph")</MudSelectItem>
                     <MudSelectItem Value="@("OTHER")">@Lang.T("recip_country_other")</MudSelectItem>
                 </MudSelect>
 
-                @if (newCountry == "VN")
+                @if (RecipientCatalogCountries.UsesCatalog(newCountry))
                 {
                     <MudTextField @bind-Value="newBankFilter"
                                   Immediate="true"
-                                  Label="@Lang.T("recip_bank_search_vn")"
+                                  Label="@Lang.T("recip_bank_search")"
                                   Placeholder="@Lang.T("recip_bank_ph")"
                                   Variant="Variant.Outlined"
                                   Adornment="Adornment.Start"
                                   AdornmentIcon="@Icons.Material.Filled.Search"
                                   FullWidth="true"
                                   Class="mb-2" />
-                    @if (FilteredVnBanks.Count > 0 && (string.IsNullOrEmpty(newBank) || !string.Equals(newBankFilter, newBank, StringComparison.Ordinal)))
+                    @if (FilteredCatalogBanks.Count > 0 && (string.IsNullOrEmpty(newBank) || !string.Equals(newBankFilter, newBank, StringComparison.Ordinal)))
                     {
                         <div style="max-height:180px;overflow-y:auto;border:1px solid var(--gray-border);border-radius:10px;margin-bottom:12px">
-                            @foreach (var b in FilteredVnBanks.Take(25))
+                            @foreach (var b in FilteredCatalogBanks.Take(25))
                             {
                                 <div style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--gray-border);font-size:13px"
-                                     @onclick="@(() => SelectVnBank(b))" @onclick:stopPropagation="true">
+                                     @onclick="@(() => SelectCatalogBank(b))" @onclick:stopPropagation="true">
                                     @b.Name
                                 </div>
                             }
@@ -216,7 +219,8 @@
 
 @code {
     List<RecipientResponse> recipients = [];
-    List<VietnamBankOption> vnBanks = [];
+    readonly Dictionary<string, List<CatalogBankOption>> _catalogBankCache = new(StringComparer.OrdinalIgnoreCase);
+    List<CatalogBankOption> catalogBanks = [];
     bool loading = true;
     bool adding;
     int? editingId;
@@ -224,14 +228,14 @@
     string newAccount = "", newHolder = "";
     string addError = "", addSuccess = "";
 
-    List<VietnamBankOption> FilteredVnBanks
+    List<CatalogBankOption> FilteredCatalogBanks
     {
         get
         {
-            if (vnBanks.Count == 0) return [];
+            if (catalogBanks.Count == 0) return [];
             var q = (newBankFilter ?? "").Trim();
-            if (string.IsNullOrEmpty(q)) return vnBanks;
-            return [.. vnBanks.Where(b => b.Name.Contains(q, StringComparison.OrdinalIgnoreCase))];
+            if (string.IsNullOrEmpty(q)) return catalogBanks;
+            return [.. catalogBanks.Where(b => b.Name.Contains(q, StringComparison.OrdinalIgnoreCase))];
         }
     }
 
@@ -242,20 +246,51 @@
         if (string.IsNullOrEmpty(token)) { Nav.NavigateTo("/login"); return; }
         var saved = await LocalStorage.GetItemAsync<string>("sp_lang");
         if (!string.IsNullOrEmpty(saved)) Lang.Set(saved);
-        vnBanks = await Api.GetVietnamBanksAsync();
+        await EnsureCatalogLoadedAsync(newCountry);
         await Reload();
     }
 
-    void SelectVnBank(VietnamBankOption b)
+    async Task OnNewCountryChanged()
+    {
+        addError = "";
+        newBank = "";
+        newBankFilter = "";
+        await EnsureCatalogLoadedAsync(newCountry);
+        await InvokeAsync(StateHasChanged);
+    }
+
+    async Task EnsureCatalogLoadedAsync(string country)
+    {
+        if (!RecipientCatalogCountries.UsesCatalog(country))
+        {
+            catalogBanks = [];
+            return;
+        }
+
+        if (_catalogBankCache.TryGetValue(country, out var hit))
+        {
+            catalogBanks = hit;
+            return;
+        }
+
+        try
+        {
+            var list = await Api.GetCatalogBanksAsync(country);
+            _catalogBankCache[country] = list;
+            catalogBanks = list;
+        }
+        catch
+        {
+            catalogBanks = [];
+        }
+    }
+
+    void SelectCatalogBank(CatalogBankOption b)
     {
         newBank = b.Name;
         newBankFilter = b.Name;
         addError = "";
     }
-
-    static bool IsRecipientVietnam(RecipientResponse r) =>
-        string.Equals(r.CountryCode, "VN", StringComparison.OrdinalIgnoreCase)
-        || (string.IsNullOrEmpty(r.CountryCode) && !string.IsNullOrEmpty(r.SwiftBic));
 
     async Task Reload()
     {
@@ -264,31 +299,33 @@
         loading = false;
     }
 
-    void StartEdit(RecipientResponse r)
+    async Task StartEdit(RecipientResponse r)
     {
         addError = addSuccess = "";
         editingId = r.Id;
         newName = r.Name;
         newPhone = r.Phone ?? "";
         newNote = r.Note;
-        newCountry = IsRecipientVietnam(r) ? "VN" : "OTHER";
+        newCountry = RecipientCatalogCountries.FormCountryFromRecipient(r);
         newBank = r.BankName ?? "";
-        newBankFilter = newCountry == "VN" ? newBank : "";
+        newBankFilter = RecipientCatalogCountries.UsesCatalog(newCountry) ? newBank : "";
         newAccount = r.AccountNumber ?? "";
         newHolder = r.AccountHolderName ?? "";
+        await EnsureCatalogLoadedAsync(newCountry);
     }
 
     void CancelEdit()
     {
         editingId = null;
-        ClearFormFields();
+        _ = ClearFormFieldsAsync();
         addError = addSuccess = "";
     }
 
-    void ClearFormFields()
+    async Task ClearFormFieldsAsync()
     {
         newName = newPhone = newNote = newBank = newBankFilter = newAccount = newHolder = "";
         newCountry = "VN";
+        await EnsureCatalogLoadedAsync("VN");
     }
 
     async Task SaveRecipient()
@@ -305,11 +342,11 @@
         if (string.IsNullOrEmpty(bk) || string.IsNullOrEmpty(ac) || string.IsNullOrEmpty(ho))
         { addError = Lang.T("recip_err_bank_full"); return; }
 
-        if (newCountry == "VN")
+        if (RecipientCatalogCountries.UsesCatalog(newCountry))
         {
-            var match = vnBanks.Any(b => string.Equals(b.Name, bk, StringComparison.OrdinalIgnoreCase));
+            var match = catalogBanks.Any(b => string.Equals(b.Name, bk, StringComparison.OrdinalIgnoreCase));
             if (!match)
-            { addError = Lang.T("recip_err_bank_vn"); return; }
+            { addError = Lang.T("recip_err_bank_catalog"); return; }
         }
 
         if (AccountKey(ac).Length < 6)
@@ -326,7 +363,7 @@
             var wasEdit = editingId.HasValue;
             addSuccess = wasEdit ? Lang.T("recip_updated") : Lang.T("recip_added");
             editingId = null;
-            ClearFormFields();
+            await ClearFormFieldsAsync();
             await Reload();
         }
         else addError = err;

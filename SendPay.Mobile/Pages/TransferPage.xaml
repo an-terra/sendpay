@@ -25,7 +25,7 @@
                     </VerticalStackLayout>
 
                     <VerticalStackLayout x:Name="VnBankLayout" Spacing="4">
-                        <Label Text="Tìm ngân hàng (Việt Nam)" FontSize="13" TextColor="#8b8b9b" FontAttributes="Bold"/>
+                        <Label x:Name="CatalogBankSearchLabel" Text="Tìm ngân hàng (danh sách)" FontSize="13" TextColor="#8b8b9b" FontAttributes="Bold"/>
                         <Entry x:Name="VnBankSearchEntry" Placeholder="Gõ để tìm…" Keyboard="Default"
                                TextChanged="OnVnBankSearchChanged"/>
                         <Border x:Name="VnBankSuggestBorder" IsVisible="False" Stroke="#e2e8f0" StrokeThickness="1"

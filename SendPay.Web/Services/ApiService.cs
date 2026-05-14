@@ -30,7 +30,7 @@ public record RecipientResponse(
     string? CountryCode,
     string? BankName, string? AccountNumber, string? AccountHolderName, string? SwiftBic, DateTime CreatedAt);
 
-public record VietnamBankOption(string Name, string Swift);
+public record CatalogBankOption(string Name, string Swift);
 public record UserProfileResponse(int Id, string FullName, string Email, string Phone, decimal Balance, DateTime CreatedAt);
 public record CurrencyRate(string Code, string Flag, string Country, decimal Rate, string Change, bool Up);
 public record ExchangeRateResponse(string Date, List<CurrencyRate> Rates);
@@ -170,14 +170,19 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
         return await http.GetFromJsonAsync<ExchangeRateResponse>("api/rates");
     }
 
-    public async Task<List<VietnamBankOption>> GetVietnamBanksAsync()
+    public async Task<List<CatalogBankOption>> GetCatalogBanksAsync(string countryCode)
     {
         await SetAuthHeader();
-        var raw = await http.GetFromJsonAsync<List<VietnamBankJsonDto>>("api/reference/vietnam-banks");
-        return raw?.Select(x => new VietnamBankOption(x.name, x.swift)).ToList() ?? [];
+        var c = (countryCode ?? "").Trim().ToUpperInvariant();
+        var raw = await http.GetFromJsonAsync<List<BankCatalogJsonDto>>(
+            $"api/reference/banks/{Uri.EscapeDataString(c)}");
+        return raw?.Select(x => new CatalogBankOption(x.name, x.swift)).ToList() ?? [];
     }
 
-    sealed class VietnamBankJsonDto
+    /// <summary>Tương thích: tương đương GetCatalogBanksAsync("VN").</summary>
+    public Task<List<CatalogBankOption>> GetVietnamBanksAsync() => GetCatalogBanksAsync("VN");
+
+    sealed class BankCatalogJsonDto
     {
         public string name { get; set; } = "";
         public string swift { get; set; } = "";

@@ -7,7 +7,7 @@ public class Recipient
     public string   Name      { get; set; } = string.Empty;
     public string   Phone     { get; set; } = string.Empty;
     public string   Note      { get; set; } = string.Empty;
-    /// <summary>Mã quốc gia nơi nhận (VD: VN). Khác VN: không gán SWIFT từ catalog.</summary>
+    /// <summary>Mã quốc gia nơi nhận (VN, LK, NP, PH hoặc OTHER). SWIFT gán nội bộ khi khớp catalog.</summary>
     public string?  CountryCode         { get; set; }
     public string?  BankName          { get; set; }
     public string?  AccountNumber     { get; set; }

@@ -70,32 +70,25 @@ public class RecipientService(AppDbContext db) : IRecipientService
         if (acctKey.Length < 6)
             throw new InvalidOperationException("Số tài khoản không hợp lệ (ít nhất 6 ký tự chữ hoặc số).");
 
-        var cc = NormalizeCountry(req.CountryCode);
-        if (cc == "VN")
+        var cc = CountryBankCatalog.NormalizeCountry(req.CountryCode);
+        if (CountryBankCatalog.IsCatalogCountry(cc))
         {
-            if (!VietnamBankCatalog.TryGetSwiftByBankName(req.BankName, out _))
+            if (!CountryBankCatalog.TryGetSwiftByBankName(cc, req.BankName, out _))
                 throw new InvalidOperationException(
-                    "Với Việt Nam, hãy chọn ngân hàng từ danh sách gợi ý (để hệ thống lấy mã SWIFT).");
+                    "Hãy chọn ngân hàng đúng trong danh sách gợi ý theo quốc gia (để hệ thống lấy mã SWIFT).");
         }
-    }
-
-    private static string NormalizeCountry(string? countryCode)
-    {
-        if (string.IsNullOrWhiteSpace(countryCode)) return "OTHER";
-        var c = countryCode.Trim().ToUpperInvariant();
-        return c == "VN" ? "VN" : "OTHER";
     }
 
     private static void ApplyCountryBankSwift(Recipient r, RecipientRequest req)
     {
-        var cc = NormalizeCountry(req.CountryCode);
+        var cc = CountryBankCatalog.NormalizeCountry(req.CountryCode);
         r.CountryCode = cc;
-        if (cc == "VN")
+        if (CountryBankCatalog.IsCatalogCountry(cc))
         {
-            if (!VietnamBankCatalog.TryGetSwiftByBankName(req.BankName, out var swift))
+            if (!CountryBankCatalog.TryGetSwiftByBankName(cc, req.BankName, out var swift))
                 throw new InvalidOperationException("Không xác định được mã SWIFT cho ngân hàng đã chọn.");
             r.SwiftBic = swift;
-            r.BankName = VietnamBankCatalog.CanonicalBankName(req.BankName) ?? req.BankName!.Trim();
+            r.BankName = CountryBankCatalog.CanonicalBankName(cc, req.BankName) ?? req.BankName!.Trim();
         }
         else
         {
