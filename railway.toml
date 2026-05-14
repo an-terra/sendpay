@@ -1,8 +1,0 @@
-[build]
-builder = "dockerfile"
-dockerfilePath = "Dockerfile"
-
-[deploy]
-startCommand = "dotnet SendPay.Api.dll"
-healthcheckPath = "/scalar"
-restartPolicyType = "on_failure"

@@ -6,13 +6,16 @@ using Microsoft.IdentityModel.Tokens;
 using SendPay.Api.Data;
 using SendPay.Api.DTOs.Auth;
 using SendPay.Api.Models;
+using SendPay.Api.Security;
 
 namespace SendPay.Api.Services;
 
-public class AuthService(AppDbContext db, IConfiguration config) : IAuthService
+public class AuthService(AppDbContext db, IConfiguration config, IWebHostEnvironment env) : IAuthService
 {
     public async Task<AuthResponse> RegisterAsync(RegisterRequest req)
     {
+        PasswordPolicy.EnsureStrongOrThrow(req.Password);
+
         if (await db.Users.AnyAsync(u => u.Email == req.Email))
             throw new InvalidOperationException("Email đã được sử dụng.");
 
@@ -65,7 +68,8 @@ public class AuthService(AppDbContext db, IConfiguration config) : IAuthService
 
     private string GenerateToken(User user)
     {
-        var key   = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(config["Jwt:Key"]!));
+        var jwtKey = JwtKeyResolver.ResolveSigningKey(config, env);
+        var key    = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var claimsList = new List<Claim>

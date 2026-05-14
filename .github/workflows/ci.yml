@@ -111,9 +111,9 @@ jobs:
         env:
           SERVICE_URL: ${{ vars.RENDER_SERVICE_URL }}
         run: |
-          echo "Health-check tại $SERVICE_URL/scalar ..."
+          echo "Health-check tại $SERVICE_URL/health ..."
           for i in $(seq 1 30); do
-            code=$(curl -s -o /dev/null -w "%{http_code}" "$SERVICE_URL/scalar" || echo 000)
+            code=$(curl -s -o /dev/null -w "%{http_code}" "$SERVICE_URL/health" || echo 000)
             echo "Lần $i: HTTP $code"
             if [ "$code" = "200" ]; then
               echo "Service đã sẵn sàng."

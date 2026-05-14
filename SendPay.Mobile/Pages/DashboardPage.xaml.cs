@@ -30,7 +30,7 @@ public partial class DashboardPage : ContentPage
         }
 
         var history = await _api.GetHistoryAsync();
-        RecentList.ItemsSource = history.Take(5).Select(tx => new HistoryPage.TransactionItem
+        RecentList.ItemsSource = history.Take(5).Select(tx => new TransactionItem
         {
             Icon        = tx.Type == 1 ? "⬆️" : "↗️",
             Name        = tx.Type == 1 ? "Nạp tiền" : $"→ {tx.ReceiverName}",

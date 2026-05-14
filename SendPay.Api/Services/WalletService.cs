@@ -5,7 +5,7 @@ using SendPay.Api.Models;
 
 namespace SendPay.Api.Services;
 
-public class WalletService(AppDbContext db) : IWalletService
+public class WalletService(AppDbContext db, IWebHostEnvironment env, IConfiguration config, IOtpVerificationService otp) : IWalletService
 {
     public async Task<WalletResponse> GetBalanceAsync(int userId)
     {
@@ -17,6 +17,12 @@ public class WalletService(AppDbContext db) : IWalletService
 
     public async Task<WalletResponse> TopUpAsync(int userId, TopUpRequest req)
     {
+        if (!env.IsDevelopment() && !config.GetValue("Features:AllowDemoTopUp", false))
+            throw new InvalidOperationException(
+                "Nạp tiền qua API đã tắt trên production. Hãy bật Features:AllowDemoTopUp (chỉ demo) hoặc tích hợp cổng thanh toán thật.");
+
+        await otp.VerifyTopUpAsync(userId, req.VerificationId, req.OtpCode, req.Amount);
+
         var user = await db.Users.FindAsync(userId)
             ?? throw new KeyNotFoundException("Người dùng không tồn tại.");
 

@@ -7,7 +7,7 @@ services:
     branch: main
     dockerfilePath: ./Dockerfile
     dockerContext: .
-    healthCheckPath: /scalar
+    healthCheckPath: /health
     autoDeploy: false
     envVars:
       - key: ASPNETCORE_ENVIRONMENT

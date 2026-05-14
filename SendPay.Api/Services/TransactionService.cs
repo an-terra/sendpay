@@ -1,3 +1,4 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using SendPay.Api.Data;
 using SendPay.Api.DTOs.Transaction;
@@ -5,45 +6,74 @@ using SendPay.Api.Models;
 
 namespace SendPay.Api.Services;
 
-public class TransactionService(AppDbContext db) : ITransactionService
+public class TransactionService(AppDbContext db, IOtpVerificationService otp) : ITransactionService
 {
     public async Task<TransactionResponse> TransferAsync(int senderId, TransferRequest req)
     {
-        var sender = await db.Users.FindAsync(senderId)
-            ?? throw new KeyNotFoundException("Người gửi không tồn tại.");
+        await otp.VerifyTransferAsync(senderId, req.VerificationId, req.OtpCode,
+            req.ReceiverPhone, req.Amount, req.Note);
 
-        var receiver = await db.Users.FirstOrDefaultAsync(u => u.Phone == req.ReceiverPhone)
-            ?? throw new KeyNotFoundException($"Không tìm thấy số điện thoại {req.ReceiverPhone}.");
-
-        if (sender.Id == receiver.Id)
-            throw new InvalidOperationException("Không thể chuyển tiền cho chính mình.");
-
-        decimal fee = req.Amount <= 10_000 ? 200 : req.Amount <= 50_000 ? 400 : 800;
-        decimal total = req.Amount + fee;
-
-        if (sender.Balance < total)
-            throw new InvalidOperationException(
-                $"Số dư không đủ. Cần ¥{total:N0} (bao gồm phí ¥{fee:N0}), hiện có: ¥{sender.Balance:N0}.");
-
-        // Người gửi trừ cả phí, người nhận nhận đúng số tiền
-        sender.Balance   -= total;
-        receiver.Balance += req.Amount;
-
-        var tx = new Transaction
+        await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
+        try
         {
-            SenderId   = sender.Id,
-            ReceiverId = receiver.Id,
-            Amount     = req.Amount,
-            Fee        = fee,
-            Note       = req.Note,
-            Type       = TransactionType.Transfer,
-            Status     = TransactionStatus.Success
-        };
+            var sender = await db.Users.AsNoTracking()
+                .Where(u => u.Id == senderId)
+                .Select(u => new { u.Id, u.FullName, u.Balance })
+                .FirstOrDefaultAsync()
+                ?? throw new KeyNotFoundException("Người gửi không tồn tại.");
 
-        db.Transactions.Add(tx);
-        await db.SaveChangesAsync();
+            var normalized = OtpPayloadBuilder.NormalizePhone(req.ReceiverPhone);
+            var receiver = await db.Users.AsNoTracking()
+                .Where(u => u.Phone == req.ReceiverPhone || OtpPayloadBuilder.NormalizePhone(u.Phone) == normalized)
+                .Select(u => new { u.Id, u.FullName })
+                .FirstOrDefaultAsync()
+                ?? throw new KeyNotFoundException($"Không tìm thấy số điện thoại {req.ReceiverPhone}.");
 
-        return ToResponse(tx, sender.FullName, receiver.FullName);
+            if (sender.Id == receiver.Id)
+                throw new InvalidOperationException("Không thể chuyển tiền cho chính mình.");
+
+            decimal fee = req.Amount <= 10_000 ? 200 : req.Amount <= 50_000 ? 400 : 800;
+            decimal total = req.Amount + fee;
+
+            if (sender.Balance < total)
+                throw new InvalidOperationException(
+                    $"Số dư không đủ. Cần ¥{total:N0} (bao gồm phí ¥{fee:N0}), hiện có: ¥{sender.Balance:N0}.");
+
+            var rows = await db.Database.ExecuteSqlAsync(
+                $"""
+                 UPDATE "Users" SET "Balance" = "Balance" - {total}
+                 WHERE "Id" = {senderId} AND "Balance" >= {total}
+                 """);
+            if (rows != 1)
+                throw new InvalidOperationException("Không thể hoàn tất giao dịch (số dư đã thay đổi). Hãy thử lại.");
+
+            await db.Database.ExecuteSqlAsync(
+                $"""
+                 UPDATE "Users" SET "Balance" = "Balance" + {req.Amount}
+                 WHERE "Id" = {receiver.Id}
+                 """);
+
+            var entity = new Transaction
+            {
+                SenderId   = sender.Id,
+                ReceiverId = receiver.Id,
+                Amount     = req.Amount,
+                Fee        = fee,
+                Note       = req.Note,
+                Type       = TransactionType.Transfer,
+                Status     = TransactionStatus.Success
+            };
+            db.Transactions.Add(entity);
+            await db.SaveChangesAsync();
+            await tx.CommitAsync();
+
+            return ToResponse(entity, sender.FullName, receiver.FullName);
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task<TransactionResponse> GetByIdAsync(int userId, int id)

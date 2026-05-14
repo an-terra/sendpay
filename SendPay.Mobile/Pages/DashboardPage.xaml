@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:local="clr-namespace:SendPay.Mobile.Pages"
              x:Class="SendPay.Mobile.Pages.DashboardPage"
              BackgroundColor="#f5f5f7" Title="Trang chủ">
     <RefreshView x:Name="Refresher" Refreshing="OnRefreshing" RefreshColor="#6c47ff">

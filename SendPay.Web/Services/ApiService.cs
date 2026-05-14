@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using System.Net.Http.Headers;
+using System.Text.Json.Serialization;
 using Blazored.LocalStorage;
 
 namespace SendPay.Web.Services;
@@ -26,6 +27,12 @@ public record RecipientResponse(int Id, string Name, string Phone, string Note, 
 public record UserProfileResponse(int Id, string FullName, string Email, string Phone, decimal Balance, DateTime CreatedAt);
 public record CurrencyRate(string Code, string Flag, string Country, decimal Rate, string Change, bool Up);
 public record ExchangeRateResponse(string Date, List<CurrencyRate> Rates);
+
+public record VerificationStartResponse(
+    [property: JsonPropertyName("verificationId")] Guid VerificationId,
+    [property: JsonPropertyName("expiresInSeconds")] int ExpiresInSeconds,
+    [property: JsonPropertyName("debugOtp")] string? DebugOtp,
+    [property: JsonPropertyName("message")] string? Message);
 
 public class ApiService(HttpClient http, ILocalStorageService localStorage)
 {
@@ -67,10 +74,33 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
         return await http.GetFromJsonAsync<WalletResponse>("api/wallet");
     }
 
-    public async Task<(bool ok, WalletResponse? data, string error)> TopUpAsync(decimal amount)
+    public async Task<(bool ok, VerificationStartResponse? data, string error)> StartTopUpVerificationAsync(decimal amount)
     {
         await SetAuthHeader();
-        var res = await http.PostAsJsonAsync("api/wallet/topup", new { amount });
+        var res = await http.PostAsJsonAsync("api/verification/topup/start", new { amount });
+        if (res.IsSuccessStatusCode)
+            return (true, await res.Content.ReadFromJsonAsync<VerificationStartResponse>(), "");
+        var err = await res.Content.ReadFromJsonAsync<ErrorResponse>();
+        return (false, null, err?.Message ?? "Không gửi được mã OTP");
+    }
+
+    public async Task<(bool ok, VerificationStartResponse? data, string error)> StartTransferVerificationAsync(
+        string receiverPhone, decimal amount, string note)
+    {
+        await SetAuthHeader();
+        var res = await http.PostAsJsonAsync("api/verification/transfer/start",
+            new { receiverPhone, amount, note });
+        if (res.IsSuccessStatusCode)
+            return (true, await res.Content.ReadFromJsonAsync<VerificationStartResponse>(), "");
+        var err = await res.Content.ReadFromJsonAsync<ErrorResponse>();
+        return (false, null, err?.Message ?? "Không gửi được mã OTP");
+    }
+
+    public async Task<(bool ok, WalletResponse? data, string error)> TopUpAsync(
+        decimal amount, Guid verificationId, string otpCode)
+    {
+        await SetAuthHeader();
+        var res = await http.PostAsJsonAsync("api/wallet/topup", new { amount, verificationId, otpCode });
 
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<WalletResponse>(), "");
@@ -80,11 +110,11 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
     }
 
     public async Task<(bool ok, TransactionResponse? data, string error)> TransferAsync(
-        string receiverPhone, decimal amount, string note)
+        string receiverPhone, decimal amount, string note, Guid verificationId, string otpCode)
     {
         await SetAuthHeader();
         var res = await http.PostAsJsonAsync("api/transaction/transfer",
-            new { receiverPhone, amount, note });
+            new { receiverPhone, amount, note, verificationId, otpCode });
 
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<TransactionResponse>(), "");

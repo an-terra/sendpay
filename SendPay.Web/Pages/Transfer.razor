@@ -145,6 +145,25 @@
                     <div class="csub">@Lang.T("tr_fee"): ¥@Fee.ToString("N0")</div>
                 </div>
 
+                @if (!string.IsNullOrEmpty(otpDevHint))
+                {
+                    <div class="sp-alert sp-alert-info" style="margin-bottom:12px;font-size:13px">@otpDevHint</div>
+                }
+
+                <button type="button" class="sp-btn-gray" style="width:100%;margin-bottom:12px;padding:12px;font-weight:600"
+                        @onclick="SendTransferOtpAsync" disabled="@otpSending">
+                    @if (otpSending) { <i class="fa-solid fa-spinner fa-spin"></i> }
+                    else { <i class="fa-solid fa-sms"></i> }
+                    &nbsp;@Lang.T("tr_otp_send")
+                </button>
+
+                <div class="sp-form-group" style="margin-bottom:12px">
+                    <label>@Lang.T("otp_code_lbl")</label>
+                    <input class="sp-form-input sp-form-input-lg" type="text" maxlength="6" inputmode="numeric"
+                           placeholder="@Lang.T("otp_code_ph")" @bind="otpCode" />
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:6px">@Lang.T("otp_hint")</div>
+                </div>
+
                 @if (!string.IsNullOrEmpty(error))
                 {
                     <div class="sp-alert-error" style="margin-bottom:12px">
@@ -208,6 +227,10 @@
     decimal balance;
     bool loading;
     TransactionResponse? successData;
+    Guid? verificationId;
+    string otpCode = "";
+    string otpDevHint = "";
+    bool otpSending;
 
     static readonly Dictionary<string, string> _langCurrency = new()
     {
@@ -239,16 +262,34 @@
     void GoToConfirm()
     {
         error = "";
+        verificationId = null;
+        otpCode = "";
+        otpDevHint = "";
         if (string.IsNullOrWhiteSpace(phone)) { error = Lang.T("tr_phone_lbl") + " ?"; return; }
         if (amount < 1_000) { error = "Min ¥1,000"; return; }
         step = "confirm";
     }
 
+    async Task SendTransferOtpAsync()
+    {
+        error = "";
+        otpDevHint = "";
+        otpSending = true;
+        var (ok, data, err) = await Api.StartTransferVerificationAsync(phone, amount, note);
+        otpSending = false;
+        if (!ok) { verificationId = null; error = err; return; }
+        verificationId = data!.VerificationId;
+        otpDevHint = string.IsNullOrEmpty(data.DebugOtp) ? "" : $"{Lang.T("otp_dev_hint")} {data.DebugOtp}";
+    }
+
     async Task HandleTransfer()
     {
         error = "";
+        if (verificationId is null) { error = Lang.T("tr_otp_need"); return; }
+        var code = (otpCode ?? "").Trim();
+        if (code.Length != 6 || !code.All(char.IsDigit)) { error = Lang.T("otp_code_lbl") + " (6)"; return; }
         loading = true;
-        var (ok, data, err) = await Api.TransferAsync(phone, amount, note);
+        var (ok, data, err) = await Api.TransferAsync(phone, amount, note, verificationId.Value, code);
         loading = false;
         if (ok) { successData = data; step = "success"; }
         else { error = err; }
@@ -258,6 +299,9 @@
     {
         step = "form"; phone = note = error = ""; amount = 0; successData = null;
         purpose = "tr_purpose_1";
+        verificationId = null;
+        otpCode = "";
+        otpDevHint = "";
     }
 
     public void Dispose() => Lang.OnChanged -= StateHasChanged;

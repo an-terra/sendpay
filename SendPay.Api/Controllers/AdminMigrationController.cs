@@ -9,12 +9,14 @@ namespace SendPay.Api.Controllers;
 [Authorize(Roles = "Admin")]
 [ApiController]
 [Route("api/admin/migration")]
-public class AdminMigrationController(AppDbContext pg, ILogger<AdminMigrationController> log) : ControllerBase
+public class AdminMigrationController(AppDbContext pg, IConfiguration config, ILogger<AdminMigrationController> log) : ControllerBase
 {
     [HttpPost("import-sqlite")]
     [RequestSizeLimit(200 * 1024 * 1024)] // 200MB
     public async Task<IActionResult> ImportSqlite(IFormFile file, [FromQuery] bool wipe = false)
     {
+        if (!config.GetValue("Migration:EnableSqliteImport", false))
+            return NotFound();
         if (file is null || file.Length == 0)
             return BadRequest(new { message = "Thiếu file SQLite." });
 

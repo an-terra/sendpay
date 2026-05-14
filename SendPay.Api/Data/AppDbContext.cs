@@ -5,9 +5,10 @@ namespace SendPay.Api.Data;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
-    public DbSet<User>        Users        => Set<User>();
-    public DbSet<Transaction> Transactions => Set<Transaction>();
-    public DbSet<Recipient>   Recipients   => Set<Recipient>();
+    public DbSet<User>        Users         => Set<User>();
+    public DbSet<Transaction> Transactions  => Set<Transaction>();
+    public DbSet<Recipient>   Recipients    => Set<Recipient>();
+    public DbSet<OtpChallenge> OtpChallenges => Set<OtpChallenge>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -40,6 +41,15 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
              .WithMany(u => u.ReceivedTransactions)
              .HasForeignKey(t => t.ReceiverId)
              .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        mb.Entity<OtpChallenge>(e =>
+        {
+            e.HasIndex(x => x.UserId);
+            e.HasOne(x => x.User)
+             .WithMany()
+             .HasForeignKey(x => x.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

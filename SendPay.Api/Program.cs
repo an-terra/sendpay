@@ -1,12 +1,16 @@
 using System.Text;
+using System.Threading.RateLimiting;
 using BCrypt.Net;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Npgsql;
 using Scalar.AspNetCore;
 using SendPay.Api.Data;
+using SendPay.Api.Infrastructure;
 using SendPay.Api.Models;
+using SendPay.Api.Security;
 using SendPay.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -22,13 +26,15 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<RatesService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<IOtpVerificationService, OtpVerificationService>();
 builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<IRecipientService, RecipientService>();
 builder.Services.AddScoped<IUserService, UserService>();
 
 // ── JWT Authentication ─────────────────────────────────────
-var jwtKey = builder.Configuration["Jwt:Key"]!;
+var jwtKey = JwtKeyResolver.ResolveSigningKey(builder.Configuration, builder.Environment);
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(opt =>
     {
@@ -46,6 +52,39 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
+// ── Rate limiting (auth endpoints) ─────────────────────────
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (ctx, ct) =>
+    {
+        ctx.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
+        await ctx.HttpContext.Response.WriteAsJsonAsync(
+            new { message = "Quá nhiều yêu cầu đăng nhập hoặc đăng ký. Vui lòng thử lại sau ít phút." },
+            ct);
+    };
+    options.AddPolicy("auth", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.GetClientIpAddress(),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 25,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
+    options.AddPolicy("otp", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.GetClientIpAddress(),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 15,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
+});
+
 // ── Controllers ────────────────────────────────────────────
 builder.Services.AddControllers();
 
@@ -55,9 +94,18 @@ builder.Services.AddOpenApi();
 // ── CORS ──────────────────────────────────────────────────
 builder.Services.AddCors(opt =>
     opt.AddDefaultPolicy(p =>
-        p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod()));
+    {
+        var origins = builder.Configuration["Cors:AllowedOrigins"]?
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (origins is { Length: > 0 })
+            p.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod();
+        else
+            p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+    }));
 
 var app = builder.Build();
+
+app.MapGet("/health", () => Results.Text("ok", "text/plain"));
 
 // ── Auto-create schema & seed admin ───────────────────────
 using (var scope = app.Services.CreateScope())
@@ -84,14 +132,18 @@ using (var scope = app.Services.CreateScope())
 app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 
-app.MapOpenApi();
-app.MapScalarApiReference(opt =>
+if (app.Environment.IsDevelopment())
 {
-    opt.Title = "SendPay API";
-    opt.Theme = ScalarTheme.Purple;
-});
+    app.MapOpenApi();
+    app.MapScalarApiReference(opt =>
+    {
+        opt.Title = "SendPay API";
+        opt.Theme = ScalarTheme.Purple;
+    });
+}
 
 app.UseCors();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
@@ -123,8 +175,7 @@ static string? NormalizePostgresConnectionString(string? raw)
         Database = uri.AbsolutePath.TrimStart('/'),
         Username = Uri.UnescapeDataString(userInfo[0]),
         Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : null,
-        SslMode = SslMode.Require,
-        TrustServerCertificate = true
+        SslMode = SslMode.Require
     };
 
     return nb.ConnectionString;

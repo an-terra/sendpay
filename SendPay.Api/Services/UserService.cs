@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SendPay.Api.Data;
 using SendPay.Api.DTOs.User;
+using SendPay.Api.Security;
 
 namespace SendPay.Api.Services;
 
@@ -39,8 +40,7 @@ public class UserService(AppDbContext db) : IUserService
         if (!BCrypt.Net.BCrypt.Verify(req.CurrentPassword, u.PasswordHash))
             throw new UnauthorizedAccessException("Mật khẩu hiện tại không đúng.");
 
-        if (req.NewPassword.Length < 6)
-            throw new InvalidOperationException("Mật khẩu mới phải có ít nhất 6 ký tự.");
+        PasswordPolicy.EnsureStrongOrThrow(req.NewPassword);
 
         u.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
         await db.SaveChangesAsync();
