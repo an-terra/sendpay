@@ -527,19 +527,15 @@
                 </div>
                 <MudPaper Elevation="0" Style="border:1px solid var(--gray-border);border-radius:12px;padding:16px;background:#f8fafc">
                     <MudText Typo="Typo.caption" Style="color:var(--text-muted);margin-bottom:10px;display:block">
-                        Hiển thị trên luồng Nạp tiền của người dùng — cùng ý với phần cấu hình trong Cài đặt.
+                        Giống màn «Cài đặt»: người dùng <strong>tự liên kết ngân hàng</strong> qua tìm ngân hàng và xác nhận. Không chỉnh URL nạp ở đây — giữ nguyên giá trị hiện có trên máy chủ (nếu có).
+                        Tên hiển thị bên dưới là tuỳ chọn (ghi chú/ghi nhãn hiển thị khi cần).
                     </MudText>
                     <MudGrid Spacing="3">
                         <MudItem xs="12">
-                            <MudTextField @bind-Value="editJapanBank" Label="Tên ngân hàng hiển thị" Variant="Variant.Outlined"
+                            <MudTextField @bind-Value="editJapanBank" Label="Tên ngân hàng hiển thị (tuỳ chọn)" Variant="Variant.Outlined"
                                           Placeholder="VD: MUFG / Sumitomo…" FullWidth="true"
-                                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Business" />
-                        </MudItem>
-                        <MudItem xs="12">
-                            <MudTextField @bind-Value="editJapanUrl" Label="URL trang nạp / chuyển khoản"
-                                          Variant="Variant.Outlined" Placeholder="https://…" FullWidth="true"
-                                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Link"
-                                          HelperText="Người dùng mở link này từ màn Nạp tiền (bắt đầu bằng http:// hoặc https://)" />
+                                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Business"
+                                          HelperText="Để trống nếu không dùng. Không thay cho liên kết tài khoản trong Cài đặt." />
                         </MudItem>
                     </MudGrid>
                 </MudPaper>
@@ -624,7 +620,8 @@
 
     AdminUserResponse? editUser;
     string editFullName = "", editEmail = "", editPhone = "", editError = "";
-    string editJapanBank = "", editJapanUrl = "";
+    string editJapanBank = "";
+    string preservedJapanBankTopUpUrl = "";
     string editBalanceText = "";
     bool editIsActive = true;
     bool editIsAdmin;
@@ -775,7 +772,7 @@
         if (EditIsActiveLocked)
             editIsActive = true;
         editJapanBank = u.JapanBankName ?? "";
-        editJapanUrl = u.JapanBankTopUpUrl ?? "";
+        preservedJapanBankTopUpUrl = u.JapanBankTopUpUrl ?? "";
         editNewPassword = "";
         editError = "";
     }
@@ -812,7 +809,7 @@
             editUser.Id, editFullName, editEmail, editPhone, bal,
             uiActive, uiAdmin,
             string.IsNullOrWhiteSpace(editJapanBank) ? null : editJapanBank.Trim(),
-            string.IsNullOrWhiteSpace(editJapanUrl) ? null : editJapanUrl.Trim(),
+            string.IsNullOrWhiteSpace(preservedJapanBankTopUpUrl) ? null : preservedJapanBankTopUpUrl.Trim(),
             np);
         editSaving = false;
 
