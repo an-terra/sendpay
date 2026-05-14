@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SendPay.Mobile.Pages.TopUpPage"
+             BackgroundColor="#f5f5f7" Title="Nạp tiền">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16">
+
+            <Label x:Name="MsgLabel" IsVisible="False" FontSize="14"
+                   HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
+
+            <Frame BackgroundColor="White" CornerRadius="16" Padding="20" HasShadow="True">
+                <VerticalStackLayout Spacing="16">
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Số tiền nạp (VND)" FontSize="13" TextColor="#8b8b9b" FontAttributes="Bold"/>
+                        <Entry x:Name="AmountEntry" Placeholder="100,000" Keyboard="Numeric"/>
+                    </VerticalStackLayout>
+
+                    <Button x:Name="SendOtpBtn" Text="1. Gửi mã OTP"
+                            Clicked="OnSendOtpClicked" BackgroundColor="#334155"
+                            TextColor="White" CornerRadius="12" HeightRequest="48" FontAttributes="Bold"/>
+                    <Label x:Name="OtpHintLabel" Text=""
+                           FontSize="11" TextColor="#64748b" IsVisible="False"/>
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Mã OTP 6 số" FontSize="13" TextColor="#8b8b9b" FontAttributes="Bold"/>
+                        <Entry x:Name="OtpEntry" Placeholder="123456" Keyboard="Numeric" MaxLength="6"/>
+                    </VerticalStackLayout>
+
+                    <Button x:Name="TopUpBtn" Text="2. Xác nhận nạp"
+                            Clicked="OnTopUpClicked" BackgroundColor="#059669"
+                            TextColor="White" CornerRadius="12" HeightRequest="52"
+                            FontAttributes="Bold" FontSize="16"/>
+                </VerticalStackLayout>
+            </Frame>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

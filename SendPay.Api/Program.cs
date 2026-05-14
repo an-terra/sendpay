@@ -8,10 +8,6 @@ using Microsoft.IdentityModel.Tokens;
 using Npgsql;
 using Scalar.AspNetCore;
 using SendPay.Api.Data;
-using SendPay.Api.Infrastructure;
-using SendPay.Api.Models;
-using SendPay.Api.Security;
-using SendPay.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
