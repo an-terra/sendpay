@@ -1,4 +1,4 @@
-name: CI - Build & Test
+name: CI/CD - Build, Test & Deploy
 
 on:
   push:
@@ -13,23 +13,22 @@ env:
   DOTNET_CLI_TELEMETRY_OPTOUT: "true"
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: "true"
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build-test:
-    name: Build & Test (.NET ${{ matrix.dotnet }})
+    name: Build & Test
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        dotnet: ["10.0.x"]
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup .NET ${{ matrix.dotnet }}
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: ${{ matrix.dotnet }}
+          dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Cache NuGet packages
         uses: actions/cache@v4
@@ -52,6 +51,7 @@ jobs:
         run: dotnet build SendPay.Web/SendPay.Web.csproj -c Release --no-restore
 
       - name: Run tests (nếu có)
+        shell: bash
         run: |
           if ls **/*Tests*.csproj 2>/dev/null | grep -q .; then
             dotnet test --configuration Release --no-build --verbosity normal
@@ -79,3 +79,46 @@ jobs:
           tags: sendpay:ci-${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy to Render
+    runs-on: ubuntu-latest
+    needs: [build-test, docker-build]
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    environment:
+      name: production
+      url: ${{ vars.RENDER_SERVICE_URL }}
+    steps:
+      - name: Trigger Render deploy hook
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          if [ -z "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "::error::Thiếu secret RENDER_DEPLOY_HOOK_URL"
+            exit 1
+          fi
+          echo "Đang gọi Render deploy hook..."
+          response=$(curl -s -o /tmp/render.json -w "%{http_code}" -X POST "$RENDER_DEPLOY_HOOK_URL")
+          echo "HTTP $response"
+          cat /tmp/render.json || true
+          if [ "$response" -ge 400 ]; then
+            echo "::error::Render trả về lỗi $response"
+            exit 1
+          fi
+
+      - name: Đợi service Render khởi động
+        if: ${{ vars.RENDER_SERVICE_URL != '' }}
+        env:
+          SERVICE_URL: ${{ vars.RENDER_SERVICE_URL }}
+        run: |
+          echo "Health-check tại $SERVICE_URL/scalar ..."
+          for i in $(seq 1 30); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" "$SERVICE_URL/scalar" || echo 000)
+            echo "Lần $i: HTTP $code"
+            if [ "$code" = "200" ]; then
+              echo "Service đã sẵn sàng."
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "::warning::Service chưa trả 200 sau 10 phút, kiểm tra log Render."
