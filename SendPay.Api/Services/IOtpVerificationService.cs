@@ -1,6 +1,10 @@
 namespace SendPay.Api.Services;
 
-public record VerificationStartResult(Guid VerificationId, int ExpiresInSeconds, string? DebugOtp);
+public record VerificationStartResult(
+    Guid VerificationId,
+    int ExpiresInSeconds,
+    string? DebugOtp,
+    string? DeliveryMessage);
 
 public interface IOtpVerificationService
 {

@@ -168,7 +168,10 @@
         otpSending = false;
         if (!ok) { error = err; verificationId = null; return; }
         verificationId = data!.VerificationId;
-        otpDevHint = string.IsNullOrEmpty(data.DebugOtp) ? "" : $"{Lang.T("otp_dev_hint")} {data.DebugOtp}";
+        var hintParts = new List<string>();
+        if (!string.IsNullOrEmpty(data.DebugOtp)) hintParts.Add($"{Lang.T("otp_dev_hint")} {data.DebugOtp}");
+        if (!string.IsNullOrEmpty(data.Message)) hintParts.Add(data.Message);
+        otpDevHint = string.Join(" · ", hintParts);
     }
 
     async Task HandleTopUp()

@@ -10,17 +10,18 @@ namespace SendPay.Api.Services;
 public class OtpVerificationService(
     AppDbContext db,
     IConfiguration config,
-    IWebHostEnvironment env) : IOtpVerificationService
+    IWebHostEnvironment env,
+    IOtpDeliveryService delivery) : IOtpVerificationService
 {
     private string Pepper =>
         config["Otp:Pepper"] ?? "sendpay-otp-pepper-change-in-production-min-length-32!!";
 
     public Task<VerificationStartResult> StartTopUpAsync(int userId, decimal amount) =>
-        CreateAsync(userId, OtpPayloadBuilder.TopUp(amount));
+        CreateAsync(userId, OtpPayloadBuilder.TopUp(amount), "Nạp tiền vào ví");
 
     public Task<VerificationStartResult> StartTransferAsync(
         int userId, string receiverPhone, decimal amount, string? note) =>
-        CreateAsync(userId, OtpPayloadBuilder.Transfer(receiverPhone, amount, note));
+        CreateAsync(userId, OtpPayloadBuilder.Transfer(receiverPhone, amount, note), "Chuyển tiền");
 
     public async Task VerifyTopUpAsync(int userId, Guid verificationId, string code, decimal amount) =>
         await VerifyAsync(userId, verificationId, code, OtpPayloadBuilder.TopUp(amount));
@@ -30,23 +31,41 @@ public class OtpVerificationService(
         await VerifyAsync(userId, verificationId, code,
             OtpPayloadBuilder.Transfer(receiverPhone, amount, note));
 
-    private async Task<VerificationStartResult> CreateAsync(int userId, string payloadJson)
+    private async Task<VerificationStartResult> CreateAsync(int userId, string payloadJson, string actionDescription)
     {
+        var user = await db.Users.AsNoTracking()
+            .Where(u => u.Id == userId)
+            .Select(u => new { u.Email, u.Phone })
+            .FirstOrDefaultAsync()
+            ?? throw new KeyNotFoundException("Người dùng không tồn tại.");
+
         var code = RandomNumberGenerator.GetInt32(100_000, 1_000_000).ToString("D6", CultureInfo.InvariantCulture);
         var id = Guid.NewGuid();
         var hash = HashOtp(id, code);
 
-        db.OtpChallenges.Add(new OtpChallenge
+        var entity = new OtpChallenge
         {
             Id          = id,
             UserId      = userId,
             PayloadJson = payloadJson,
             CodeHash    = hash,
             ExpiresAt   = DateTime.UtcNow.AddMinutes(5)
-        });
+        };
+        db.OtpChallenges.Add(entity);
         await db.SaveChangesAsync();
 
-        return new VerificationStartResult(id, 300, env.IsDevelopment() ? code : null);
+        try
+        {
+            var notify  = await delivery.NotifyAsync(user.Email, user.Phone, code, actionDescription);
+            var hintMsg = notify.ProductionMessage;
+            return new VerificationStartResult(id, 300, env.IsDevelopment() ? code : null, hintMsg);
+        }
+        catch
+        {
+            db.OtpChallenges.Remove(entity);
+            await db.SaveChangesAsync();
+            throw;
+        }
     }
 
     private async Task VerifyAsync(int userId, Guid verificationId, string code, string expectedPayloadJson)

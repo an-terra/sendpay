@@ -22,3 +22,8 @@ services:
         value: SendPay.Api
       - key: Jwt__Audience
         value: SendPay.Client
+      # OTP: Production yêu cầu Email, Sms hoặc Both (không dùng Log). Thêm Otp__Email__* hoặc Otp__Sms__* trong dashboard nếu cần.
+      - key: Otp__DeliveryMode
+        sync: false
+      - key: Otp__Pepper
+        sync: false

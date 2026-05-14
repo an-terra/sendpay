@@ -22,6 +22,8 @@ builder.Services.AddDbContext<AppDbContext>(opt =>
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<RatesService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<IOtpDeliveryService, OtpDeliveryService>();
 builder.Services.AddScoped<IOtpVerificationService, OtpVerificationService>();
 builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddScoped<ITransactionService, TransactionService>();

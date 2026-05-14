@@ -31,12 +31,19 @@ public class VerificationController(IOtpVerificationService otp, IWebHostEnviron
 
     private object ToResponse(VerificationStartResult r) =>
         env.IsDevelopment()
-            ? new { verificationId = r.VerificationId, expiresInSeconds = r.ExpiresInSeconds, debugOtp = r.DebugOtp }
+            ? new
+            {
+                verificationId = r.VerificationId,
+                expiresInSeconds = r.ExpiresInSeconds,
+                debugOtp = r.DebugOtp,
+                message = r.DeliveryMessage
+            }
             : new
             {
                 verificationId = r.VerificationId,
                 expiresInSeconds = r.ExpiresInSeconds,
-                message = "Mã xác thực đã được gửi. Kiểm tra SMS/email điện thoại đăng ký (cần tích hợp nhà cung cấp thật trên production)."
+                message = r.DeliveryMessage
+                    ?? "Mã xác thực đã được gửi. Kiểm tra email hoặc SMS đăng ký."
             };
 
     public class StartTopUpVerificationRequest

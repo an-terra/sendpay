@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using System.Net.Http.Headers;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 using Blazored.LocalStorage;
 
@@ -52,8 +53,7 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<AuthResponse>(), "");
 
-        var err = await res.Content.ReadFromJsonAsync<ErrorResponse>();
-        return (false, null, err?.Message ?? "Lỗi không xác định");
+        return (false, null, await ReadErrorMessageAsync(res, "Lỗi không xác định"));
     }
 
     public async Task<(bool ok, AuthResponse? data, string error)> LoginAsync(
@@ -64,8 +64,7 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<AuthResponse>(), "");
 
-        var err = await res.Content.ReadFromJsonAsync<ErrorResponse>();
-        return (false, null, err?.Message ?? "Sai email hoặc mật khẩu");
+        return (false, null, await ReadErrorMessageAsync(res, "Sai email hoặc mật khẩu"));
     }
 
     public async Task<WalletResponse?> GetWalletAsync()
@@ -80,8 +79,7 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
         var res = await http.PostAsJsonAsync("api/verification/topup/start", new { amount });
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<VerificationStartResponse>(), "");
-        var err = await res.Content.ReadFromJsonAsync<ErrorResponse>();
-        return (false, null, err?.Message ?? "Không gửi được mã OTP");
+        return (false, null, await ReadErrorMessageAsync(res, "Không gửi được mã OTP"));
     }
 
     public async Task<(bool ok, VerificationStartResponse? data, string error)> StartTransferVerificationAsync(
@@ -92,8 +90,7 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
             new { receiverPhone, amount, note });
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<VerificationStartResponse>(), "");
-        var err = await res.Content.ReadFromJsonAsync<ErrorResponse>();
-        return (false, null, err?.Message ?? "Không gửi được mã OTP");
+        return (false, null, await ReadErrorMessageAsync(res, "Không gửi được mã OTP"));
     }
 
     public async Task<(bool ok, WalletResponse? data, string error)> TopUpAsync(
@@ -105,8 +102,7 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<WalletResponse>(), "");
 
-        var err = await res.Content.ReadFromJsonAsync<ErrorResponse>();
-        return (false, null, err?.Message ?? "Nạp tiền thất bại");
+        return (false, null, await ReadErrorMessageAsync(res, "Nạp tiền thất bại"));
     }
 
     public async Task<(bool ok, TransactionResponse? data, string error)> TransferAsync(
@@ -119,8 +115,7 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<TransactionResponse>(), "");
 
-        var err = await res.Content.ReadFromJsonAsync<ErrorResponse>();
-        return (false, null, err?.Message ?? "Chuyển tiền thất bại");
+        return (false, null, await ReadErrorMessageAsync(res, "Chuyển tiền thất bại"));
     }
 
     public async Task<List<TransactionResponse>> GetHistoryAsync(int page = 1)
@@ -157,8 +152,7 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
         var res = await http.PostAsJsonAsync("api/recipient", new { name, phone, note });
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<RecipientResponse>(), "");
-        var err = await res.Content.ReadFromJsonAsync<ErrorResponse>();
-        return (false, null, err?.Message ?? "Thêm thất bại");
+        return (false, null, await ReadErrorMessageAsync(res, "Thêm thất bại"));
     }
 
     public async Task<bool> DeleteRecipientAsync(int id)
@@ -181,8 +175,7 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
         await SetAuthHeader();
         var res = await http.PutAsJsonAsync("api/user/profile", new { fullName, email, phone });
         if (res.IsSuccessStatusCode) return (true, "");
-        var err = await res.Content.ReadFromJsonAsync<ErrorResponse>();
-        return (false, err?.Message ?? "Cập nhật thất bại");
+        return (false, await ReadErrorMessageAsync(res, "Cập nhật thất bại"));
     }
 
     public async Task<(bool ok, string error)> ChangePasswordAsync(
@@ -191,8 +184,7 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
         await SetAuthHeader();
         var res = await http.PutAsJsonAsync("api/user/password", new { currentPassword, newPassword });
         if (res.IsSuccessStatusCode) return (true, "");
-        var err = await res.Content.ReadFromJsonAsync<ErrorResponse>();
-        return (false, err?.Message ?? "Đổi mật khẩu thất bại");
+        return (false, await ReadErrorMessageAsync(res, "Đổi mật khẩu thất bại"));
     }
 
     public async Task<(bool ok, string error)> UpdateAddressAsync(
@@ -202,8 +194,7 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
         var res = await http.PutAsJsonAsync("api/user/address",
             new { postalCode, prefecture, city, streetAddress });
         if (res.IsSuccessStatusCode) return (true, "");
-        var err = await res.Content.ReadFromJsonAsync<ErrorResponse>();
-        return (false, err?.Message ?? "");
+        return (false, await ReadErrorMessageAsync(res, ""));
     }
 
     // ── Admin ──────────────────────────────────────────────────
@@ -229,8 +220,7 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<AdminUserResponse>(), "");
 
-        var err = await res.Content.ReadFromJsonAsync<ErrorResponse>();
-        return (false, null, err?.Message ?? "Thao tác thất bại");
+        return (false, null, await ReadErrorMessageAsync(res, "Thao tác thất bại"));
     }
 
     public async Task<(bool ok, AdminUserResponse? data, string error)> AdminUpdateUserAsync(
@@ -241,8 +231,7 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
             new { fullName, email, phone, balance });
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<AdminUserResponse>(), "");
-        var err = await res.Content.ReadFromJsonAsync<ErrorResponse>();
-        return (false, null, err?.Message ?? "Cập nhật thất bại");
+        return (false, null, await ReadErrorMessageAsync(res, "Cập nhật thất bại"));
     }
 
     public async Task<(bool ok, string error)> AdminDeleteUserAsync(int id)
@@ -250,8 +239,7 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
         await SetAuthHeader();
         var res = await http.DeleteAsync($"api/admin/users/{id}");
         if (res.IsSuccessStatusCode) return (true, "");
-        var err = await res.Content.ReadFromJsonAsync<ErrorResponse>();
-        return (false, err?.Message ?? "Xóa thất bại");
+        return (false, await ReadErrorMessageAsync(res, "Xóa thất bại"));
     }
 
     public async Task<List<AdminTransactionResponse>> GetAdminTransactionsAsync(int page = 1)
@@ -261,5 +249,57 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
             $"api/admin/transactions?page={page}&pageSize=15") ?? [];
     }
 
-    private record ErrorResponse(string Message);
+    private static async Task<string> ReadErrorMessageAsync(HttpResponseMessage res, string fallback)
+    {
+        var body = await res.Content.ReadAsStringAsync();
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            var code = (int)res.StatusCode;
+            var reason = res.ReasonPhrase ?? "";
+            return code > 0 ? $"{code} {reason}".Trim() : fallback;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(body);
+            var root = doc.RootElement;
+
+            static string? strProp(JsonElement el, string a, string b)
+            {
+                if (el.TryGetProperty(a, out var x) && x.ValueKind == JsonValueKind.String)
+                    return x.GetString();
+                if (el.TryGetProperty(b, out var y) && y.ValueKind == JsonValueKind.String)
+                    return y.GetString();
+                return null;
+            }
+
+            var msg = strProp(root, "message", "Message")
+                      ?? strProp(root, "detail", "Detail")
+                      ?? strProp(root, "title", "Title");
+            if (!string.IsNullOrWhiteSpace(msg))
+                return msg!;
+
+            if (root.TryGetProperty("errors", out var errs) && errs.ValueKind == JsonValueKind.Object)
+            {
+                var parts = new List<string>();
+                foreach (var prop in errs.EnumerateObject())
+                {
+                    if (prop.Value.ValueKind == JsonValueKind.Array)
+                    {
+                        foreach (var item in prop.Value.EnumerateArray())
+                            if (item.ValueKind == JsonValueKind.String && item.GetString() is { } s)
+                                parts.Add(s);
+                    }
+                    else if (prop.Value.ValueKind == JsonValueKind.String && prop.Value.GetString() is { } one)
+                        parts.Add(one);
+                }
+                var joined = string.Join(" ", parts.Where(s => s.Length > 0));
+                if (!string.IsNullOrWhiteSpace(joined))
+                    return joined;
+            }
+        }
+        catch (JsonException) { /* body không phải JSON */ }
+
+        return body.Length > 280 ? body[..277] + "…" : body;
+    }
 }
