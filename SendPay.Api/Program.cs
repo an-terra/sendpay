@@ -110,6 +110,7 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.EnsureCreated();
+    TryRecipientBankColumns(db);
 
     if (!db.Users.Any(u => u.IsAdmin))
     {
@@ -148,6 +149,21 @@ app.MapControllers();
 app.MapFallbackToFile("index.html");
 
 app.Run();
+
+
+static void TryRecipientBankColumns(AppDbContext db)
+{
+    try
+    {
+        db.Database.ExecuteSqlRaw("""ALTER TABLE "Recipients" ADD COLUMN IF NOT EXISTS "BankName" text NULL;""");
+        db.Database.ExecuteSqlRaw("""ALTER TABLE "Recipients" ADD COLUMN IF NOT EXISTS "AccountNumber" text NULL;""");
+        db.Database.ExecuteSqlRaw("""ALTER TABLE "Recipients" ADD COLUMN IF NOT EXISTS "AccountHolderName" text NULL;""");
+    }
+    catch
+    {
+        // ignore nếu không phải Postgres / DB đã đồng bộ
+    }
+}
 
 
 // Convert URI dạng `postgresql://user:pass@host/db?sslmode=require`

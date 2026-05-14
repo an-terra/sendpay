@@ -17,9 +17,27 @@ public class RecipientController(IRecipientService svc) : ControllerBase
     public async Task<IActionResult> GetAll() =>
         Ok(await svc.GetAllAsync(UserId));
 
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetById(int id)
+    {
+        try { return Ok(await svc.GetByIdAsync(UserId, id)); }
+        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+    }
+
     [HttpPost]
-    public async Task<IActionResult> Add(RecipientRequest req) =>
-        Ok(await svc.AddAsync(UserId, req));
+    public async Task<IActionResult> Add(RecipientRequest req)
+    {
+        try { return Ok(await svc.AddAsync(UserId, req)); }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+    }
+
+    [HttpPut("{id:int}")]
+    public async Task<IActionResult> Update(int id, RecipientRequest req)
+    {
+        try { return Ok(await svc.UpdateAsync(UserId, id, req)); }
+        catch (KeyNotFoundException ex) { return NotFound(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+    }
 
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id)

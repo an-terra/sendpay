@@ -13,10 +13,25 @@
                 <VerticalStackLayout Spacing="16">
 
                     <VerticalStackLayout Spacing="4">
-                        <Label Text="Số điện thoại người nhận" FontSize="13"
+                        <Label Text="Số điện thoại người nhận (SendPay)" FontSize="13"
                                TextColor="#8b8b9b" FontAttributes="Bold"/>
-                        <Entry x:Name="PhoneEntry" Placeholder="0901234567" Keyboard="Telephone"/>
+                        <Entry x:Name="PhoneEntry" Placeholder="0901234567" Keyboard="Telephone"
+                               TextChanged="OnReceiverFieldTextChanged"/>
                     </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Ngân hàng (tùy chọn)" FontSize="13" TextColor="#8b8b9b" FontAttributes="Bold"/>
+                        <Entry x:Name="BankNameEntry" Placeholder="Vietcombank"
+                               TextChanged="OnReceiverFieldTextChanged"/>
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Số tài khoản (tùy chọn)" FontSize="13" TextColor="#8b8b9b" FontAttributes="Bold"/>
+                        <Entry x:Name="AccountEntry" Placeholder="STK người nhận" Keyboard="Numeric"
+                               TextChanged="OnReceiverFieldTextChanged"/>
+                    </VerticalStackLayout>
+
+                    <Label x:Name="ReceiverHintLabel" FontSize="13" IsVisible="False" Margin="0,0,0,4"/>
 
                     <VerticalStackLayout Spacing="4">
                         <Label Text="Số tiền (VND)" FontSize="13" TextColor="#8b8b9b" FontAttributes="Bold"/>

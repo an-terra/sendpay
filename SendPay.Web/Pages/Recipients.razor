@@ -20,7 +20,6 @@
 
         <div class="sp-recip-grid">
 
-            <!-- LEFT: list -->
             <div>
                 @if (loading)
                 {
@@ -42,31 +41,45 @@
                             @foreach (var (r, idx) in recipients.Select((x, i) => (x, i)))
                             {
                                 <MudListItem T="RecipientResponse" Style="@($"padding:14px 20px;{(idx < recipients.Count - 1 ? "border-bottom:1px solid var(--gray-border)" : "")}")">
-                                    <div style="display:flex;align-items:center;gap:14px">
+                                    <div style="display:flex;align-items:flex-start;gap:14px">
                                         <MudAvatar Style="background:#7048e8;color:white;font-weight:700;flex-shrink:0">
                                             @GetInitials(r.Name)
                                         </MudAvatar>
                                         <div style="flex:1;min-width:0">
                                             <MudText Typo="Typo.body2" Style="font-weight:600;color:var(--navy)">@r.Name</MudText>
-                                            <MudText Typo="Typo.caption" Style="color:var(--text-sub)">
-                                                <MudIcon Icon="@Icons.Material.Filled.Phone" Style="font-size:11px;vertical-align:middle" />
-                                                @r.Phone
+                                            <MudText Typo="Typo.caption" Style="color:var(--text-sub);line-height:1.4">
+                                                @if (!string.IsNullOrEmpty(r.Phone))
+                                                {
+                                                    <span><MudIcon Icon="@Icons.Material.Filled.Phone" Style="font-size:11px;vertical-align:middle" /> @r.Phone</span>
+                                                }
+                                                else
+                                                {
+                                                    <span style="color:var(--text-muted)">—</span>
+                                                }
+                                                @if (!string.IsNullOrEmpty(r.BankName) || !string.IsNullOrEmpty(r.AccountNumber))
+                                                {
+                                                    <span> · @(string.IsNullOrEmpty(r.BankName) ? "" : r.BankName + " ")</span>
+                                                    @if (!string.IsNullOrEmpty(r.AccountNumber))
+                                                    {
+                                                        <span>****@Last4Digits(r.AccountNumber)</span>
+                                                    }
+                                                }
                                                 @if (!string.IsNullOrEmpty(r.Note)) { <span> · @r.Note</span> }
                                             </MudText>
                                         </div>
-                                        <div style="display:flex;gap:8px;flex-shrink:0">
-                                            <MudButton Variant="Variant.Outlined" Color="Color.Primary"
-                                                       Size="Size.Small"
-                                                       Href="@($"/transfer?phone={Uri.EscapeDataString(r.Phone)}")"
+                                        <div style="display:flex;flex-wrap:wrap;gap:6px;flex-shrink:0;justify-content:flex-end">
+                                            <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small"
+                                                       OnClick="() => StartEdit(r)" Style="border-radius:8px;font-size:11px">
+                                                @Lang.T("recip_edit")
+                                            </MudButton>
+                                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                                                       Href="@($"/transfer?recipientId={r.Id}")"
                                                        StartIcon="@Icons.Material.Filled.Send"
-                                                       Style="border-radius:8px;font-size:12px">
+                                                       Style="border-radius:8px;font-size:11px">
                                                 @Lang.T("recip_send")
                                             </MudButton>
-                                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                                           Color="Color.Error"
-                                                           Size="Size.Small"
-                                                           Variant="Variant.Outlined"
-                                                           Style="border-radius:8px"
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                                           Variant="Variant.Outlined" Style="border-radius:8px"
                                                            OnClick="() => DeleteRecipient(r.Id)" />
                                         </div>
                                     </div>
@@ -77,11 +90,10 @@
                 }
             </div>
 
-            <!-- RIGHT: add form -->
             <MudPaper Class="sp-side-card mud-elevation-1" Style="border-radius:16px;padding:24px">
                 <MudText Typo="Typo.subtitle1" Style="font-weight:700;color:var(--navy);margin-bottom:1rem;display:flex;align-items:center;gap:8px">
                     <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Style="color:#7048e8" />
-                    @Lang.T("recip_add_title")
+                    @(editingId.HasValue ? Lang.T("recip_edit") : Lang.T("recip_add_title"))
                 </MudText>
 
                 @if (!string.IsNullOrEmpty(addError))
@@ -111,6 +123,26 @@
                               FullWidth="true"
                               Class="mb-3" />
 
+                <MudTextField @bind-Value="newBank"
+                              Label="@Lang.T("recip_bank")"
+                              Variant="Variant.Outlined"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.AccountBalance"
+                              FullWidth="true"
+                              Class="mb-3" />
+
+                <MudTextField @bind-Value="newAccount"
+                              Label="@Lang.T("recip_account")"
+                              Variant="Variant.Outlined"
+                              FullWidth="true"
+                              Class="mb-3" />
+
+                <MudTextField @bind-Value="newHolder"
+                              Label="@Lang.T("recip_holder")"
+                              Variant="Variant.Outlined"
+                              FullWidth="true"
+                              Class="mb-3" />
+
                 <MudTextField @bind-Value="newNote"
                               Label="@Lang.T("recip_note")"
                               Placeholder="@Lang.T("recip_note_ph")"
@@ -120,17 +152,24 @@
                               FullWidth="true"
                               Class="mb-4" />
 
-                <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                           FullWidth="true" Size="Size.Large"
-                           OnClick="AddRecipient" Disabled="@adding"
-                           StartIcon="@Icons.Material.Filled.Add"
-                           Style="border-radius:10px;font-weight:700;height:48px">
-                    @if (adding)
+                <MudStack Row="true" Spacing="2">
+                    @if (editingId.HasValue)
                     {
-                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        <MudButton Variant="Variant.Outlined" Color="Color.Default" FullWidth="true"
+                                   OnClick="CancelEdit">@Lang.T("recip_cancel")</MudButton>
                     }
-                    @Lang.T("recip_add_btn")
-                </MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                               FullWidth="true" Size="Size.Large"
+                               OnClick="SaveRecipient" Disabled="@adding"
+                               StartIcon="@Icons.Material.Filled.Save"
+                               Style="border-radius:10px;font-weight:700;height:48px">
+                        @if (adding)
+                        {
+                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                        }
+                        @(editingId.HasValue ? Lang.T("recip_save") : Lang.T("recip_add_btn"))
+                    </MudButton>
+                </MudStack>
             </MudPaper>
         </div>
     </div>
@@ -140,7 +179,8 @@
     List<RecipientResponse> recipients = [];
     bool loading = true;
     bool adding;
-    string newName = "", newPhone = "", newNote = "";
+    int? editingId;
+    string newName = "", newPhone = "", newNote = "", newBank = "", newAccount = "", newHolder = "";
     string addError = "", addSuccess = "";
 
     protected override async Task OnInitializedAsync()
@@ -160,23 +200,74 @@
         loading = false;
     }
 
-    async Task AddRecipient()
+    void StartEdit(RecipientResponse r)
+    {
+        addError = addSuccess = "";
+        editingId = r.Id;
+        newName = r.Name;
+        newPhone = r.Phone ?? "";
+        newNote = r.Note;
+        newBank = r.BankName ?? "";
+        newAccount = r.AccountNumber ?? "";
+        newHolder = r.AccountHolderName ?? "";
+    }
+
+    void CancelEdit()
+    {
+        editingId = null;
+        ClearFormFields();
+        addError = addSuccess = "";
+    }
+
+    void ClearFormFields()
+    {
+        newName = newPhone = newNote = newBank = newAccount = newHolder = "";
+    }
+
+    async Task SaveRecipient()
     {
         addError = ""; addSuccess = "";
-        if (string.IsNullOrWhiteSpace(newName) || string.IsNullOrWhiteSpace(newPhone))
+        if (string.IsNullOrWhiteSpace(newName))
+        { addError = Lang.T("recip_err_required"); return; }
+
+        var ph = string.IsNullOrWhiteSpace(newPhone) ? null : newPhone.Trim();
+        var bk = string.IsNullOrWhiteSpace(newBank) ? null : newBank.Trim();
+        var ac = string.IsNullOrWhiteSpace(newAccount) ? null : newAccount.Trim();
+        var ho = string.IsNullOrWhiteSpace(newHolder) ? null : newHolder.Trim();
+
+        if (string.IsNullOrEmpty(DigitsOnly(ph)) && string.IsNullOrEmpty(DigitsOnly(ac)))
         { addError = Lang.T("recip_err_required"); return; }
 
         adding = true;
-        var (ok, _, err) = await Api.AddRecipientAsync(newName.Trim(), newPhone.Trim(), newNote.Trim());
+        (bool ok, _, string err) = editingId is int eid
+            ? await Api.UpdateRecipientAsync(eid, newName.Trim(), ph, newNote.Trim(), bk, ac, ho)
+            : await Api.AddRecipientAsync(newName.Trim(), ph, newNote.Trim(), bk, ac, ho);
         adding = false;
 
-        if (ok) { addSuccess = Lang.T("recip_added"); newName = newPhone = newNote = ""; await Reload(); }
+        if (ok)
+        {
+            var wasEdit = editingId.HasValue;
+            addSuccess = wasEdit ? Lang.T("recip_updated") : Lang.T("recip_added");
+            editingId = null;
+            ClearFormFields();
+            await Reload();
+        }
         else addError = err;
+    }
+
+    static string DigitsOnly(string? s) =>
+        string.IsNullOrEmpty(s) ? "" : new string(s.Where(char.IsDigit).ToArray());
+
+    static string Last4Digits(string? acct)
+    {
+        var d = DigitsOnly(acct);
+        return d.Length <= 4 ? d : d[^4..];
     }
 
     async Task DeleteRecipient(int id)
     {
         await Api.DeleteRecipientAsync(id);
+        if (editingId == id) CancelEdit();
         await Reload();
     }
 

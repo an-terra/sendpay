@@ -15,7 +15,7 @@ public static class MauiProgram
         builder.Services.AddTransient<Pages.DashboardPage>();
         builder.Services.AddTransient<Pages.TopUpPage>();
         builder.Services.AddTransient<Pages.TransferPage>();
-        builder.Services.AddTransient<Pages.HistoryPage>();
+        builder.Services.AddTransient<Pages.RecipientsPage>();
 
 #if DEBUG
         builder.Logging.AddDebug();

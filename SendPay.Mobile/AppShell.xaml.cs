@@ -8,6 +8,6 @@ public partial class AppShell : Shell
         Routing.RegisterRoute("register", typeof(Pages.LoginPage));
         Routing.RegisterRoute("transfer", typeof(Pages.TransferPage));
         Routing.RegisterRoute("topup",    typeof(Pages.TopUpPage));
-        Routing.RegisterRoute("history",  typeof(Pages.HistoryPage));
+        Routing.RegisterRoute("recipients", typeof(Pages.RecipientsPage));
     }
 }

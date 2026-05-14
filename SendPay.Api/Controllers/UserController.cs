@@ -31,4 +31,12 @@ public class UserController(IUserService svc) : ControllerBase
         catch (UnauthorizedAccessException ex) { return BadRequest(new { message = ex.Message }); }
         catch (InvalidOperationException ex)   { return BadRequest(new { message = ex.Message }); }
     }
+
+    /// <summary>Danh bạ (saved) trước, sau user đăng ký. Hỗ trợ STK + tên NH.</summary>
+    [HttpGet("receiver-lookup")]
+    public async Task<IActionResult> LookupReceiver(
+        [FromQuery] string? phone,
+        [FromQuery] string? accountNumber,
+        [FromQuery] string? bankName) =>
+        Ok(await svc.LookupTransferCounterpartyAsync(UserId, phone, accountNumber, bankName));
 }

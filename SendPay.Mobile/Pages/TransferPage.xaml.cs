@@ -1,17 +1,55 @@
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Maui.Controls;
 using SendPay.Mobile.Services;
 
 namespace SendPay.Mobile.Pages;
 
+[QueryProperty(nameof(RecipientIdQuery), "recipientId")]
+[QueryProperty(nameof(PhoneQuery), "phone")]
 public partial class TransferPage : ContentPage
 {
     private readonly ApiService _api;
     private Guid? _verificationId;
+    CancellationTokenSource? _phoneLookupCts;
+
+    string _recipientIdQuery = "";
+    public string RecipientIdQuery
+    {
+        get => _recipientIdQuery;
+        set
+        {
+            _recipientIdQuery = value ?? "";
+            _ = LoadFromRecipientAsync(_recipientIdQuery);
+        }
+    }
+
+    public string PhoneQuery
+    {
+        set =>
+            MainThread.BeginInvokeOnMainThread(() => PhoneEntry.Text = Uri.UnescapeDataString(value ?? ""));
+    }
 
     public TransferPage(ApiService api)
     {
         InitializeComponent();
         _api = api;
+    }
+
+    async Task LoadFromRecipientAsync(string raw)
+    {
+        if (!int.TryParse(raw, out var rid)) return;
+        var rec = await _api.GetRecipientByIdAsync(rid);
+        if (rec == null) return;
+        await MainThread.InvokeOnMainThreadAsync(() =>
+        {
+            PhoneEntry.Text = rec.Phone ?? "";
+            BankNameEntry.Text = rec.BankName ?? "";
+            AccountEntry.Text = rec.AccountNumber ?? "";
+            NoteEntry.Text = rec.Note ?? "";
+        });
+        await DebouncedLookupAsync();
     }
 
     async void OnSendOtpClicked(object sender, EventArgs e)
@@ -23,10 +61,43 @@ public partial class TransferPage : ContentPage
             return;
         }
 
+        var phD = DigitsOnly(PhoneEntry.Text);
+        var acD = DigitsOnly(AccountEntry.Text);
+        if (phD.Length < 8 && acD.Length < 6)
+        {
+            ShowMsg("Nhập SĐT (≥8 số) hoặc STK (≥6 số).", "#dc2626");
+            return;
+        }
+
+        var lookup = await _api.LookupTransferCounterpartyAsync(
+            string.IsNullOrWhiteSpace(PhoneEntry.Text) ? null : PhoneEntry.Text.Trim(),
+            string.IsNullOrWhiteSpace(AccountEntry.Text) ? null : AccountEntry.Text.Trim(),
+            string.IsNullOrWhiteSpace(BankNameEntry.Text) ? null : BankNameEntry.Text.Trim());
+
+        if (lookup?.IsSelf == true)
+        {
+            ShowMsg("Bạn không thể chuyển tiền cho chính mình.", "#dc2626");
+            return;
+        }
+
+        if (lookup is not { Found: true, FullName: { } fn } || string.IsNullOrWhiteSpace(fn))
+        {
+            ShowMsg("Không tìm thấy người nhận trong danh bạ hoặc SendPay.", "#dc2626");
+            return;
+        }
+
+        var eff = string.IsNullOrWhiteSpace(lookup.ResolvedPhone)
+            ? PhoneEntry.Text?.Trim() ?? ""
+            : lookup.ResolvedPhone.Trim();
+        if (DigitsOnly(eff).Length < 8)
+        {
+            ShowMsg("Chuyển ví cần SĐT người nhận (≥8 số). Thêm SĐT vào danh bạ hoặc nhập SĐT SendPay.", "#dc2626");
+            return;
+        }
+
         SendOtpBtn.IsEnabled = false;
         SendOtpBtn.Text = "Đang gửi...";
-        var (ok, data, err) = await _api.StartTransferVerificationAsync(
-            PhoneEntry.Text ?? "", amount, NoteEntry.Text ?? "");
+        var (ok, data, err) = await _api.StartTransferVerificationAsync(eff, amount, NoteEntry.Text ?? "");
         SendOtpBtn.IsEnabled = true;
         SendOtpBtn.Text = "1. Gửi mã OTP";
 
@@ -75,11 +146,23 @@ public partial class TransferPage : ContentPage
             return;
         }
 
+        var lookup = await _api.LookupTransferCounterpartyAsync(
+            string.IsNullOrWhiteSpace(PhoneEntry.Text) ? null : PhoneEntry.Text.Trim(),
+            string.IsNullOrWhiteSpace(AccountEntry.Text) ? null : AccountEntry.Text.Trim(),
+            string.IsNullOrWhiteSpace(BankNameEntry.Text) ? null : BankNameEntry.Text.Trim());
+        var eff = string.IsNullOrWhiteSpace(lookup?.ResolvedPhone)
+            ? PhoneEntry.Text?.Trim() ?? ""
+            : lookup!.ResolvedPhone!.Trim();
+        if (DigitsOnly(eff).Length < 8)
+        {
+            ShowMsg("Thiếu SĐT người nhận hợp lệ.", "#dc2626");
+            return;
+        }
+
         TransferBtn.IsEnabled = false;
         TransferBtn.Text = "Đang xử lý...";
 
-        var (ok, data, err) = await _api.TransferAsync(
-            PhoneEntry.Text ?? "", amount, NoteEntry.Text ?? "", _verificationId.Value, otp);
+        var (ok, data, err) = await _api.TransferAsync(eff, amount, NoteEntry.Text ?? "", _verificationId.Value, otp);
 
         TransferBtn.IsEnabled = true;
         TransferBtn.Text = "2. Xác nhận chuyển tiền";
@@ -88,7 +171,10 @@ public partial class TransferPage : ContentPage
         {
             ShowMsg($"✓ Đã chuyển {data.Amount:N0}₫ cho {data.ReceiverName} thành công!", "#16a34a");
             PhoneEntry.Text = AmountEntry.Text = NoteEntry.Text = "";
+            BankNameEntry.Text = AccountEntry.Text = "";
             OtpEntry.Text = "";
+            ReceiverHintLabel.Text = "";
+            ReceiverHintLabel.IsVisible = false;
             _verificationId = null;
             OtpHintLabel.IsVisible = false;
         }
@@ -101,4 +187,57 @@ public partial class TransferPage : ContentPage
         MsgLabel.TextColor = Color.FromArgb(color);
         MsgLabel.IsVisible = true;
     }
+
+    async void OnReceiverFieldTextChanged(object? sender, TextChangedEventArgs e) => await DebouncedLookupAsync();
+
+    async Task DebouncedLookupAsync()
+    {
+        _phoneLookupCts?.Cancel();
+        _phoneLookupCts?.Dispose();
+        _phoneLookupCts = new CancellationTokenSource();
+        var token = _phoneLookupCts.Token;
+        try { await Task.Delay(400, token); }
+        catch (TaskCanceledException) { return; }
+
+        var phD = DigitsOnly(PhoneEntry.Text);
+        var acD = DigitsOnly(AccountEntry.Text);
+        if (phD.Length < 8 && acD.Length < 6)
+        {
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                ReceiverHintLabel.IsVisible = false;
+                ReceiverHintLabel.Text = "";
+            });
+            return;
+        }
+
+        var res = await _api.LookupTransferCounterpartyAsync(
+            string.IsNullOrWhiteSpace(PhoneEntry.Text) ? null : PhoneEntry.Text.Trim(),
+            string.IsNullOrWhiteSpace(AccountEntry.Text) ? null : AccountEntry.Text.Trim(),
+            string.IsNullOrWhiteSpace(BankNameEntry.Text) ? null : BankNameEntry.Text.Trim());
+
+        await MainThread.InvokeOnMainThreadAsync(() =>
+        {
+            ReceiverHintLabel.IsVisible = true;
+            if (res?.IsSelf == true)
+            {
+                ReceiverHintLabel.TextColor = Color.FromArgb("#dc2626");
+                ReceiverHintLabel.Text = "Bạn không thể chuyển tiền cho chính mình.";
+            }
+            else if (res is { Found: true, FullName: { } n } && !string.IsNullOrWhiteSpace(n))
+            {
+                ReceiverHintLabel.TextColor = Color.FromArgb("#16a34a");
+                var bank = string.IsNullOrEmpty(res.BankDisplay) ? "" : $" · {res.BankDisplay}";
+                ReceiverHintLabel.Text = $"Tài khoản nhận: {n}{bank}";
+            }
+            else
+            {
+                ReceiverHintLabel.TextColor = Color.FromArgb("#b45309");
+                ReceiverHintLabel.Text = "Không tìm thấy trong danh bạ / SendPay.";
+            }
+        });
+    }
+
+    static string DigitsOnly(string? s) =>
+        string.IsNullOrEmpty(s) ? "" : new string(s.Where(char.IsDigit).ToArray());
 }

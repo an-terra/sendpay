@@ -33,7 +33,12 @@
                 </Frame>
 
                 <!-- Action Buttons -->
-                <Grid Padding="16" ColumnSpacing="12">
+                <Grid Padding="16" RowSpacing="12">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid ColumnSpacing="12" Grid.Row="0">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
                     </Grid.ColumnDefinitions>
@@ -64,6 +69,10 @@
                             <TapGestureRecognizer Tapped="OnHistoryTapped"/>
                         </Frame.GestureRecognizers>
                     </Frame>
+                </Grid>
+                <Button Grid.Row="1" Text="👥 Danh bạ người nhận" Clicked="OnRecipientsTapped"
+                        BackgroundColor="White" TextColor="#6c47ff"
+                        CornerRadius="12" HeightRequest="48" FontAttributes="Bold"/>
                 </Grid>
 
                 <!-- Recent Transactions -->

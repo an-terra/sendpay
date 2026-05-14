@@ -24,7 +24,9 @@ public record AdminTransactionResponse(
     int Id, string SenderName, string ReceiverName,
     decimal Amount, string Note, string Type, string Status, DateTime CreatedAt);
 
-public record RecipientResponse(int Id, string Name, string Phone, string Note, DateTime CreatedAt);
+public record RecipientResponse(
+    int Id, string Name, string? Phone, string Note,
+    string? BankName, string? AccountNumber, string? AccountHolderName, DateTime CreatedAt);
 public record UserProfileResponse(int Id, string FullName, string Email, string Phone, decimal Balance, DateTime CreatedAt);
 public record CurrencyRate(string Code, string Flag, string Country, decimal Rate, string Change, bool Up);
 public record ExchangeRateResponse(string Date, List<CurrencyRate> Rates);
@@ -34,6 +36,15 @@ public record VerificationStartResponse(
     [property: JsonPropertyName("expiresInSeconds")] int ExpiresInSeconds,
     [property: JsonPropertyName("debugOtp")] string? DebugOtp,
     [property: JsonPropertyName("message")] string? Message);
+
+public record ReceiverLookupDto(
+    [property: JsonPropertyName("found")] bool Found,
+    [property: JsonPropertyName("fullName")] string? FullName,
+    [property: JsonPropertyName("isSelf")] bool IsSelf,
+    [property: JsonPropertyName("savedRecipientId")] int? SavedRecipientId,
+    [property: JsonPropertyName("matchKind")] string? MatchKind,
+    [property: JsonPropertyName("bankDisplay")] string? BankDisplay,
+    [property: JsonPropertyName("resolvedPhone")] string? ResolvedPhone);
 
 public class ApiService(HttpClient http, ILocalStorageService localStorage)
 {
@@ -93,6 +104,22 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
         return (false, null, await ReadErrorMessageAsync(res, "Không gửi được mã OTP"));
     }
 
+    public async Task<ReceiverLookupDto?> LookupTransferCounterpartyAsync(
+        string? phone, string? accountNumber = null, string? bankName = null)
+    {
+        await SetAuthHeader();
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(phone))
+            parts.Add($"phone={Uri.EscapeDataString(phone.Trim())}");
+        if (!string.IsNullOrWhiteSpace(accountNumber))
+            parts.Add($"accountNumber={Uri.EscapeDataString(accountNumber.Trim())}");
+        if (!string.IsNullOrWhiteSpace(bankName))
+            parts.Add($"bankName={Uri.EscapeDataString(bankName.Trim())}");
+        if (parts.Count == 0) return null;
+        var qs = string.Join("&", parts);
+        return await http.GetFromJsonAsync<ReceiverLookupDto>($"api/user/receiver-lookup?{qs}");
+    }
+
     public async Task<(bool ok, WalletResponse? data, string error)> TopUpAsync(
         decimal amount, Guid verificationId, string otpCode)
     {
@@ -145,14 +172,34 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
         return await http.GetFromJsonAsync<List<RecipientResponse>>("api/recipient") ?? [];
     }
 
-    public async Task<(bool ok, RecipientResponse? data, string error)> AddRecipientAsync(
-        string name, string phone, string note)
+    public async Task<RecipientResponse?> GetRecipientByIdAsync(int id)
     {
         await SetAuthHeader();
-        var res = await http.PostAsJsonAsync("api/recipient", new { name, phone, note });
+        return await http.GetFromJsonAsync<RecipientResponse>($"api/recipient/{id}");
+    }
+
+    public async Task<(bool ok, RecipientResponse? data, string error)> AddRecipientAsync(
+        string name, string? phone, string note,
+        string? bankName = null, string? accountNumber = null, string? accountHolderName = null)
+    {
+        await SetAuthHeader();
+        var res = await http.PostAsJsonAsync("api/recipient",
+            new { name, phone, note, bankName, accountNumber, accountHolderName });
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<RecipientResponse>(), "");
         return (false, null, await ReadErrorMessageAsync(res, "Thêm thất bại"));
+    }
+
+    public async Task<(bool ok, RecipientResponse? data, string error)> UpdateRecipientAsync(
+        int id, string name, string? phone, string note,
+        string? bankName = null, string? accountNumber = null, string? accountHolderName = null)
+    {
+        await SetAuthHeader();
+        var res = await http.PutAsJsonAsync($"api/recipient/{id}",
+            new { name, phone, note, bankName, accountNumber, accountHolderName });
+        if (res.IsSuccessStatusCode)
+            return (true, await res.Content.ReadFromJsonAsync<RecipientResponse>(), "");
+        return (false, null, await ReadErrorMessageAsync(res, "Cập nhật thất bại"));
     }
 
     public async Task<bool> DeleteRecipientAsync(int id)

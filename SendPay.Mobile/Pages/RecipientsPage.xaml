@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:pages="clr-namespace:SendPay.Mobile.Pages"
+             x:Class="SendPay.Mobile.Pages.RecipientsPage"
+             BackgroundColor="#f5f5f7" Title="Người nhận">
+    <ScrollView>
+        <VerticalStackLayout Padding="16" Spacing="14">
+            <Label x:Name="StatusLabel" IsVisible="False" FontSize="13" HorizontalTextAlignment="Center"/>
+
+            <Label Text="Danh sách" FontAttributes="Bold" FontSize="16" Margin="0,4,0,0"/>
+            <Border Stroke="#e5e5e5" StrokeShape="RoundRectangle 12" BackgroundColor="White" Padding="0">
+                <ListView x:Name="RecipientList" HasUnevenRows="True" SeparatorVisibility="None"
+                          ItemsSource="{Binding Rows}">
+                    <ListView.ItemTemplate>
+                        <DataTemplate x:DataType="pages:RecipientRow">
+                            <ViewCell>
+                                <Grid Padding="14,12" ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                    <VerticalStackLayout Spacing="4">
+                                        <Label Text="{Binding Name}" FontAttributes="Bold" FontSize="15"/>
+                                        <Label Text="{Binding Detail}" FontSize="12" TextColor="#64748b" LineBreakMode="TailTruncation"/>
+                                    </VerticalStackLayout>
+                                    <HorizontalStackLayout Grid.Column="1" Spacing="6" VerticalOptions="Center">
+                                        <Button Text="Gửi" Padding="12,6" FontSize="12" BackgroundColor="#6c47ff"
+                                                TextColor="White" CornerRadius="8"
+                                                Clicked="OnSendClicked" CommandParameter="{Binding Id}"/>
+                                        <Button Text="Xóa" Padding="12,6" FontSize="12" BackgroundColor="#fee2e2"
+                                                TextColor="#b91c1c" CornerRadius="8"
+                                                Clicked="OnDeleteClicked" CommandParameter="{Binding Id}"/>
+                                    </HorizontalStackLayout>
+                                </Grid>
+                            </ViewCell>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+            </Border>
+
+            <Frame BackgroundColor="White" CornerRadius="14" Padding="16" HasShadow="True">
+                <VerticalStackLayout Spacing="12">
+                    <Label Text="Thêm người nhận" FontAttributes="Bold" FontSize="15"/>
+                    <Entry x:Name="NameEntry" Placeholder="Họ tên"/>
+                    <Entry x:Name="PhoneEntryForm" Placeholder="SĐT SendPay (≥8 số) hoặc để trống nếu chỉ có STK" Keyboard="Telephone"/>
+                    <Entry x:Name="BankEntry" Placeholder="Ngân hàng (VD: Vietcombank)"/>
+                    <Entry x:Name="AccountEntry" Placeholder="Số tài khoản" Keyboard="Numeric"/>
+                    <Entry x:Name="HolderEntry" Placeholder="Chủ tài khoản"/>
+                    <Entry x:Name="NoteEntryForm" Placeholder="Ghi chú"/>
+                    <Button Text="Thêm vào danh bạ" Clicked="OnAddClicked" BackgroundColor="#334155"
+                            TextColor="White" CornerRadius="10" HeightRequest="46" FontAttributes="Bold"/>
+                </VerticalStackLayout>
+            </Frame>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

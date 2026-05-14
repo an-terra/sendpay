@@ -16,11 +16,23 @@ public record VerificationStartResponse(
     [property: JsonPropertyName("debugOtp")] string? DebugOtp,
     [property: JsonPropertyName("message")] string? Message);
 
+public record ReceiverLookupDto(
+    [property: JsonPropertyName("found")] bool Found,
+    [property: JsonPropertyName("fullName")] string? FullName,
+    [property: JsonPropertyName("isSelf")] bool IsSelf,
+    [property: JsonPropertyName("savedRecipientId")] int? SavedRecipientId,
+    [property: JsonPropertyName("matchKind")] string? MatchKind,
+    [property: JsonPropertyName("bankDisplay")] string? BankDisplay,
+    [property: JsonPropertyName("resolvedPhone")] string? ResolvedPhone);
+
+public record RecipientResponse(
+    int Id, string Name, string? Phone, string Note,
+    string? BankName, string? AccountNumber, string? AccountHolderName, DateTime CreatedAt);
+
 public class ApiService
 {
     private readonly HttpClient _http;
 
-    // Android emulator → 10.0.2.2; Windows → localhost. Máy Android thật: IP LAN máy dev.
     private static string ResolveApiBaseUrl()
     {
         if (DeviceInfo.Platform == DevicePlatform.Android)
@@ -91,6 +103,55 @@ public class ApiService
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<WalletResponse>(), "");
         return (false, null, "Nạp tiền thất bại");
+    }
+
+    public async Task<ReceiverLookupDto?> LookupTransferCounterpartyAsync(
+        string? phone, string? accountNumber = null, string? bankName = null)
+    {
+        SetToken();
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(phone))
+            parts.Add($"phone={Uri.EscapeDataString(phone.Trim())}");
+        if (!string.IsNullOrWhiteSpace(accountNumber))
+            parts.Add($"accountNumber={Uri.EscapeDataString(accountNumber.Trim())}");
+        if (!string.IsNullOrWhiteSpace(bankName))
+            parts.Add($"bankName={Uri.EscapeDataString(bankName.Trim())}");
+        if (parts.Count == 0) return null;
+        return await _http.GetFromJsonAsync<ReceiverLookupDto>($"api/user/receiver-lookup?{string.Join("&", parts)}");
+    }
+
+    public async Task<RecipientResponse?> GetRecipientByIdAsync(int id)
+    {
+        SetToken();
+        var res = await _http.GetAsync($"api/recipient/{id}");
+        if (!res.IsSuccessStatusCode) return null;
+        return await res.Content.ReadFromJsonAsync<RecipientResponse>();
+    }
+
+    public async Task<List<RecipientResponse>> GetRecipientsAsync()
+    {
+        SetToken();
+        return await _http.GetFromJsonAsync<List<RecipientResponse>>("api/recipient") ?? [];
+    }
+
+    public async Task<(bool ok, RecipientResponse? data, string error)> AddRecipientAsync(
+        string name, string? phone, string note,
+        string? bankName = null, string? accountNumber = null, string? accountHolderName = null)
+    {
+        SetToken();
+        var res = await _http.PostAsJsonAsync("api/recipient",
+            new { name, phone, note, bankName, accountNumber, accountHolderName });
+        if (res.IsSuccessStatusCode)
+            return (true, await res.Content.ReadFromJsonAsync<RecipientResponse>(), "");
+        var err = await res.Content.ReadAsStringAsync();
+        return (false, null, err.Length > 200 ? "Thêm thất bại" : err);
+    }
+
+    public async Task<bool> DeleteRecipientAsync(int id)
+    {
+        SetToken();
+        var res = await _http.DeleteAsync($"api/recipient/{id}");
+        return res.IsSuccessStatusCode;
     }
 
     public async Task<(bool ok, TransactionResponse? data, string error)> TransferAsync(

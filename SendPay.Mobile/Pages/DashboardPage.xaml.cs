@@ -53,6 +53,9 @@ public partial class DashboardPage : ContentPage
         await Shell.Current.GoToAsync("//login");
     }
 
+    async void OnRecipientsTapped(object sender, EventArgs e)
+        => await Shell.Current.GoToAsync("recipients");
+
     async void OnTopUpTapped(object sender, TappedEventArgs e)
         => await Shell.Current.GoToAsync("topup");
 
