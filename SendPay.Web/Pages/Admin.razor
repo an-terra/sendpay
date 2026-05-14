@@ -1,4 +1,5 @@
 @page "/admin"
+@using System.Globalization
 @inject ApiService Api
 @inject ILocalStorageService LocalStorage
 @inject NavigationManager Nav
@@ -368,20 +369,37 @@
 @if (editUser != null)
 {
     <MudOverlay Visible="true" DarkBackground="true" ZIndex="1200" OnClick="CloseEdit" />
-    <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1300;width:min(500px,94vw)">
-        <MudPaper Class="mud-elevation-24" Style="border-radius:20px;overflow:hidden">
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid var(--gray-border)">
+    <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1300;width:min(620px,94vw);max-height:92vh;display:flex;flex-direction:column">
+        <MudPaper Class="mud-elevation-24" Style="border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:92vh">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid var(--gray-border);flex-shrink:0">
                 <MudText Typo="Typo.subtitle1" Style="font-weight:700;color:var(--navy);display:flex;align-items:center;gap:8px">
                     <MudIcon Icon="@Icons.Material.Filled.EditNote" Style="color:var(--red)" />
                     Chỉnh sửa người dùng #@editUser.Id
                 </MudText>
                 <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="CloseEdit" />
             </div>
-            <div style="padding:20px 24px">
+            <div style="overflow-y:auto;flex:1;padding:20px 24px 8px">
                 @if (!string.IsNullOrEmpty(editError))
                 {
                     <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">@editError</MudAlert>
                 }
+                <MudPaper Elevation="0" Class="mb-3" Style="border:1px solid var(--gray-border);border-radius:12px;padding:12px 14px;background:#fafbfc">
+                    <MudText Typo="Typo.caption" Style="color:var(--text-muted)">Tài khoản</MudText>
+                    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;align-items:center">
+                        <MudChip T="string" Size="Size.Small" Color="Color.Default" Style="font-size:11px">ID @editUser.Id</MudChip>
+                        <MudChip T="string" Size="Size.Small" Color="@(editUser.IsAdmin ? Color.Warning : Color.Default)" Style="font-size:11px">
+                            @(editUser.IsAdmin ? "Admin" : "Người dùng")
+                        </MudChip>
+                        <MudChip T="string" Size="Size.Small" Color="@(editUser.IsActive ? Color.Success : Color.Error)" Style="font-size:11px">
+                            @(editUser.IsActive ? "Hoạt động" : "Bị khóa")
+                        </MudChip>
+                        <MudText Typo="Typo.caption" Style="color:var(--text-sub);margin-left:4px">
+                            Tạo @editUser.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
+                        </MudText>
+                    </div>
+                </MudPaper>
+
+                <MudText Typo="Typo.caption" Style="font-weight:700;color:var(--text-muted);margin-bottom:8px">Thông tin cơ bản</MudText>
                 <MudGrid Spacing="3">
                     <MudItem xs="12">
                         <MudTextField @bind-Value="editFullName" Label="Họ tên" Variant="Variant.Outlined"
@@ -398,21 +416,91 @@
                                       Variant="Variant.Outlined" Adornment="Adornment.Start"
                                       AdornmentIcon="@Icons.Material.Filled.Phone" FullWidth="true" />
                     </MudItem>
+                </MudGrid>
+
+                <div style="display:flex;align-items:center;gap:10px;margin:20px 0 10px">
+                    <MudDivider FlexItem="false" Style="flex:1" />
+                    <MudText Typo="Typo.caption" Style="font-weight:700;color:var(--text-muted);white-space:nowrap;display:flex;align-items:center;gap:6px">
+                        <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Style="font-size:16px;color:#0284c7" />
+                        Ví &amp; quyền
+                    </MudText>
+                    <MudDivider FlexItem="false" Style="flex:1" />
+                </div>
+                <MudGrid Spacing="3">
                     <MudItem xs="12">
-                        <MudText Typo="Typo.caption" Style="font-weight:700;color:var(--text-muted);margin-bottom:6px">
-                            Ngân hàng nạp tiền (Nhật Bản)
-                        </MudText>
-                        <MudTextField @bind-Value="editJapanBank" Label="Tên ngân hàng hiển thị" Variant="Variant.Outlined"
-                                      Placeholder="VD: MUFG / Sumitomo..." FullWidth="true" />
+                        <MudTextField @bind-Value="editBalanceText" Label="Số dư (VNĐ)" Variant="Variant.Outlined"
+                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Payments"
+                                      FullWidth="true"
+                                      HelperText="Chỉnh trực tiếp số dư ví (dùng cẩn thận)." />
                     </MudItem>
                     <MudItem xs="12">
-                        <MudTextField @bind-Value="editJapanUrl" Label="URL trang nạp/chuyển khoản (https…)"
-                                      Variant="Variant.Outlined" Placeholder="https://..." FullWidth="true"
-                                      HelperText="Người dùng mở link này từ màn Nạp tiền" />
+                        <MudCheckBox @bind-Value="editIsActive" Color="Color.Success" Dense="true"
+                                     Disabled="@EditIsActiveLocked">
+                            <span>Cho phép đăng nhập (tài khoản hoạt động)</span>
+                        </MudCheckBox>
+                        @if (editUser.IsAdmin)
+                        {
+                            <MudText Typo="Typo.caption" Style="color:var(--text-muted);margin-left:32px;margin-top:2px">
+                                Tài khoản admin luôn hoạt động; không thể khóa từ đây.
+                            </MudText>
+                        }
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudCheckBox @bind-Value="editIsAdmin" Color="Color.Warning" Dense="true"
+                                     Disabled="@(editUser.Id == currentAdminId)">
+                            <span>Cấp quyền quản trị (Admin)</span>
+                        </MudCheckBox>
+                        @if (editUser.Id == currentAdminId)
+                        {
+                            <MudText Typo="Typo.caption" Style="color:var(--text-muted);margin-left:32px;margin-top:2px">
+                                Không thể tự bỏ quyền admin trên chính tài khoản đang đăng nhập.
+                            </MudText>
+                        }
                     </MudItem>
                 </MudGrid>
+
+                <div style="display:flex;align-items:center;gap:10px;margin:20px 0 10px">
+                    <MudDivider FlexItem="false" Style="flex:1" />
+                    <MudText Typo="Typo.caption" Style="font-weight:700;color:#a67800;white-space:nowrap;display:flex;align-items:center;gap:6px">
+                        <MudIcon Icon="@Icons.Material.Filled.LockReset" Style="font-size:16px" />
+                        Đặt lại mật khẩu · tùy chọn
+                    </MudText>
+                    <MudDivider FlexItem="false" Style="flex:1" />
+                </div>
+                <MudTextField @bind-Value="editNewPassword" Label="Mật khẩu mới cho người dùng này"
+                              Variant="Variant.Outlined" InputType="InputType.Password" FullWidth="true"
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Password"
+                              HelperText="@PwdResetHint"
+                              Style="margin-bottom:4px" />
+
+                <div style="display:flex;align-items:center;gap:10px;margin:20px 0 10px">
+                    <MudDivider FlexItem="false" Style="flex:1" />
+                    <MudText Typo="Typo.caption" Style="font-weight:700;color:var(--text-muted);white-space:nowrap;display:flex;align-items:center;gap:6px">
+                        <MudIcon Icon="@Icons.Material.Filled.AccountBalance" Style="font-size:16px;color:#0284c7" />
+                        Ngân hàng nạp tiền (Nhật Bản)
+                    </MudText>
+                    <MudDivider FlexItem="false" Style="flex:1" />
+                </div>
+                <MudPaper Elevation="0" Style="border:1px solid var(--gray-border);border-radius:12px;padding:16px;background:#f8fafc">
+                    <MudText Typo="Typo.caption" Style="color:var(--text-muted);margin-bottom:10px;display:block">
+                        Hiển thị trên luồng Nạp tiền của người dùng — cùng ý với phần cấu hình trong Cài đặt.
+                    </MudText>
+                    <MudGrid Spacing="3">
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="editJapanBank" Label="Tên ngân hàng hiển thị" Variant="Variant.Outlined"
+                                          Placeholder="VD: MUFG / Sumitomo…" FullWidth="true"
+                                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Business" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="editJapanUrl" Label="URL trang nạp / chuyển khoản"
+                                          Variant="Variant.Outlined" Placeholder="https://…" FullWidth="true"
+                                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Link"
+                                          HelperText="Người dùng mở link này từ màn Nạp tiền (bắt đầu bằng http:// hoặc https://)" />
+                        </MudItem>
+                    </MudGrid>
+                </MudPaper>
             </div>
-            <div style="padding:0 24px 20px;display:flex;gap:10px">
+            <div style="padding:16px 24px 20px;border-top:1px solid var(--gray-border);display:flex;gap:10px;flex-shrink:0;background:#fff">
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
                            OnClick="SaveEdit" Disabled="@editSaving"
                            StartIcon="@Icons.Material.Filled.Save" Style="border-radius:10px;font-weight:700">
@@ -493,8 +581,18 @@
     AdminUserResponse? editUser;
     string editFullName = "", editEmail = "", editPhone = "", editError = "";
     string editJapanBank = "", editJapanUrl = "";
-    decimal editBalance;
+    string editBalanceText = "";
+    bool editIsActive = true;
+    bool editIsAdmin;
+    string editNewPassword = "";
+    int currentAdminId;
     bool editSaving;
+
+    bool EditIsActiveLocked =>
+        editUser is not null && (editUser.IsAdmin || editUser.Id == currentAdminId);
+
+    const string PwdResetHint =
+        "Để trống nếu không đổi. Chuẩn: ít nhất 8 ký tự, gồm ít nhất 1 chữ hoa và 1 ký tự đặc biệt.";
 
     AdminUserResponse? deleteUser;
     string deleteError = "";
@@ -505,6 +603,7 @@
         var isAdmin = await LocalStorage.GetItemAsync<bool>("isAdmin");
         if (!isAdmin) { Nav.NavigateTo("/login"); return; }
         adminName = await LocalStorage.GetItemAsync<string>("fullName") ?? "Admin";
+        currentAdminId = await LocalStorage.GetItemAsync<int>("userId");
         importDateStr = DateTime.UtcNow.ToString("yyyy-MM-dd");
         stats = await Api.GetAdminStatsAsync();
         await LoadUsers();
@@ -622,23 +721,55 @@
 
     void OpenEdit(AdminUserResponse u)
     {
-        editUser = u; editFullName = u.FullName; editEmail = u.Email;
-        editPhone = u.Phone; editBalance = u.Balance;
+        editUser = u;
+        editFullName = u.FullName;
+        editEmail = u.Email;
+        editPhone = u.Phone;
+        editBalanceText = u.Balance.ToString("0.##", CultureInfo.InvariantCulture);
+        editIsActive = u.IsActive;
+        editIsAdmin = u.IsAdmin;
+        if (EditIsActiveLocked)
+            editIsActive = true;
         editJapanBank = u.JapanBankName ?? "";
         editJapanUrl = u.JapanBankTopUpUrl ?? "";
+        editNewPassword = "";
         editError = "";
     }
-    void CloseEdit() { editUser = null; editError = ""; }
+    void CloseEdit()
+    {
+        editUser = null;
+        editError = "";
+        editNewPassword = "";
+    }
 
     async Task SaveEdit()
     {
         if (string.IsNullOrWhiteSpace(editFullName) || string.IsNullOrWhiteSpace(editEmail))
         { editError = "Họ tên và email không được để trống."; return; }
 
+        if (!decimal.TryParse(editBalanceText.Trim(), NumberStyles.Number, CultureInfo.InvariantCulture, out var bal)
+            || bal < 0)
+        {
+            editError = "Số dư không hợp lệ.";
+            return;
+        }
+
+        var uiActive = editIsActive;
+        var uiAdmin = editIsAdmin;
+        if (EditIsActiveLocked)
+            uiActive = true;
+        if (editUser!.Id == currentAdminId)
+            uiAdmin = true;
+
+        string? np = string.IsNullOrWhiteSpace(editNewPassword) ? null : editNewPassword.Trim();
+
         editSaving = true;
-        var (ok, updated, err) = await Api.AdminUpdateUserAsync(editUser!.Id, editFullName, editEmail, editPhone, editBalance,
+        var (ok, updated, err) = await Api.AdminUpdateUserAsync(
+            editUser.Id, editFullName, editEmail, editPhone, bal,
+            uiActive, uiAdmin,
             string.IsNullOrWhiteSpace(editJapanBank) ? null : editJapanBank.Trim(),
-            string.IsNullOrWhiteSpace(editJapanUrl) ? null : editJapanUrl.Trim());
+            string.IsNullOrWhiteSpace(editJapanUrl) ? null : editJapanUrl.Trim(),
+            np);
         editSaving = false;
 
         if (ok && updated is not null)

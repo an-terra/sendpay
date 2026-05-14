@@ -5,5 +5,9 @@ public record AdminUpdateUserRequest(
     string Email,
     string Phone,
     decimal? Balance,
+    bool IsActive,
+    bool IsAdmin,
     string? JapanBankName,
-    string? JapanBankTopUpUrl);
+    string? JapanBankTopUpUrl,
+    /// <summary>Để trống = không đổi mật khẩu.</summary>
+    string? NewPassword);

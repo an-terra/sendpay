@@ -6,6 +6,7 @@ using SendPay.Api.Data;
 using SendPay.Api.DTOs.Admin;
 using SendPay.Api.Infrastructure;
 using SendPay.Api.Models;
+using SendPay.Api.Security;
 using SendPay.Api.Services;
 
 namespace SendPay.Api.Controllers;
@@ -93,12 +94,45 @@ public class AdminController(
     [HttpPut("users/{id}")]
     public async Task<IActionResult> UpdateUser(int id, AdminUpdateUserRequest req)
     {
+        var adminId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var ip = HttpContext.GetClientIpAddress();
+
         var user = await db.Users.FindAsync(id);
         if (user is null) return NotFound();
 
+        var emailTrim = req.Email.Trim();
+        var phoneTrim = req.Phone.Trim();
+        if (await db.Users.AnyAsync(x => x.Email == emailTrim && x.Id != id))
+            return BadRequest(new { message = "Email đã được sử dụng." });
+        if (await db.Users.AnyAsync(x => x.Phone == phoneTrim && x.Id != id))
+            return BadRequest(new { message = "Số điện thoại đã được sử dụng." });
+
+        if (user.IsAdmin && !req.IsActive)
+            return BadRequest(new { message = "Không thể khóa tài khoản admin." });
+
+        if (adminId == id)
+        {
+            if (!req.IsActive)
+                return BadRequest(new { message = "Không thể tự khóa chính tài khoản admin đang đăng nhập." });
+            if (!req.IsAdmin)
+                return BadRequest(new { message = "Không thể tự bỏ quyền admin." });
+        }
+
+        if (user.IsAdmin && !req.IsAdmin)
+        {
+            var otherAdmins = await db.Users.CountAsync(u => u.IsAdmin && u.Id != id);
+            if (otherAdmins == 0)
+                return BadRequest(new { message = "Không thể bỏ quyền admin — đây là tài khoản admin duy nhất." });
+        }
+
+        var wasActive = user.IsActive;
+
         user.FullName = req.FullName.Trim();
-        user.Email    = req.Email.Trim();
-        user.Phone    = req.Phone.Trim();
+        user.Email    = emailTrim;
+        user.Phone    = phoneTrim;
+        user.IsActive = req.IsActive;
+        user.IsAdmin  = req.IsAdmin;
+
         if (req.Balance.HasValue && req.Balance >= 0)
             user.Balance = req.Balance.Value;
 
@@ -117,7 +151,29 @@ public class AdminController(
             user.JapanBankTopUpUrl = url;
         }
 
+        if (!string.IsNullOrWhiteSpace(req.NewPassword))
+        {
+            try
+            {
+                PasswordPolicy.EnsureStrongOrThrow(req.NewPassword.Trim());
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.NewPassword.Trim());
+            await audit.WriteAsync("admin.user_password_reset", $"targetUserId={id}", adminId, ip);
+        }
+
         await db.SaveChangesAsync();
+
+        if (wasActive && !user.IsActive)
+        {
+            await refreshTokens.RevokeAllForUserAsync(id);
+            await audit.WriteAsync("admin.user_deactivated", $"targetUserId={id}", adminId, ip);
+        }
+
         return Ok(new AdminUserResponse(
             user.Id, user.FullName, user.Email, user.Phone,
             user.Balance, user.IsActive, user.IsAdmin, user.CreatedAt,

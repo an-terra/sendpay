@@ -454,11 +454,12 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
 
     public async Task<(bool ok, AdminUserResponse? data, string error)> AdminUpdateUserAsync(
         int id, string fullName, string email, string phone, decimal? balance,
-        string? japanBankName, string? japanBankTopUpUrl)
+        bool isActive, bool isAdmin,
+        string? japanBankName, string? japanBankTopUpUrl, string? newPassword)
     {
         await SetAuthHeader();
         var res = await http.PutAsJsonAsync($"api/admin/users/{id}",
-            new { fullName, email, phone, balance, japanBankName, japanBankTopUpUrl });
+            new { fullName, email, phone, balance, isActive, isAdmin, japanBankName, japanBankTopUpUrl, newPassword });
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<AdminUserResponse>(), "");
         return (false, null, await ReadErrorMessageAsync(res, "Cập nhật thất bại"));
