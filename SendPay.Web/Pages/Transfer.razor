@@ -59,10 +59,32 @@
                                @bind="bankAccount" @bind:event="oninput" @bind:after="OnReceiverBindAfter" />
                     </div>
                     <div class="sp-form-group">
+                        <label>@Lang.T("tr_holder_lbl")</label>
+                        <input class="sp-form-input sp-form-input-lg" type="text"
+                               placeholder="@Lang.T("tr_holder_ph")"
+                               @bind="bankHolder" @bind:event="oninput" @bind:after="OnReceiverBindAfter" />
+                    </div>
+                    @if (recipientSuggestions.Count > 0)
+                    {
+                        <div class="sp-form-group" style="margin-top:-4px">
+                            <div style="font-size:12px;color:var(--text-muted);font-weight:600;margin-bottom:8px">@Lang.T("tr_addrbook_suggest")</div>
+                            <div style="display:flex;flex-direction:column;gap:6px">
+                                @foreach (var r in recipientSuggestions)
+                                {
+                                    <button type="button" class="sp-btn-gray" style="text-align:left;padding:10px 12px;font-size:13px;border-radius:10px"
+                                            @onclick="@(() => ApplyRecipientFromBookAsync(r))">
+                                        <strong>@r.Name</strong>
+                                        <span style="display:block;color:var(--text-sub);font-size:12px;margin-top:2px">@FormatRecipientHintLine(r)</span>
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    }
+                    <div class="sp-form-group">
                         <label>@Lang.T("recip_swift")</label>
                         <input class="sp-form-input sp-form-input-lg" type="text" autocomplete="off"
                                placeholder="@Lang.T("recip_swift_help")"
-                               @bind="bankSwift" @bind:event="oninput" />
+                               @bind="bankSwift" @bind:event="oninput" @bind:after="OnReceiverBindAfter" />
                     </div>
                     <div class="sp-form-group">
                         @if (receiverLookupLoading)
@@ -164,6 +186,13 @@
                     <div class="sp-detail-row" style="border-bottom:none;padding-top:4px">
                         <span class="dlabel">@Lang.T("recip_swift")</span>
                         <span class="dval" style="text-align:right;font-size:13px;font-family:monospace">@TransferSwiftSummary</span>
+                    </div>
+                }
+                @if (!string.IsNullOrWhiteSpace(bankHolder))
+                {
+                    <div class="sp-detail-row" style="border-bottom:none;padding-top:4px">
+                        <span class="dlabel">@Lang.T("tr_holder_lbl")</span>
+                        <span class="dval" style="text-align:right;font-size:13px">@bankHolder.Trim()</span>
                     </div>
                 }
 
@@ -299,7 +328,7 @@
 
 @code {
     string step = "form";
-    string phone = "", bankAccount = "", bankName = "", bankSwift = "", note = "", error = "", purpose = "tr_purpose_1";
+    string phone = "", bankAccount = "", bankName = "", bankHolder = "", bankSwift = "", note = "", error = "", purpose = "tr_purpose_1";
     decimal amount;
     List<CurrencyRate> allRates = [];
     decimal balance;
@@ -317,6 +346,9 @@
     bool receiverShowNotFound;
     bool receiverLookupLoading;
     CancellationTokenSource? _phoneLookupCts;
+
+    List<RecipientResponse> allRecipients = [];
+    List<RecipientResponse> recipientSuggestions = [];
 
     static readonly Dictionary<string, string> _langCurrency = new()
     {
@@ -379,6 +411,9 @@
         }
         catch { }
 
+        try { allRecipients = await Api.GetRecipientsAsync(); }
+        catch { allRecipients = []; }
+
         await ApplyTransferQueryAsync();
     }
 
@@ -396,6 +431,7 @@
                     phone = rec.Phone ?? "";
                     bankAccount = rec.AccountNumber ?? "";
                     bankName = rec.BankName ?? "";
+                    bankHolder = rec.AccountHolderName ?? "";
                     bankSwift = rec.SwiftBic ?? "";
                     if (string.IsNullOrEmpty(note))
                         note = rec.Note ?? "";
@@ -435,6 +471,62 @@
         try { await Task.Delay(400, token); }
         catch (TaskCanceledException) { return; }
         await RefreshReceiverLookupAsync();
+        UpdateRecipientSuggestions();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    void UpdateRecipientSuggestions()
+    {
+        var terms = new List<string>();
+        void addTerm(string? s)
+        {
+            s = (s ?? "").Trim();
+            if (s.Length >= 2) terms.Add(s);
+        }
+        addTerm(phone);
+        addTerm(bankName);
+        addTerm(bankAccount);
+        addTerm(bankHolder);
+        addTerm(bankSwift);
+        if (terms.Count == 0)
+        {
+            recipientSuggestions = [];
+            return;
+        }
+
+        bool Match(RecipientResponse r) =>
+            terms.Exists(t =>
+                (r.Name?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (r.Phone?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (r.BankName?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (r.AccountNumber?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (r.AccountHolderName?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (r.SwiftBic?.Contains(t, StringComparison.OrdinalIgnoreCase) ?? false));
+
+        recipientSuggestions = allRecipients.Where(Match).Take(8).ToList();
+    }
+
+    static string FormatRecipientHintLine(RecipientResponse r)
+    {
+        var ph = string.IsNullOrWhiteSpace(r.Phone) ? "—" : r.Phone!;
+        var parts = new List<string>();
+        if (!string.IsNullOrWhiteSpace(r.BankName)) parts.Add(r.BankName!);
+        if (!string.IsNullOrWhiteSpace(r.AccountNumber)) parts.Add(r.AccountNumber!);
+        if (parts.Count == 0) return ph;
+        return $"{ph} · {string.Join(" · ", parts)}";
+    }
+
+    async Task ApplyRecipientFromBookAsync(RecipientResponse r)
+    {
+        phone = r.Phone ?? "";
+        bankName = r.BankName ?? "";
+        bankAccount = r.AccountNumber ?? "";
+        bankHolder = r.AccountHolderName ?? "";
+        bankSwift = r.SwiftBic ?? "";
+        if (string.IsNullOrEmpty(note))
+            note = r.Note ?? "";
+        recipientSuggestions = [];
+        await RefreshReceiverLookupAsync(forContinueButton: true);
     }
 
     async Task RefreshReceiverLookupAsync(bool forContinueButton = false)
@@ -546,7 +638,8 @@
 
     void Reset()
     {
-        step = "form"; phone = bankAccount = bankName = bankSwift = note = error = ""; amount = 0; successData = null;
+        step = "form"; phone = bankAccount = bankName = bankHolder = bankSwift = note = error = ""; amount = 0; successData = null;
+        recipientSuggestions = [];
         purpose = "tr_purpose_1";
         verificationId = null;
         otpCode = "";

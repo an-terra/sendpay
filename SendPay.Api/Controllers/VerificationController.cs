@@ -11,9 +11,15 @@ namespace SendPay.Api.Controllers;
 [EnableRateLimiting("otp")]
 [ApiController]
 [Route("api/[controller]")]
-public class VerificationController(IOtpVerificationService otp, IWebHostEnvironment env) : ControllerBase
+public class VerificationController(
+    IOtpVerificationService otp,
+    IWebHostEnvironment env,
+    IConfiguration config) : ControllerBase
 {
     private int UserId => int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)!.Value);
+
+    private bool ShowDebugOtp =>
+        env.IsDevelopment() || config.GetValue("Otp:Simulation", false);
 
     [HttpPost("topup/start")]
     public async Task<IActionResult> StartTopUp([FromBody] StartTopUpVerificationRequest body)
@@ -30,7 +36,7 @@ public class VerificationController(IOtpVerificationService otp, IWebHostEnviron
     }
 
     private object ToResponse(VerificationStartResult r) =>
-        env.IsDevelopment()
+        ShowDebugOtp
             ? new
             {
                 verificationId = r.VerificationId,

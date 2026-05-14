@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "LmgRZAc7eEY=",
+  "dgSpecHash": "jt8v3EYf4pw=",
   "success": true,
-  "projectFilePath": "c:\\Users\\TruongTV19\\Downloads\\an-terra\\sendpay\\SendPay.Mobile\\SendPay.Mobile.csproj",
+  "projectFilePath": "C:\\Users\\TruongTV19\\Downloads\\an-terra\\sendpay\\SendPay.Mobile\\SendPay.Mobile.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\TruongTV19\\.nuget\\packages\\googlegson\\2.13.1.1\\googlegson.2.13.1.1.nupkg.sha512",
     "C:\\Users\\TruongTV19\\.nuget\\packages\\microsoft.extensions.configuration\\10.0.0\\microsoft.extensions.configuration.10.0.0.nupkg.sha512",

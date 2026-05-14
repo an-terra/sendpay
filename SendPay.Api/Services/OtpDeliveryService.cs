@@ -18,15 +18,27 @@ public class OtpDeliveryService(
         string actionDescription,
         CancellationToken cancellationToken = default)
     {
-        var mode = ParseMode(config["Otp:DeliveryMode"] ?? "Log");
-        var isDev = env.IsDevelopment();
+        var simulation = config.GetValue("Otp:Simulation", false);
+        var mode       = ParseMode(config["Otp:DeliveryMode"] ?? "Log");
+        var isDev      = env.IsDevelopment();
+
+        if (simulation)
+        {
+            if (log.IsEnabled(LogLevel.Information))
+                log.LogInformation("OTP (Simulation) {Action}: {Code} — không gửi SMTP/SMS", actionDescription, code);
+            return new OtpNotifyOutcome(
+                "Giả lập OTP: kiểm tra trường debugOtp trong phản hồi API hoặc log server. Tắt Otp:Simulation khi gửi thật.")
+            {
+                IsNoop = true
+            };
+        }
 
         if (mode == OtpDeliveryMode.Log)
         {
             if (!isDev)
             {
                 throw new InvalidOperationException(
-                    "Production cần gửi OTP thật. Đặt Otp:DeliveryMode thành Email, Sms hoặc Both và cấu hình SMTP/Twilio (hoặc biến môi trường tương ứng).");
+                    "Production cần gửi OTP thật. Đặt Otp:Simulation false, Otp:DeliveryMode thành Email, Sms hoặc Both và cấu hình SMTP/Twilio.");
             }
 
             if (log.IsEnabled(LogLevel.Information))

@@ -39,7 +39,7 @@ public class OtpVerificationService(
             .FirstOrDefaultAsync()
             ?? throw new KeyNotFoundException("Người dùng không tồn tại.");
 
-        var code = RandomNumberGenerator.GetInt32(100_000, 1_000_000).ToString("D6", CultureInfo.InvariantCulture);
+        var code = ResolveOtpCodeToIssue();
         var id = Guid.NewGuid();
         var hash = HashOtp(id, code);
 
@@ -56,9 +56,10 @@ public class OtpVerificationService(
 
         try
         {
-            var notify  = await delivery.NotifyAsync(user.Email, user.Phone, code, actionDescription);
-            var hintMsg = notify.ProductionMessage;
-            return new VerificationStartResult(id, 300, env.IsDevelopment() ? code : null, hintMsg);
+            var notify     = await delivery.NotifyAsync(user.Email, user.Phone, code, actionDescription);
+            var hintMsg    = notify.ProductionMessage;
+            var showPlain  = env.IsDevelopment() || config.GetValue("Otp:Simulation", false);
+            return new VerificationStartResult(id, 300, showPlain ? code : null, hintMsg);
         }
         catch
         {
@@ -70,6 +71,7 @@ public class OtpVerificationService(
 
     private async Task VerifyAsync(int userId, Guid verificationId, string code, string expectedPayloadJson)
     {
+        code = NormalizeOtpCodeForVerify(code);
         if (string.IsNullOrWhiteSpace(code) || code.Length != 6 || !code.All(char.IsDigit))
             throw new InvalidOperationException("Mã OTP phải gồm đúng 6 chữ số.");
 
@@ -124,4 +126,33 @@ public class OtpVerificationService(
         Convert.ToHexString(SHA256.HashData(
                 Encoding.UTF8.GetBytes($"{challengeId:N}:{code}:{Pepper}")))
             .ToLowerInvariant();
+
+    string ResolveOtpCodeToIssue()
+    {
+        if (!config.GetValue("Otp:Simulation", false))
+            return RandomNumberGenerator.GetInt32(100_000, 1_000_000).ToString("D6", CultureInfo.InvariantCulture);
+
+        var raw = config["Otp:SimulationFixedCode"];
+        if (string.IsNullOrWhiteSpace(raw))
+            return RandomNumberGenerator.GetInt32(100_000, 1_000_000).ToString("D6", CultureInfo.InvariantCulture);
+
+        var t = raw.Trim();
+        if (t.Length is < 1 or > 6 || !t.All(char.IsDigit))
+        {
+            return RandomNumberGenerator.GetInt32(100_000, 1_000_000).ToString("D6", CultureInfo.InvariantCulture);
+        }
+
+        return t.PadLeft(6, '0');
+    }
+
+    string NormalizeOtpCodeForVerify(string? code)
+    {
+        if (!config.GetValue("Otp:Simulation", false))
+            return code ?? "";
+
+        var t = (code ?? "").Trim();
+        if (t.Length is >= 1 and <= 6 && t.All(char.IsDigit))
+            return t.PadLeft(6, '0');
+        return t;
+    }
 }

@@ -32,9 +32,24 @@
                     </VerticalStackLayout>
 
                     <VerticalStackLayout Spacing="4">
-                        <Label Text="SWIFT / BIC" FontSize="13" TextColor="#8b8b9b" FontAttributes="Bold"/>
-                        <Entry x:Name="SwiftEntry" Placeholder="VD: BIDVVNVX" Keyboard="Default"/>
+                        <Label Text="Chủ tài khoản (tùy chọn)" FontSize="13" TextColor="#8b8b9b" FontAttributes="Bold"/>
+                        <Entry x:Name="HolderEntry" Placeholder="VD: NGUYEN VAN A" Keyboard="Default"
+                               TextChanged="OnReceiverFieldTextChanged"/>
                     </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="SWIFT / BIC" FontSize="13" TextColor="#8b8b9b" FontAttributes="Bold"/>
+                        <Entry x:Name="SwiftEntry" Placeholder="VD: BIDVVNVX" Keyboard="Default"
+                               TextChanged="OnReceiverFieldTextChanged"/>
+                    </VerticalStackLayout>
+
+                    <Border x:Name="SuggestBorder" IsVisible="False" Stroke="#e2e8f0" StrokeThickness="1"
+                            BackgroundColor="#f8fafc" Padding="10" Margin="0,4,0,0">
+                        <VerticalStackLayout Spacing="8">
+                            <Label Text="Gợi ý từ danh bạ" FontSize="11" TextColor="#64748b"/>
+                            <VerticalStackLayout x:Name="SuggestStack" Spacing="6"/>
+                        </VerticalStackLayout>
+                    </Border>
 
                     <Label x:Name="ReceiverHintLabel" FontSize="13" IsVisible="False" Margin="0,0,0,4"/>
 

@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "c:\\Users\\TruongTV19\\Downloads\\an-terra\\sendpay\\SendPay.Mobile\\SendPay.Mobile.csproj": {}
+    "C:\\Users\\TruongTV19\\Downloads\\an-terra\\sendpay\\SendPay.Mobile\\SendPay.Mobile.csproj": {}
   },
   "projects": {
-    "c:\\Users\\TruongTV19\\Downloads\\an-terra\\sendpay\\SendPay.Mobile\\SendPay.Mobile.csproj": {
+    "C:\\Users\\TruongTV19\\Downloads\\an-terra\\sendpay\\SendPay.Mobile\\SendPay.Mobile.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\TruongTV19\\Downloads\\an-terra\\sendpay\\SendPay.Mobile\\SendPay.Mobile.csproj",
+        "projectUniqueName": "C:\\Users\\TruongTV19\\Downloads\\an-terra\\sendpay\\SendPay.Mobile\\SendPay.Mobile.csproj",
         "projectName": "SendPay.Mobile",
-        "projectPath": "c:\\Users\\TruongTV19\\Downloads\\an-terra\\sendpay\\SendPay.Mobile\\SendPay.Mobile.csproj",
+        "projectPath": "C:\\Users\\TruongTV19\\Downloads\\an-terra\\sendpay\\SendPay.Mobile\\SendPay.Mobile.csproj",
         "packagesPath": "C:\\Users\\TruongTV19\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\TruongTV19\\Downloads\\an-terra\\sendpay\\SendPay.Mobile\\obj\\",
+        "outputPath": "C:\\Users\\TruongTV19\\Downloads\\an-terra\\sendpay\\SendPay.Mobile\\obj\\",
         "projectStyle": "PackageReference",
         "crossTargeting": true,
         "configFilePaths": [
