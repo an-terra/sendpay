@@ -1,0 +1,107 @@
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+@if (showScrollTop)
+{
+    <button class="sp-scroll-top" @onclick="ScrollToTop" title="Lên đầu trang">
+        <i class="fa-solid fa-angles-up"></i>
+    </button>
+}
+
+<div class="sp-chat-wrap">
+    @if (chatOpen)
+    {
+        <div class="sp-chat-box">
+            <div class="sp-chat-header">
+                <div class="sp-chat-header-info">
+                    <img src="/images/logo.png" alt="SendPay" class="sp-logo-img sp-chat-logo" />
+                    <div>
+                        <div class="sp-chat-name">SendPay Support</div>
+                        <div class="sp-chat-status"><span class="sp-chat-dot"></span> Online</div>
+                    </div>
+                </div>
+                <button class="sp-chat-close" @onclick='() => chatOpen = false'>
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="sp-chat-messages" @ref="msgContainer">
+                <div class="sp-chat-msg sp-chat-msg-bot">
+                    <div class="sp-chat-bubble">Xin chào! Tôi có thể giúp gì cho bạn? 👋</div>
+                    <div class="sp-chat-time">Bây giờ</div>
+                </div>
+                @foreach (var msg in messages)
+                {
+                    <div class="sp-chat-msg @(msg.IsUser ? "sp-chat-msg-user" : "sp-chat-msg-bot")">
+                        <div class="sp-chat-bubble">@msg.Text</div>
+                    </div>
+                }
+            </div>
+            <div class="sp-chat-input-wrap">
+                <input class="sp-chat-input" @bind="chatInput" @bind:event="oninput"
+                       @onkeydown="OnKeyDown"
+                       placeholder="Nhập tin nhắn..." />
+                <button class="sp-chat-send" @onclick="SendMessage"
+                        disabled="@string.IsNullOrWhiteSpace(chatInput)">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    }
+    <button class="sp-chat-fab" @onclick='() => chatOpen = !chatOpen'>
+        <i class="fa-solid @(chatOpen ? "fa-xmark" : "fa-comment-dots")"></i>
+    </button>
+</div>
+
+@code {
+    bool showScrollTop;
+    bool chatOpen;
+    string chatInput = "";
+    List<ChatMsg> messages = new();
+    ElementReference msgContainer;
+    DotNetObjectReference<FloatingWidgets>? _ref;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _ref = DotNetObjectReference.Create(this);
+            await JS.InvokeVoidAsync("spWidgets.init", _ref);
+        }
+        if (chatOpen && messages.Count > 0)
+            await JS.InvokeVoidAsync("spWidgets.scrollChatToBottom", msgContainer);
+    }
+
+    [JSInvokable]
+    public void OnScrolled(bool show)
+    {
+        showScrollTop = show;
+        StateHasChanged();
+    }
+
+    async Task ScrollToTop() => await JS.InvokeVoidAsync("spWidgets.scrollToTop");
+
+    async Task SendMessage()
+    {
+        var text = chatInput.Trim();
+        if (string.IsNullOrEmpty(text)) return;
+        messages.Add(new ChatMsg(text, true));
+        chatInput = "";
+        StateHasChanged();
+        await Task.Delay(900);
+        messages.Add(new ChatMsg("Cảm ơn bạn! Đội ngũ hỗ trợ sẽ phản hồi sớm nhất có thể. Hoặc liên hệ support@sendpay.jp", false));
+        StateHasChanged();
+    }
+
+    async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter") await SendMessage();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try { await JS.InvokeVoidAsync("spWidgets.dispose"); } catch { }
+        _ref?.Dispose();
+    }
+
+    record ChatMsg(string Text, bool IsUser);
+}

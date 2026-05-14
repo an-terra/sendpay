@@ -815,6 +815,39 @@ input:-webkit-autofill:active {
 .sp-swap-btn { background: var(--gray-bg); border: 1.5px solid var(--gray-border); border-radius: 50%; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; color: var(--navy); font-size: 14px; transition: all .18s; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
 .sp-swap-btn:hover { background: #0ca678; color: white; border-color: #0ca678; transform: rotate(180deg); }
 
+/* ===== SCROLL TO TOP ===== */
+.sp-scroll-top { position: fixed; bottom: 94px; right: 28px; width: 46px; height: 46px; border-radius: 12px; background: #0B1E3D; color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; z-index: 400; transition: background .2s; }
+.sp-scroll-top:hover { background: var(--red); }
+
+/* ===== CHAT WIDGET ===== */
+.sp-chat-wrap { position: fixed; bottom: 28px; right: 28px; z-index: 401; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+.sp-chat-fab { width: 52px; height: 52px; border-radius: 50%; background: var(--red); color: white; border: none; cursor: pointer; font-size: 21px; display: flex; align-items: center; justify-content: center; transition: background .2s, transform .2s; flex-shrink: 0; }
+.sp-chat-fab:hover { background: var(--red-dark); transform: scale(1.06); }
+.sp-chat-box { width: 320px; background: white; border-radius: 18px; overflow: hidden; border: 1px solid var(--gray-border); animation: sp-chat-in .18s ease; }
+@keyframes sp-chat-in { from { opacity: 0; transform: translateY(12px) scale(.97); } to { opacity: 1; transform: none; } }
+.sp-chat-header { background: var(--navy); padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; }
+.sp-chat-header-info { display: flex; align-items: center; gap: 10px; }
+.sp-chat-logo { height: 28px !important; width: auto !important; }
+.sp-chat-name { font-size: 13px; font-weight: 700; color: white; }
+.sp-chat-status { font-size: 11px; color: rgba(255,255,255,.6); display: flex; align-items: center; gap: 5px; margin-top: 2px; }
+.sp-chat-dot { width: 7px; height: 7px; border-radius: 50%; background: #51cf66; flex-shrink: 0; }
+.sp-chat-close { background: none; border: none; color: rgba(255,255,255,.65); font-size: 15px; cursor: pointer; padding: 4px; display: flex; align-items: center; justify-content: center; }
+.sp-chat-close:hover { color: white; }
+.sp-chat-messages { height: 260px; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; background: #f5f6fb; }
+.sp-chat-msg { display: flex; flex-direction: column; }
+.sp-chat-msg-bot { align-items: flex-start; }
+.sp-chat-msg-user { align-items: flex-end; }
+.sp-chat-bubble { max-width: 82%; padding: 9px 13px; font-size: 13px; line-height: 1.55; }
+.sp-chat-msg-bot .sp-chat-bubble { background: white; color: var(--navy); border: 1px solid var(--gray-border); border-radius: 4px 14px 14px 14px; }
+.sp-chat-msg-user .sp-chat-bubble { background: var(--red); color: white; border-radius: 14px 4px 14px 14px; }
+.sp-chat-time { font-size: 10px; color: var(--text-muted); margin-top: 3px; }
+.sp-chat-input-wrap { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--gray-border); background: white; }
+.sp-chat-input { flex: 1; border: none; font-size: 13px; font-family: inherit; color: var(--navy); background: transparent; padding: 4px 0; }
+.sp-chat-input:focus { outline: none; }
+.sp-chat-send { width: 34px; height: 34px; border-radius: 50%; background: var(--red); color: white; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 13px; flex-shrink: 0; transition: background .15s; }
+.sp-chat-send:disabled { background: var(--gray-border); cursor: not-allowed; }
+.sp-chat-send:not(:disabled):hover { background: var(--red-dark); }
+
 /* ===== BLAZOR SYSTEM ===== */
 #blazor-error-ui { color-scheme: light only; background: lightyellow; bottom: 0; box-shadow: 0 -1px 2px rgba(0,0,0,.2); display: none; left: 0; padding: .6rem 1.25rem .7rem; position: fixed; width: 100%; z-index: 1000; }
 #blazor-error-ui .dismiss { cursor: pointer; position: absolute; right: .75rem; top: .5rem; }
