@@ -5,5 +5,5 @@ namespace SendPay.Api.Services;
 public interface IWalletService
 {
     Task<WalletResponse> GetBalanceAsync(int userId);
-    Task<WalletResponse> TopUpAsync(int userId, TopUpRequest request);
+    Task<WalletTopUpResponse> TopUpAsync(int userId, TopUpRequest request);
 }

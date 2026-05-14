@@ -90,6 +90,9 @@ builder.Services.AddRateLimiter(options =>
             }));
 });
 
+builder.Services.AddScoped<IReconciliationService, ReconciliationService>();
+builder.Services.AddHostedService<SendPay.Api.Background.ReconciliationBackgroundService>();
+
 // ── Controllers ────────────────────────────────────────────
 builder.Services.AddControllers();
 
@@ -120,6 +123,7 @@ using (var scope = app.Services.CreateScope())
     TryRecipientBankColumns(db);
     TryTransactionTransferColumns(db);
     TryUserJapanBankColumns(db);
+    SendPay.Api.Infrastructure.ReconciliationSchema.EnsureTables(db);
 
     if (!db.Users.Any(u => u.IsAdmin))
     {

@@ -98,6 +98,12 @@
                 {
                     <MudAlert Severity="Severity.Success" Dense="true" Class="mb-3">@successMsg</MudAlert>
                 }
+                @if (!string.IsNullOrEmpty(pendingRefHint))
+                {
+                    <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3" Style="font-weight:600;word-break:break-all">
+                        @pendingRefHint
+                    </MudAlert>
+                }
                 @if (!string.IsNullOrEmpty(error))
                 {
                     <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">@error</MudAlert>
@@ -139,7 +145,7 @@
 @code {
     decimal amount = 10_000;
     decimal balance;
-    string error = "", successMsg = "";
+    string error = "", successMsg = "", pendingRefHint = "";
     bool loading;
     string profileJapanBank = "";
     string profileJapanUrl = "";
@@ -163,7 +169,7 @@
 
     async Task HandleTopUp()
     {
-        error = successMsg = "";
+        error = successMsg = pendingRefHint = "";
         if (amount < 1_000) { error = "Min ¥1,000"; return; }
         loading = true;
         var (ok, data, err) = await Api.TopUpAsync(amount);
@@ -171,8 +177,17 @@
 
         if (ok && data != null)
         {
-            balance = data.Balance;
-            successMsg = $"{Lang.T("topup_success")} +¥{amount:N0} · ¥{data.Balance:N0}";
+            if (string.Equals(data.Mode, "instant", StringComparison.OrdinalIgnoreCase) && data.Wallet != null)
+            {
+                balance = data.Wallet.Balance;
+                successMsg = $"{Lang.T("topup_success")} +¥{amount:N0} · ¥{data.Wallet.Balance:N0}";
+            }
+            else
+            {
+                successMsg = Lang.T("topup_intent_created");
+                var exp = data.ExpiresAt?.ToUniversalTime().ToString("yyyy-MM-dd HH:mm") ?? "—";
+                pendingRefHint = $"{Lang.T("topup_transfer_ref")}: {data.ReferenceCode} · ¥{data.ExpectedAmount:N0} · UTC {exp}";
+            }
         }
         else error = err;
     }

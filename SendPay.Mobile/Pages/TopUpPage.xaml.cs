@@ -77,8 +77,20 @@ public partial class TopUpPage : ContentPage
 
         if (ok && data != null)
         {
-            ShowMsg($"✓ Nạp thành công. Số dư: ¥{data.Balance:N0}", "#16a34a");
-            AmountEntry.Text = "";
+            if (string.Equals(data.Mode, "instant", StringComparison.OrdinalIgnoreCase) && data.Wallet != null)
+            {
+                RefHintLabel.IsVisible = false;
+                ShowMsg($"✓ Nạp thành công. Số dư: ¥{data.Wallet.Balance:N0}", "#16a34a");
+                AmountEntry.Text = "";
+            }
+            else
+            {
+                var exp = data.ExpiresAt?.ToUniversalTime().ToString("yyyy-MM-dd HH:mm") ?? "—";
+                RefHintLabel.Text =
+                    $"Nội dung CK (ghi đúng): {data.ReferenceCode}\nSố tiền: ¥{data.ExpectedAmount:N0}\nHết hạn UTC: {exp}";
+                RefHintLabel.IsVisible = true;
+                ShowMsg("Đã tạo lệnh nạp. Sau khi tiền vào và đối soát khớp, số dư sẽ tăng.", "#0f766e");
+            }
         }
         else ShowMsg(err, "#dc2626");
     }

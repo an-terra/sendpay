@@ -8,6 +8,16 @@ namespace SendPay.Mobile.Services;
 public record AuthResponse(string Token, string FullName, string Email, string Phone);
 public record WalletResponse(string FullName, string Phone, decimal Balance);
 
+public class WalletTopUpResponseDto
+{
+    public string Mode { get; set; } = "";
+    public WalletResponse? Wallet { get; set; }
+    public int? IntentId { get; set; }
+    public string? ReferenceCode { get; set; }
+    public DateTime? ExpiresAt { get; set; }
+    public decimal? ExpectedAmount { get; set; }
+}
+
 public class UserProfileDto
 {
     public int Id { get; set; }
@@ -104,12 +114,12 @@ public class ApiService
         return await _http.GetFromJsonAsync<UserProfileDto>("api/user/profile");
     }
 
-    public async Task<(bool ok, WalletResponse? data, string error)> TopUpAsync(decimal amount)
+    public async Task<(bool ok, WalletTopUpResponseDto? data, string error)> TopUpAsync(decimal amount)
     {
         SetToken();
         var res = await _http.PostAsJsonAsync("api/wallet/topup", new { amount });
         if (res.IsSuccessStatusCode)
-            return (true, await res.Content.ReadFromJsonAsync<WalletResponse>(), "");
+            return (true, await res.Content.ReadFromJsonAsync<WalletTopUpResponseDto>(), "");
         return (false, null, "Nạp tiền thất bại");
     }
 

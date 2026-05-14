@@ -4,13 +4,14 @@ using Microsoft.EntityFrameworkCore;
 using SendPay.Api.Data;
 using SendPay.Api.DTOs.Admin;
 using SendPay.Api.Models;
+using SendPay.Api.Services;
 
 namespace SendPay.Api.Controllers;
 
 [Authorize(Roles = "Admin")]
 [ApiController]
 [Route("api/admin")]
-public class AdminController(AppDbContext db) : ControllerBase
+public class AdminController(AppDbContext db, IReconciliationService reconciliation) : ControllerBase
 {
     // GET /api/admin/stats
     [HttpGet("stats")]
@@ -140,5 +141,104 @@ public class AdminController(AppDbContext db) : ControllerBase
                 t.Status.ToString(),
                 t.CreatedAt))
             .ToListAsync();
+    }
+
+    [HttpGet("topup-intents")]
+    public async Task<List<AdminTopUpIntentResponse>> GetTopUpIntents(
+        string? status = null, int page = 1, int pageSize = 20)
+    {
+        var q = db.TopUpIntents.AsNoTracking().Include(i => i.User).AsQueryable();
+        if (!string.IsNullOrWhiteSpace(status) &&
+            Enum.TryParse<TopUpIntentStatus>(status, true, out var st))
+            q = q.Where(i => i.Status == st);
+
+        return await q
+            .OrderByDescending(i => i.CreatedAt)
+            .Skip(Math.Max(0, page - 1) * Math.Clamp(pageSize, 1, 100))
+            .Take(Math.Clamp(pageSize, 1, 100))
+            .Select(i => new AdminTopUpIntentResponse(
+                i.Id,
+                i.UserId,
+                i.User.FullName,
+                i.User.Email,
+                i.ExpectedAmount,
+                i.ReferenceCode,
+                i.Status.ToString(),
+                i.CreatedAt,
+                i.ExpiresAt,
+                i.MatchedAt,
+                i.TransactionId,
+                i.BankStatementLineId))
+            .ToListAsync();
+    }
+
+    [HttpPost("topup-intents/{id}/confirm")]
+    public async Task<IActionResult> ConfirmTopUpIntent(int id)
+    {
+        var (ok, err) = await reconciliation.AdminConfirmTopUpAsync(id);
+        if (!ok) return BadRequest(new { message = err });
+        return Ok(new { message = "Đã ghi có ví." });
+    }
+
+    [HttpPost("bank-statement-lines")]
+    public async Task<IActionResult> ImportBankStatementLines([FromBody] BankStatementImportRequest req)
+    {
+        if (req.Lines is not { Count: > 0 }) return BadRequest(new { message = "Danh sách trống." });
+        var src = "AdminImport";
+        foreach (var line in req.Lines)
+        {
+            var lineSrc = string.IsNullOrWhiteSpace(line.Source) ? src : line.Source.Trim();
+            if (lineSrc.Length > 64)
+                lineSrc = lineSrc[..64];
+            db.BankStatementLines.Add(new BankStatementLine
+            {
+                BookingDate = line.BookingDate.Kind == DateTimeKind.Unspecified
+                    ? DateTime.SpecifyKind(line.BookingDate, DateTimeKind.Utc)
+                    : line.BookingDate.ToUniversalTime(),
+                Amount = line.Amount,
+                Memo = line.Memo.Trim(),
+                CreditAccountNumber = string.IsNullOrWhiteSpace(line.CreditAccountNumber)
+                    ? null
+                    : line.CreditAccountNumber.Trim(),
+                IsMatched = false,
+                CreatedAt = DateTime.UtcNow,
+                Source = lineSrc
+            });
+        }
+
+        await db.SaveChangesAsync();
+        _ = await reconciliation.MatchBankCreditsAsync();
+        return Ok(new { imported = req.Lines.Count });
+    }
+
+    [HttpGet("daily-stats")]
+    public async Task<List<AdminDailyStatResponse>> GetDailyStats(DateTime? from = null, DateTime? to = null)
+    {
+        var f = DateTime.SpecifyKind((from ?? DateTime.UtcNow.AddDays(-31)).Date, DateTimeKind.Utc);
+        var t = DateTime.SpecifyKind((to ?? DateTime.UtcNow.Date).Date, DateTimeKind.Utc);
+        return await db.DailyTransactionStats.AsNoTracking()
+            .Where(s => s.StatDate >= f && s.StatDate <= t)
+            .OrderBy(s => s.StatDate)
+            .ThenBy(s => s.TransactionType)
+            .ThenBy(s => s.Status)
+            .Select(s => new AdminDailyStatResponse(
+                s.StatDate,
+                s.TransactionType.ToString(),
+                s.Status.ToString(),
+                s.Count,
+                s.TotalAmount,
+                s.TotalFee,
+                s.ComputedAt))
+            .ToListAsync();
+    }
+
+    [HttpPost("daily-stats/rebuild")]
+    public async Task<IActionResult> RebuildDailyStats([FromQuery] DateTime? utcDay = null)
+    {
+        var day = utcDay.HasValue
+            ? DateTime.SpecifyKind(utcDay.Value.Date, DateTimeKind.Utc)
+            : DateTime.UtcNow.Date.AddDays(-1);
+        await reconciliation.RebuildDailyStatsForUtcDateAsync(day);
+        return Ok(new { message = $"Đã rebuild thống kê cho {day:yyyy-MM-dd} UTC." });
     }
 }

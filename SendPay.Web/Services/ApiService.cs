@@ -26,6 +26,37 @@ public record AdminTransactionResponse(
     int Id, string SenderName, string ReceiverName,
     decimal Amount, string Note, string Type, string Status, DateTime CreatedAt);
 
+public record AdminTopUpIntentResponse(
+    int Id,
+    int UserId,
+    string UserName,
+    string UserEmail,
+    decimal ExpectedAmount,
+    string ReferenceCode,
+    string Status,
+    DateTime CreatedAt,
+    DateTime ExpiresAt,
+    DateTime? MatchedAt,
+    int? TransactionId,
+    int? BankStatementLineId);
+
+public record AdminDailyStatResponse(
+    DateTime StatDate,
+    string TransactionType,
+    string Status,
+    int Count,
+    decimal TotalAmount,
+    decimal TotalFee,
+    DateTime ComputedAt);
+
+public record WalletTopUpResponse(
+    string Mode,
+    WalletResponse? Wallet,
+    int? IntentId,
+    string? ReferenceCode,
+    DateTime? ExpiresAt,
+    decimal? ExpectedAmount);
+
 public record RecipientResponse(
     int Id, string Name, string? Phone, string Note,
     string? CountryCode,
@@ -126,13 +157,13 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
         return await http.GetFromJsonAsync<ReceiverLookupDto>($"api/user/receiver-lookup?{qs}");
     }
 
-    public async Task<(bool ok, WalletResponse? data, string error)> TopUpAsync(decimal amount)
+    public async Task<(bool ok, WalletTopUpResponse? data, string error)> TopUpAsync(decimal amount)
     {
         await SetAuthHeader();
         var res = await http.PostAsJsonAsync("api/wallet/topup", new { amount });
 
         if (res.IsSuccessStatusCode)
-            return (true, await res.Content.ReadFromJsonAsync<WalletResponse>(), "");
+            return (true, await res.Content.ReadFromJsonAsync<WalletTopUpResponse>(), "");
 
         return (false, null, await ReadErrorMessageAsync(res, "Nạp tiền thất bại"));
     }
@@ -321,6 +352,71 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
         await SetAuthHeader();
         return await http.GetFromJsonAsync<List<AdminTransactionResponse>>(
             $"api/admin/transactions?page={page}&pageSize=15") ?? [];
+    }
+
+    public async Task<List<AdminTopUpIntentResponse>> GetAdminTopUpIntentsAsync(
+        string? status = null, int page = 1)
+    {
+        await SetAuthHeader();
+        var url = $"api/admin/topup-intents?page={page}&pageSize=30";
+        if (!string.IsNullOrWhiteSpace(status))
+            url += $"&status={Uri.EscapeDataString(status)}";
+        return await http.GetFromJsonAsync<List<AdminTopUpIntentResponse>>(url) ?? [];
+    }
+
+    public async Task<(bool ok, string error)> AdminConfirmTopUpIntentAsync(int intentId)
+    {
+        await SetAuthHeader();
+        var res = await http.PostAsync($"api/admin/topup-intents/{intentId}/confirm", null);
+        if (res.IsSuccessStatusCode) return (true, "");
+        return (false, await ReadErrorMessageAsync(res, "Thao tác thất bại"));
+    }
+
+    public async Task<(bool ok, int imported, string error)> ImportBankStatementLineAsync(
+        DateTime bookingDate, decimal amount, string memo, string? creditAccount = null)
+    {
+        await SetAuthHeader();
+        var res = await http.PostAsJsonAsync("api/admin/bank-statement-lines",
+            new
+            {
+                lines = new[]
+                {
+                    new { bookingDate, amount, memo, creditAccount }
+                }
+            });
+        if (res.IsSuccessStatusCode)
+        {
+            var doc = await res.Content.ReadFromJsonAsync<JsonElement>();
+            if (doc.TryGetProperty("imported", out var imp) && imp.TryGetInt32(out var n))
+                return (true, n, "");
+            return (true, 1, "");
+        }
+
+        return (false, 0, await ReadErrorMessageAsync(res, "Import thất bại"));
+    }
+
+    public async Task<List<AdminDailyStatResponse>> GetAdminDailyStatsAsync(
+        DateTime? from = null, DateTime? to = null)
+    {
+        await SetAuthHeader();
+        var parts = new List<string>();
+        if (from.HasValue)
+            parts.Add($"from={Uri.EscapeDataString(from.Value.ToUniversalTime().ToString("yyyy-MM-dd"))}");
+        if (to.HasValue)
+            parts.Add($"to={Uri.EscapeDataString(to.Value.ToUniversalTime().ToString("yyyy-MM-dd"))}");
+        var url = parts.Count > 0 ? $"api/admin/daily-stats?{string.Join("&", parts)}" : "api/admin/daily-stats";
+        return await http.GetFromJsonAsync<List<AdminDailyStatResponse>>(url) ?? [];
+    }
+
+    public async Task<(bool ok, string error)> AdminRebuildDailyStatsAsync(DateTime? utcDay = null)
+    {
+        await SetAuthHeader();
+        var url = utcDay.HasValue
+            ? $"api/admin/daily-stats/rebuild?utcDay={Uri.EscapeDataString(utcDay.Value.ToString("O"))}"
+            : "api/admin/daily-stats/rebuild";
+        var res = await http.PostAsync(url, null);
+        if (res.IsSuccessStatusCode) return (true, "");
+        return (false, await ReadErrorMessageAsync(res, "Rebuild thất bại"));
     }
 
     private static async Task<string> ReadErrorMessageAsync(HttpResponseMessage res, string fallback)

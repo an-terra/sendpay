@@ -236,6 +236,128 @@
                     }
                 </MudTabPanel>
 
+                <MudTabPanel Icon="@Icons.Material.Filled.AccountBalanceWallet" Text="Lệnh nạp">
+                    <div style="padding:16px 20px">
+                        @if (!string.IsNullOrEmpty(topupActionMsg))
+                        {
+                            <MudAlert Dense="true" Class="mb-3"
+                                      Severity="@(topupActionErr ? Severity.Error : Severity.Success)">@topupActionMsg</MudAlert>
+                        }
+                        <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:16px">
+                            <MudTextField @bind-Value="topupStatusFilter" Label="Trạng thái (Pending/Matched/Expired)"
+                                          Style="max-width:260px" Margin="Margin.Dense" Variant="Variant.Outlined" />
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadTopUpIntents">Tải lại</MudButton>
+                        </div>
+                        @if (topupLoading)
+                        {
+                            <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+                        }
+                        else if (topupIntents.Count == 0)
+                        {
+                            <MudText Typo="Typo.body2" Style="color:var(--text-muted)">Không có lệnh.</MudText>
+                        }
+                        else
+                        {
+                            <div class="sp-table-wrap">
+                                <MudTable Items="@topupIntents" Hover="true" Elevation="0" Dense="true">
+                                    <HeaderContent>
+                                        <MudTh>#</MudTh>
+                                        <MudTh>User</MudTh>
+                                        <MudTh>Số tiền</MudTh>
+                                        <MudTh>Mã CK</MudTh>
+                                        <MudTh>TT</MudTh>
+                                        <MudTh>Tạo</MudTh>
+                                        <MudTh></MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate>
+                                        <MudTd>@context.Id</MudTd>
+                                        <MudTd>@context.UserName<br/><span style="font-size:11px;color:var(--text-muted)">@context.UserEmail</span></MudTd>
+                                        <MudTd><strong>@FormatJpy(context.ExpectedAmount)</strong></MudTd>
+                                        <MudTd Style="font-size:11px;word-break:break-all;max-width:180px">@context.ReferenceCode</MudTd>
+                                        <MudTd><MudChip T="string" Size="Size.Small">@context.Status</MudChip></MudTd>
+                                        <MudTd Style="font-size:12px">@context.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")</MudTd>
+                                        <MudTd>
+                                            @if (string.Equals(context.Status, "Pending", StringComparison.OrdinalIgnoreCase))
+                                            {
+                                                <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small"
+                                                               OnClick="@(() => ConfirmTopUp(context.Id))" />
+                                            }
+                                        </MudTd>
+                                    </RowTemplate>
+                                </MudTable>
+                            </div>
+                        }
+
+                        <MudText Typo="Typo.subtitle2" Style="margin-top:24px;font-weight:700">Import 1 dòng sao kê người nhận</MudText>
+                        <MudText Typo="Typo.caption" Style="color:var(--text-muted);margin-bottom:8px">Memo phải chứa đúng mã tham chiếu; số tiền khớp lệnh Pending.</MudText>
+                        <MudGrid Spacing="2">
+                            <MudItem xs="12" md="6">
+                                <MudTextField @bind-Value="importMemo" Variant="Variant.Outlined" Label="Memo / nội dung" Lines="2" FullWidth="true" />
+                            </MudItem>
+                            <MudItem xs="6" md="3">
+                                <MudTextField @bind-Value="importAmount" Variant="Variant.Outlined" Label="Số tiền (JPY)" FullWidth="true" />
+                            </MudItem>
+                            <MudItem xs="6" md="3">
+                                <MudTextField @bind-Value="importDateStr" Variant="Variant.Outlined" Label="Ngày (yyyy-MM-dd)" FullWidth="true" />
+                            </MudItem>
+                        </MudGrid>
+                        <MudButton Class="mt-2" Variant="Variant.Filled" Color="Color.Secondary" OnClick="ImportBankLine" Disabled="@importBusy">
+                            @if (importBusy) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                            Import &amp; chạy đối soát
+                        </MudButton>
+                        @if (!string.IsNullOrEmpty(importMsg))
+                        {
+                            <MudAlert Class="mt-2" Dense="true" Severity="Severity.Info">@importMsg</MudAlert>
+                        }
+                    </div>
+                </MudTabPanel>
+
+                <MudTabPanel Icon="@Icons.Material.Filled.BarChart" Text="Thống kê snapshot">
+                    <div style="padding:16px 20px">
+                        <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:16px">
+                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="LoadDailyStats">Tải 60 ngày</MudButton>
+                            <MudButton Variant="Variant.Filled" Color="Color.Info" OnClick="RebuildYesterdayStats">Rebuild hôm qua (UTC)</MudButton>
+                        </div>
+                        @if (statsJobMsg != null)
+                        {
+                            <MudAlert Dense="true" Severity="Severity.Success" Class="mb-2">@statsJobMsg</MudAlert>
+                        }
+                        @if (statsLoading)
+                        {
+                            <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+                        }
+                        else if (dailyStats.Count == 0)
+                        {
+                            <MudText Typo="Typo.body2" Style="color:var(--text-muted)">Chưa có dữ liệu. Bấm «Tải 60 ngày» hoặc chờ job 01:00 UTC.</MudText>
+                        }
+                        else
+                        {
+                            <div class="sp-table-wrap">
+                                <MudTable Items="@dailyStats" Hover="true" Elevation="0" Dense="true">
+                                    <HeaderContent>
+                                        <MudTh>Ngày UTC</MudTh>
+                                        <MudTh>Loại</MudTh>
+                                        <MudTh>TT</MudTh>
+                                        <MudTh>Số GD</MudTh>
+                                        <MudTh>Tổng tiền</MudTh>
+                                        <MudTh>Phí</MudTh>
+                                        <MudTh>Tính lúc</MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate>
+                                        <MudTd>@context.StatDate.ToString("yyyy-MM-dd")</MudTd>
+                                        <MudTd>@context.TransactionType</MudTd>
+                                        <MudTd>@context.Status</MudTd>
+                                        <MudTd>@context.Count</MudTd>
+                                        <MudTd>@FormatJpy(context.TotalAmount)</MudTd>
+                                        <MudTd>@FormatJpy(context.TotalFee)</MudTd>
+                                        <MudTd Style="font-size:11px">@context.ComputedAt.ToLocalTime().ToString("dd/MM HH:mm")</MudTd>
+                                    </RowTemplate>
+                                </MudTable>
+                            </div>
+                        }
+                    </div>
+                </MudTabPanel>
+
             </MudTabs>
         </MudPaper>
 
@@ -353,6 +475,21 @@
     bool txLoading;
     int txPage = 1;
 
+    List<AdminTopUpIntentResponse> topupIntents = [];
+    bool topupLoading;
+    string topupStatusFilter = "";
+    string importMemo = "";
+    string importAmount = "";
+    string importDateStr = "";
+    string? importMsg;
+    string? topupActionMsg;
+    bool topupActionErr;
+    bool importBusy;
+
+    List<AdminDailyStatResponse> dailyStats = [];
+    bool statsLoading;
+    string? statsJobMsg;
+
     AdminUserResponse? editUser;
     string editFullName = "", editEmail = "", editPhone = "", editError = "";
     string editJapanBank = "", editJapanUrl = "";
@@ -368,6 +505,7 @@
         var isAdmin = await LocalStorage.GetItemAsync<bool>("isAdmin");
         if (!isAdmin) { Nav.NavigateTo("/login"); return; }
         adminName = await LocalStorage.GetItemAsync<string>("fullName") ?? "Admin";
+        importDateStr = DateTime.UtcNow.ToString("yyyy-MM-dd");
         stats = await Api.GetAdminStatsAsync();
         await LoadUsers();
     }
@@ -376,6 +514,10 @@
     {
         if (idx == 1 && transactions.Count == 0)
             await LoadTransactions();
+        if (idx == 2)
+            await LoadTopUpIntents();
+        if (idx == 3)
+            await LoadDailyStats();
     }
 
     async Task LoadUsers()
@@ -390,6 +532,74 @@
         txLoading = true;
         transactions = await Api.GetAdminTransactionsAsync(txPage);
         txLoading = false;
+    }
+
+    async Task LoadTopUpIntents()
+    {
+        topupLoading = true;
+        var st = string.IsNullOrWhiteSpace(topupStatusFilter) ? null : topupStatusFilter.Trim();
+        topupIntents = await Api.GetAdminTopUpIntentsAsync(st, 1);
+        topupLoading = false;
+    }
+
+    async Task ConfirmTopUp(int id)
+    {
+        topupActionMsg = null;
+        topupActionErr = false;
+        var (ok, err) = await Api.AdminConfirmTopUpIntentAsync(id);
+        topupActionErr = !ok;
+        topupActionMsg = ok ? "Đã ghi có ví (thủ công)." : err;
+        if (ok)
+            await LoadTopUpIntents();
+    }
+
+    async Task ImportBankLine()
+    {
+        importMsg = null;
+        topupActionMsg = null;
+        if (string.IsNullOrWhiteSpace(importMemo))
+        {
+            importMsg = "Nhập memo.";
+            return;
+        }
+
+        if (!decimal.TryParse(importAmount, out var amt))
+        {
+            importMsg = "Số tiền không hợp lệ.";
+            return;
+        }
+
+        if (!DateTime.TryParse(importDateStr, out var bd))
+        {
+            importMsg = "Ngày không hợp lệ (yyyy-MM-dd).";
+            return;
+        }
+
+        importBusy = true;
+        var bookingUtc = DateTime.SpecifyKind(bd.Date, DateTimeKind.Utc);
+        var (ok, n, err) = await Api.ImportBankStatementLineAsync(bookingUtc, amt, importMemo.Trim());
+        importBusy = false;
+        if (ok)
+        {
+            importMsg = $"Đã import {n} dòng và chạy đối soát.";
+            await LoadTopUpIntents();
+        }
+        else importMsg = err;
+    }
+
+    async Task LoadDailyStats()
+    {
+        statsLoading = true;
+        statsJobMsg = null;
+        dailyStats = await Api.GetAdminDailyStatsAsync(DateTime.UtcNow.AddDays(-60), DateTime.UtcNow.Date);
+        statsLoading = false;
+    }
+
+    async Task RebuildYesterdayStats()
+    {
+        var (ok, err) = await Api.AdminRebuildDailyStatsAsync();
+        statsJobMsg = ok ? "Đã rebuild snapshot hôm qua (UTC)." : err;
+        await LoadDailyStats();
     }
 
     async Task OnSearchDebounced(string val)
@@ -474,4 +684,6 @@
 
     static string FormatVnd(decimal amount) =>
         amount >= 1_000_000 ? $"{amount / 1_000_000:0.##}M ₫" : $"{amount:N0} ₫";
+
+    static string FormatJpy(decimal amount) => $"¥{amount:N0}";
 }

@@ -23,8 +23,11 @@
                     <Label x:Name="JapanBankNoneLabel" Text="Chưa có ngân hàng được gán. Liên hệ quản trị viên."
                            FontSize="12" TextColor="#64748b" IsVisible="False"/>
 
-                    <Label Text="Nạp ví demo không cần OTP. Thực hiện chuyển khoản thật qua trang ngân hàng (nếu có)."
+                    <Label Text="Nạp ví demo không cần OTP. Có thể nạp tức thì (instant) hoặc tạo lệnh chờ chuyển khoản từ ngân hàng Nhật."
                            FontSize="12" TextColor="#64748b" LineBreakMode="WordWrap"/>
+
+                    <Label x:Name="RefHintLabel" FontSize="13" TextColor="#0f172a" FontAttributes="Bold"
+                           LineBreakMode="WordWrap" IsVisible="False"/>
 
                     <VerticalStackLayout Spacing="4">
                         <Label Text="Số tiền nạp (JPY)" FontSize="13" TextColor="#8b8b9b" FontAttributes="Bold"/>

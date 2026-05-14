@@ -5,10 +5,13 @@ namespace SendPay.Api.Data;
 
 public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(options)
 {
-    public DbSet<User>        Users         => Set<User>();
-    public DbSet<Transaction> Transactions  => Set<Transaction>();
-    public DbSet<Recipient>   Recipients    => Set<Recipient>();
-    public DbSet<OtpChallenge> OtpChallenges => Set<OtpChallenge>();
+    public DbSet<User>                 Users                  => Set<User>();
+    public DbSet<Transaction>        Transactions           => Set<Transaction>();
+    public DbSet<Recipient>          Recipients             => Set<Recipient>();
+    public DbSet<OtpChallenge>       OtpChallenges          => Set<OtpChallenge>();
+    public DbSet<TopUpIntent>        TopUpIntents           => Set<TopUpIntent>();
+    public DbSet<BankStatementLine>  BankStatementLines     => Set<BankStatementLine>();
+    public DbSet<DailyTransactionStat> DailyTransactionStats => Set<DailyTransactionStat>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -50,6 +53,37 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
              .WithMany()
              .HasForeignKey(x => x.UserId)
              .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        mb.Entity<TopUpIntent>(e =>
+        {
+            e.Property(x => x.ExpectedAmount).HasColumnType("decimal(18,2)");
+            e.HasIndex(x => x.ReferenceCode).IsUnique();
+            e.HasIndex(x => new { x.UserId, x.Status });
+            e.HasOne(x => x.User)
+             .WithMany()
+             .HasForeignKey(x => x.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Transaction)
+             .WithMany()
+             .HasForeignKey(x => x.TransactionId)
+             .OnDelete(DeleteBehavior.SetNull);
+            e.HasOne(x => x.BankStatementLine)
+             .WithMany()
+             .HasForeignKey(x => x.BankStatementLineId)
+             .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        mb.Entity<BankStatementLine>(e =>
+        {
+            e.Property(x => x.Amount).HasColumnType("decimal(18,2)");
+        });
+
+        mb.Entity<DailyTransactionStat>(e =>
+        {
+            e.Property(x => x.TotalAmount).HasColumnType("decimal(18,2)");
+            e.Property(x => x.TotalFee).HasColumnType("decimal(18,2)");
+            e.HasIndex(x => new { x.StatDate, x.TransactionType, x.Status }).IsUnique();
         });
     }
 }
