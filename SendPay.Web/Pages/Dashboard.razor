@@ -3,6 +3,7 @@
 @inject ILocalStorageService LocalStorage
 @inject NavigationManager Nav
 @inject LanguageService Lang
+@inject UserStateService UserState
 @implements IDisposable
 
 <div class="sp-dash-page">
@@ -14,14 +15,27 @@
         </a>
         <div class="sp-dash-nav-links">
             <a href="/dashboard" class="sp-dash-nav-link active"><i class="fa-solid fa-house-chimney"></i> @Lang.T("dash_home")</a>
-            <a href="/transfer" class="sp-dash-nav-link"><i class="fa-solid fa-money-bill-transfer"></i> @Lang.T("dash_transfer")</a>
-            <a href="/topup" class="sp-dash-nav-link"><i class="fa-solid fa-circle-arrow-down"></i> @Lang.T("dash_topup")</a>
-            <a href="/history" class="sp-dash-nav-link"><i class="fa-solid fa-clock"></i> @Lang.T("dash_history")</a>
+            <span class="sp-nav-sep"></span>
+            <a href="/transfer" class="sp-dash-nav-link">@Lang.T("dash_transfer")</a>
+            <span class="sp-nav-sep"></span>
+            <a href="/topup" class="sp-dash-nav-link">@Lang.T("dash_topup")</a>
+            <span class="sp-nav-sep"></span>
+            <a href="/history" class="sp-dash-nav-link">@Lang.T("dash_history")</a>
         </div>
         <div class="sp-dash-nav-right">
             <LangSelector Dark="true" />
             <div class="sp-dash-user">
-                <div class="sp-dash-avatar">@GetInitials(fullName)</div>
+                <div class="sp-dash-avatar">
+                    @{ var src = !string.IsNullOrEmpty(UserState.AvatarData) ? UserState.AvatarData : avatarData; }
+                    @if (!string.IsNullOrEmpty(src))
+                    {
+                        <img src="@src" class="sp-nav-avatar-img" alt="avatar" />
+                    }
+                    else
+                    {
+                        @GetInitials(fullName)
+                    }
+                </div>
                 <span>@fullName</span>
             </div>
             <button class="sp-dash-logout" @onclick="Logout">
@@ -174,7 +188,7 @@
     WalletResponse? wallet;
     List<TransactionResponse> recentTx = [];
     List<CurrencyRate> liveRates = [];
-    string fullName = "", rateDate = "";
+    string fullName = "", rateDate = "", avatarData = "";
     int currentUserId;
 
     static readonly string[] DashRateCodes = ["VND", "USD", "LKR", "NPR", "PHP"];
@@ -202,7 +216,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        Lang.OnChanged += StateHasChanged;
+        Lang.OnChanged      += StateHasChanged;
+        UserState.OnChanged += StateHasChanged;
         var token = await LocalStorage.GetItemAsync<string>("token");
         if (string.IsNullOrEmpty(token)) { Nav.NavigateTo("/login"); return; }
 
@@ -210,6 +225,7 @@
         if (!string.IsNullOrEmpty(saved)) Lang.Set(saved);
 
         fullName      = await LocalStorage.GetItemAsync<string>("fullName") ?? "";
+        avatarData    = await LocalStorage.GetItemAsync<string>("sp_avatar") ?? "";
         currentUserId = await LocalStorage.GetItemAsync<int>("userId");
 
         var walletTask  = Api.GetWalletAsync();
@@ -245,5 +261,9 @@
             : name[..Math.Min(2, name.Length)].ToUpper();
     }
 
-    public void Dispose() => Lang.OnChanged -= StateHasChanged;
+    public void Dispose()
+    {
+        Lang.OnChanged      -= StateHasChanged;
+        UserState.OnChanged -= StateHasChanged;
+    }
 }

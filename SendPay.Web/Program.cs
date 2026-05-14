@@ -17,6 +17,7 @@ var baseUri = string.IsNullOrWhiteSpace(apiBase)
 builder.Services.AddScoped(_ => new HttpClient { BaseAddress = baseUri });
 builder.Services.AddScoped<ApiService>();
 builder.Services.AddSingleton<LanguageService>();
+builder.Services.AddSingleton<UserStateService>();
 builder.Services.AddBlazoredLocalStorage();
 builder.Services.AddMudServices();
 

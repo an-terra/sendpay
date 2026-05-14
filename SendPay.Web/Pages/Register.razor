@@ -285,6 +285,9 @@
             string.IsNullOrWhiteSpace(phone) || string.IsNullOrWhiteSpace(password))
         { error = Lang.T("err_fill_all"); return; }
 
+        if (!IsStrongPassword(password))
+        { error = Lang.T("err_pw_weak"); return; }
+
         if (password != passwordConfirm)
         { error = Lang.T("err_pw_mismatch"); return; }
 
@@ -293,6 +296,12 @@
 
         if (string.IsNullOrEmpty(docType))
         { error = Lang.T("err_select_doc"); return; }
+
+        if (string.IsNullOrEmpty(docFrontFile))
+        { error = Lang.T("settings_kyc_err_front"); return; }
+
+        if (docType != "mynumber" && string.IsNullOrEmpty(docBackFile))
+        { error = Lang.T("settings_kyc_err_back"); return; }
 
         if (!agreeTerms || !agreeKyc || !agreeAml)
         { error = Lang.T("err_agree_all"); return; }
@@ -311,6 +320,11 @@
         }
         else error = err;
     }
+
+    static bool IsStrongPassword(string pwd) =>
+        pwd.Length >= 8 &&
+        pwd.Any(char.IsUpper) &&
+        pwd.Any(c => !char.IsLetterOrDigit(c));
 
     public void Dispose() => Lang.OnChanged -= StateHasChanged;
 }

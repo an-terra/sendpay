@@ -10,17 +10,16 @@
         <a class="sp-admin-logo" href="/admin">
             <img src="/images/logo.png" alt="SendPay" class="sp-logo-img sp-logo-img--nav" />
         </a>
-        <MudChip T="string" Size="Size.Small" Color="Color.Error" Style="font-weight:700">Admin</MudChip>
+        <span class="sp-admin-badge"><i class="fa-solid fa-shield-halved"></i> Admin</span>
         <div class="sp-admin-nav-right">
-            <MudText Typo="Typo.body2" Style="color:var(--text-sub);display:flex;align-items:center;gap:6px">
-                <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Style="font-size:16px" />
-                @adminName
-            </MudText>
-            <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
-                       StartIcon="@Icons.Material.Filled.Logout"
-                       OnClick="Logout" Style="border-radius:8px">
-                Đăng xuất
-            </MudButton>
+            <div class="sp-dash-user">
+                <div class="sp-dash-avatar sp-admin-avatar">@GetInitials(adminName)</div>
+                <span style="font-size:13px;font-weight:600;color:rgba(255,255,255,.88)">@adminName</span>
+            </div>
+            <button class="sp-dash-logout" @onclick="Logout">
+                <i class="fa-solid fa-right-from-bracket"></i>
+                <span class="sp-dash-logout-txt">Đăng xuất</span>
+            </button>
         </div>
     </nav>
 
@@ -451,6 +450,13 @@
         await LocalStorage.RemoveItemAsync("fullName");
         await LocalStorage.RemoveItemAsync("isAdmin");
         Nav.NavigateTo("/login");
+    }
+
+    static string GetInitials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "A";
+        var p = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return p.Length >= 2 ? $"{p[0][0]}{p[^1][0]}".ToUpper() : name[..Math.Min(2, name.Length)].ToUpper();
     }
 
     static string FormatVnd(decimal amount) =>

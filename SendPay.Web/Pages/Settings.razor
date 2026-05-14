@@ -4,6 +4,8 @@
 @inject ILocalStorageService LocalStorage
 @inject NavigationManager Nav
 @inject LanguageService Lang
+@inject IJSRuntime JS
+@inject UserStateService UserState
 @implements IDisposable
 
 <div class="sp-dash-page">
@@ -129,12 +131,31 @@
                 </div>
             }
 
-            <!-- Address fields -->
-            <div class="sp-reg-row" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-bottom:1.2rem">
-                <div class="sp-form-group">
+            <!-- Address fields — Row 1: postal code + search -->
+            <div style="margin-bottom:1rem">
+                <div class="sp-form-group" style="max-width:300px;margin-bottom:0">
                     <label>@Lang.T("settings_postal")</label>
-                    <input class="sp-form-input sp-form-input-lg" type="text" placeholder="〒 000-0000" @bind="postalCode" />
+                    <div style="display:flex;gap:6px;align-items:center">
+                        <input class="sp-form-input sp-form-input-lg" style="flex:1;margin:0"
+                               type="text" placeholder="〒 0000000"
+                               value="@postalCode" @oninput="OnPostalCodeInput" />
+                        <button type="button" @onclick="OnPostalSearch" disabled="@lookingUpPostal"
+                                style="flex-shrink:0;height:44px;padding:0 14px;border-radius:8px;border:1.5px solid var(--gray-border);background:#fff;cursor:pointer;color:var(--navy);font-size:15px">
+                            @if (lookingUpPostal) { <i class="fa-solid fa-spinner fa-spin"></i> }
+                            else { <i class="fa-solid fa-magnifying-glass"></i> }
+                        </button>
+                    </div>
+                    @if (!string.IsNullOrEmpty(postalMsg))
+                    {
+                        <div style="font-size:11px;margin-top:4px;color:@(postalOk ? "#2ecc71" : "var(--red)")">
+                            @postalMsg
+                        </div>
+                    }
                 </div>
+            </div>
+
+            <!-- Address fields — Row 2: prefecture / city / street -->
+            <div class="sp-reg-row" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));margin-bottom:1.2rem">
                 <div class="sp-form-group">
                     <label>@Lang.T("settings_prefecture")</label>
                     <select class="sp-form-input sp-form-input-lg" @bind="prefecture">
@@ -265,6 +286,9 @@
 
     string postalCode = "", prefecture = "", city = "", streetAddress = "";
     string kycDocType = "", kycFrontFile = "", kycBackFile = "", kycJuminFile = "";
+    bool lookingUpPostal = false;
+    string postalMsg = "";
+    bool postalOk = false;
 
     static readonly string[] _prefectures = [
         "北海道","青森県","岩手県","宮城県","秋田県","山形県","福島県",
@@ -302,6 +326,7 @@
         await stream.CopyToAsync(ms);
         avatarData = $"data:{file.ContentType};base64,{Convert.ToBase64String(ms.ToArray())}";
         await LocalStorage.SetItemAsync("sp_avatar", avatarData);
+        UserState.SetAvatar(avatarData);
         group1Success = Lang.T("settings_avatar_saved");
     }
 
@@ -311,8 +336,13 @@
         if (string.IsNullOrWhiteSpace(fullName) || string.IsNullOrWhiteSpace(email))
         { group1Error = Lang.T("settings_err_required"); return; }
 
-        if (!string.IsNullOrWhiteSpace(currentPwd) && newPwd != confirmPwd)
-        { group1Error = Lang.T("settings_pwd_mismatch"); return; }
+        if (!string.IsNullOrWhiteSpace(currentPwd))
+        {
+            if (!IsStrongPassword(newPwd))
+            { group1Error = Lang.T("err_pw_weak"); return; }
+            if (newPwd != confirmPwd)
+            { group1Error = Lang.T("settings_pwd_mismatch"); return; }
+        }
 
         savingGroup1 = true;
         var (profOk, profErr) = await Api.UpdateProfileAsync(fullName.Trim(), email.Trim(), phone.Trim());
@@ -345,6 +375,9 @@
         if (hasKyc && string.IsNullOrEmpty(kycFrontFile))
         { group2Error = Lang.T("settings_kyc_err_front"); return; }
 
+        if (hasKyc && kycDocType != "mynumber" && string.IsNullOrEmpty(kycBackFile))
+        { group2Error = Lang.T("settings_kyc_err_back"); return; }
+
         savingGroup2 = true;
         if (hasAddr)
         {
@@ -364,6 +397,66 @@
         if (string.IsNullOrWhiteSpace(name)) return "?";
         var p = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
         return p.Length >= 2 ? $"{p[0][0]}{p[^1][0]}".ToUpper() : name[..Math.Min(2, name.Length)].ToUpper();
+    }
+
+    static bool IsStrongPassword(string pwd) =>
+        pwd.Length >= 8 &&
+        pwd.Any(char.IsUpper) &&
+        pwd.Any(c => !char.IsLetterOrDigit(c));
+
+    async Task OnPostalCodeInput(ChangeEventArgs e)
+    {
+        postalCode = e.Value?.ToString() ?? "";
+        postalMsg = "";
+        var digits = postalCode.Replace("-", "").Replace("〒", "").Replace(" ", "").Trim();
+        if (digits.Length == 7 && digits.All(char.IsDigit))
+            await LookupPostalCode(digits);
+    }
+
+    async Task OnPostalSearch()
+    {
+        var digits = postalCode.Replace("-", "").Replace("〒", "").Replace(" ", "").Trim();
+        if (digits.Length != 7 || !digits.All(char.IsDigit))
+        { postalMsg = "7桁の数字を入力してください"; postalOk = false; return; }
+        await LookupPostalCode(digits);
+    }
+
+    async Task LookupPostalCode(string digits)
+    {
+        lookingUpPostal = true;
+        postalMsg = "";
+        StateHasChanged();
+        try
+        {
+            var json = await JS.InvokeAsync<string?>("spWidgets.lookupPostalCode", digits);
+            if (string.IsNullOrEmpty(json))
+            { postalMsg = "API error"; postalOk = false; return; }
+
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            var root = doc.RootElement;
+
+            if (root.TryGetProperty("error", out var err))
+            {
+                postalMsg = err.GetString() == "notfound" ? "郵便番号が見つかりません" : err.GetString() ?? "error";
+                postalOk = false;
+                return;
+            }
+
+            prefecture = root.GetProperty("prefecture").GetString() ?? "";
+            city       = root.GetProperty("city").GetString() ?? "";
+            postalMsg  = "✓ " + prefecture + " " + city;
+            postalOk   = true;
+        }
+        catch (Exception ex)
+        {
+            postalMsg = ex.Message;
+            postalOk  = false;
+        }
+        finally
+        {
+            lookingUpPostal = false;
+            StateHasChanged();
+        }
     }
 
     public void Dispose() => Lang.OnChanged -= StateHasChanged;
