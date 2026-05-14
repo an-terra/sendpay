@@ -244,72 +244,112 @@
                             <MudAlert Dense="true" Class="mb-3"
                                       Severity="@(topupActionErr ? Severity.Error : Severity.Success)">@topupActionMsg</MudAlert>
                         }
-                        <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:16px">
-                            <MudTextField @bind-Value="topupStatusFilter" Label="Trạng thái (Pending/Matched/Expired)"
-                                          Style="max-width:260px" Margin="Margin.Dense" Variant="Variant.Outlined" />
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadTopUpIntents">Tải lại</MudButton>
-                        </div>
-                        @if (topupLoading)
-                        {
-                            <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
-                        }
-                        else if (topupIntents.Count == 0)
-                        {
-                            <MudText Typo="Typo.body2" Style="color:var(--text-muted)">Không có lệnh.</MudText>
-                        }
-                        else
-                        {
-                            <div class="sp-table-wrap">
-                                <MudTable Items="@topupIntents" Hover="true" Elevation="0" Dense="true">
-                                    <HeaderContent>
-                                        <MudTh>#</MudTh>
-                                        <MudTh>User</MudTh>
-                                        <MudTh>Số tiền</MudTh>
-                                        <MudTh>Mã CK</MudTh>
-                                        <MudTh>TT</MudTh>
-                                        <MudTh>Tạo</MudTh>
-                                        <MudTh></MudTh>
-                                    </HeaderContent>
-                                    <RowTemplate>
-                                        <MudTd>@context.Id</MudTd>
-                                        <MudTd>@context.UserName<br/><span style="font-size:11px;color:var(--text-muted)">@context.UserEmail</span></MudTd>
-                                        <MudTd><strong>@FormatJpy(context.ExpectedAmount)</strong></MudTd>
-                                        <MudTd Style="font-size:11px;word-break:break-all;max-width:180px">@context.ReferenceCode</MudTd>
-                                        <MudTd><MudChip T="string" Size="Size.Small">@context.Status</MudChip></MudTd>
-                                        <MudTd Style="font-size:12px">@context.CreatedAt.ToLocalTime().ToString("dd/MM HH:mm")</MudTd>
-                                        <MudTd>
-                                            @if (string.Equals(context.Status, "Pending", StringComparison.OrdinalIgnoreCase))
-                                            {
-                                                <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small"
-                                                               OnClick="@(() => ConfirmTopUp(context.Id))" />
-                                            }
-                                        </MudTd>
-                                    </RowTemplate>
-                                </MudTable>
-                            </div>
-                        }
 
-                        <MudText Typo="Typo.subtitle2" Style="margin-top:24px;font-weight:700">Import 1 dòng sao kê người nhận</MudText>
-                        <MudText Typo="Typo.caption" Style="color:var(--text-muted);margin-bottom:8px">Memo phải chứa đúng mã tham chiếu; số tiền khớp lệnh Pending.</MudText>
-                        <MudGrid Spacing="2">
-                            <MudItem xs="12" md="6">
-                                <MudTextField @bind-Value="importMemo" Variant="Variant.Outlined" Label="Memo / nội dung" Lines="2" FullWidth="true" />
-                            </MudItem>
-                            <MudItem xs="6" md="3">
-                                <MudTextField @bind-Value="importAmount" Variant="Variant.Outlined" Label="Số tiền (JPY)" FullWidth="true" />
-                            </MudItem>
-                            <MudItem xs="6" md="3">
-                                <MudTextField @bind-Value="importDateStr" Variant="Variant.Outlined" Label="Ngày (yyyy-MM-dd)" FullWidth="true" />
-                            </MudItem>
-                        </MudGrid>
-                        <MudButton Class="mt-2" Variant="Variant.Filled" Color="Color.Secondary" OnClick="ImportBankLine" Disabled="@importBusy">
-                            @if (importBusy) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
-                            Import &amp; chạy đối soát
-                        </MudButton>
-                        @if (!string.IsNullOrEmpty(importMsg))
-                        {
-                            <MudAlert Class="mt-2" Dense="true" Severity="Severity.Info">@importMsg</MudAlert>
-                        }
+                        <MudText Typo="Typo.subtitle2" Style="font-weight:700;color:var(--navy);margin-bottom:10px;display:flex;align-items:center;gap:8px">
+                            <MudIcon Icon="@Icons.Material.Filled.ListAlt" Style="font-size:20px;color:var(--red)" />
+                            Danh sách lệnh nạp
+                        </MudText>
+                        <MudPaper Elevation="0" Class="mb-4" Style="border:1px solid var(--gray-border);border-radius:12px;padding:16px;background:#fafbfc">
+                            <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:14px">
+                                <MudSelect T="string" @bind-Value="topupStatusFilter"
+                                           Label="Lọc theo trạng thái"
+                                           Variant="Variant.Outlined" Margin="Margin.Dense"
+                                           Dense="true" Style="max-width:300px;min-width:220px">
+                                    <MudSelectItem T="string" Value="@("")">Tất cả</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("Pending")">Đang chờ thanh toán</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("Matched")">Đã khớp (đã nạp)</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("Expired")">Hết hạn</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("Failed")">Thất bại</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("Cancelled")">Đã hủy</MudSelectItem>
+                                </MudSelect>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadTopUpIntents">Tải lại</MudButton>
+                            </div>
+                            @if (topupLoading)
+                            {
+                                <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+                            }
+                            else if (topupIntents.Count == 0)
+                            {
+                                <MudText Typo="Typo.body2" Style="color:var(--text-muted)">
+                                    Không có lệnh nạp nào khớp bộ lọc. Thử chọn «Tất cả» hoặc «Đang chờ thanh toán», rồi bấm «Tải lại».
+                                </MudText>
+                            }
+                            else
+                            {
+                                <div class="sp-table-wrap">
+                                    <MudTable Items="@topupIntents" Hover="true" Elevation="0" Dense="true">
+                                        <HeaderContent>
+                                            <MudTh>Mã lệnh</MudTh>
+                                            <MudTh>Người dùng</MudTh>
+                                            <MudTh>Số tiền (JPY)</MudTh>
+                                            <MudTh>Mã tham chiếu CK</MudTh>
+                                            <MudTh>Trạng thái</MudTh>
+                                            <MudTh>Thời điểm tạo</MudTh>
+                                            <MudTh>Thao tác</MudTh>
+                                        </HeaderContent>
+                                        <RowTemplate>
+                                            <MudTd Style="color:var(--text-muted);font-size:12px">@context.Id</MudTd>
+                                            <MudTd>@context.UserName<br/><span style="font-size:11px;color:var(--text-muted)">@context.UserEmail</span></MudTd>
+                                            <MudTd><strong>@FormatJpy(context.ExpectedAmount)</strong></MudTd>
+                                            <MudTd Style="font-size:11px;word-break:break-all;max-width:200px">@context.ReferenceCode</MudTd>
+                                            <MudTd>
+                                                <MudChip T="string" Size="Size.Small" Color="@TopUpStatusChipColor(context.Status)" Style="height:22px;font-size:11px">
+                                                    @FormatTopUpStatusVi(context.Status)
+                                                </MudChip>
+                                            </MudTd>
+                                            <MudTd Style="font-size:12px">@context.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+                                            <MudTd>
+                                                @if (string.Equals(context.Status, "Pending", StringComparison.OrdinalIgnoreCase))
+                                                {
+                                                    <MudTooltip Text="Xác nhận nạp thủ công: ghi có ví cho lệnh này mà không cần nhập dòng sao kê (dùng khi đã kiểm tra tiền về tay).">
+                                                        <MudIconButton Icon="@Icons.Material.Filled.CheckCircle"
+                                                                       Color="Color.Success" Size="Size.Small"
+                                                                       OnClick="@(() => ConfirmTopUp(context.Id))" />
+                                                    </MudTooltip>
+                                                }
+                                            </MudTd>
+                                        </RowTemplate>
+                                    </MudTable>
+                                </div>
+                            }
+                        </MudPaper>
+
+                        <div style="display:flex;align-items:center;gap:10px;margin:12px 0 14px">
+                            <MudDivider FlexItem="false" Style="flex:1" />
+                            <MudText Typo="Typo.caption" Style="font-weight:700;color:var(--text-muted);white-space:nowrap;display:flex;align-items:center;gap:6px">
+                                <MudIcon Icon="@Icons.Material.Filled.UploadFile" Style="font-size:18px;color:#0284c7" />
+                                Nhập dòng sao kê người nhận
+                            </MudText>
+                            <MudDivider FlexItem="false" Style="flex:1" />
+                        </div>
+                        <MudPaper Elevation="0" Style="border:1px solid var(--gray-border);border-radius:12px;padding:18px;background:#f8fafc">
+                            <MudText Typo="Typo.caption" Style="color:var(--text-muted);margin-bottom:12px;display:block">
+                                Sao chép một dòng ghi có từ sao kê. Hệ thống sẽ tìm lệnh <strong>Đang chờ thanh toán</strong> có <strong>cùng số tiền JPY</strong> và trong memo phải <strong>có đúng mã tham chiếu</strong> như cột «Mã tham chiếu CK» phía trên.
+                            </MudText>
+                            <MudGrid Spacing="2">
+                                <MudItem xs="12" md="6">
+                                    <MudTextField @bind-Value="importMemo" Variant="Variant.Outlined" Label="Memo / nội dung chuyển khoản" Lines="3" FullWidth="true"
+                                                  Placeholder="VD: SENDPAY-ABC123 振込 ..."
+                                                  HelperText="Dán đúng nội dung xuất hiện trên sao kê ngân hàng (phải chứa đủ ký tự của mã tham chiếu)." />
+                                </MudItem>
+                                <MudItem xs="6" md="3">
+                                    <MudTextField @bind-Value="importAmount" Variant="Variant.Outlined" Label="Số tiền (JPY)" FullWidth="true"
+                                                  HelperText="Trùng số trong lệnh Pending." Placeholder="10000" />
+                                </MudItem>
+                                <MudItem xs="6" md="3">
+                                    <MudTextField @bind-Value="importDateStr" Variant="Variant.Outlined" Label="Ngày giao dịch (sao kê)" FullWidth="true"
+                                                  HelperText="@($"Định dạng yyyy-MM-dd — ví dụ: {DateTime.UtcNow:yyyy-MM-dd}")" />
+                                </MudItem>
+                            </MudGrid>
+                            <MudButton Class="mt-3" Variant="Variant.Filled" Color="Color.Secondary" OnClick="ImportBankLine" Disabled="@importBusy">
+                                @if (importBusy) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
+                                Nhập dòng &amp; chạy đối soát
+                            </MudButton>
+                            @if (!string.IsNullOrEmpty(importMsg))
+                            {
+                                <MudAlert Class="mt-2" Dense="true" Severity="Severity.Info">@importMsg</MudAlert>
+                            }
+                        </MudPaper>
                     </div>
                 </MudTabPanel>
 
@@ -369,7 +409,7 @@
 @if (editUser != null)
 {
     <MudOverlay Visible="true" DarkBackground="true" ZIndex="1200" OnClick="CloseEdit" />
-    <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1300;width:min(620px,94vw);max-height:92vh;display:flex;flex-direction:column">
+    <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1300;width:min(680px,96vw);max-height:92vh;display:flex;flex-direction:column">
         <MudPaper Class="mud-elevation-24" Style="border-radius:20px;overflow:hidden;display:flex;flex-direction:column;max-height:92vh">
             <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 24px;border-bottom:1px solid var(--gray-border);flex-shrink:0">
                 <MudText Typo="Typo.subtitle1" Style="font-weight:700;color:var(--navy);display:flex;align-items:center;gap:8px">
@@ -399,19 +439,23 @@
                     </div>
                 </MudPaper>
 
-                <MudText Typo="Typo.caption" Style="font-weight:700;color:var(--text-muted);margin-bottom:8px">Thông tin cơ bản</MudText>
+                <MudText Typo="Typo.caption" Style="font-weight:700;color:var(--text-muted);margin-bottom:4px">Thông tin cơ bản</MudText>
+                <MudText Typo="Typo.caption" Style="color:var(--text-muted);margin-bottom:10px;display:block">
+                    Cuộn xuống trong hộp thoại để chỉnh <strong>số dư</strong>, trạng thái đăng nhập, <strong>quyền Admin</strong>, mật khẩu và ngân hàng.
+                </MudText>
                 <MudGrid Spacing="3">
                     <MudItem xs="12">
                         <MudTextField @bind-Value="editFullName" Label="Họ tên" Variant="Variant.Outlined"
                                       Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Person"
                                       FullWidth="true" />
                     </MudItem>
-                    <MudItem xs="12" sm="6">
+                    <MudItem xs="12" Style="min-width:0">
                         <MudTextField @bind-Value="editEmail" Label="Email" InputType="InputType.Email"
                                       Variant="Variant.Outlined" Adornment="Adornment.Start"
-                                      AdornmentIcon="@Icons.Material.Filled.Email" FullWidth="true" />
+                                      AdornmentIcon="@Icons.Material.Filled.Email" FullWidth="true"
+                                      Style="word-break:break-all" />
                     </MudItem>
-                    <MudItem xs="12" sm="6">
+                    <MudItem xs="12" sm="6" Style="min-width:0">
                         <MudTextField @bind-Value="editPhone" Label="Số điện thoại"
                                       Variant="Variant.Outlined" Adornment="Adornment.Start"
                                       AdornmentIcon="@Icons.Material.Filled.Phone" FullWidth="true" />
@@ -809,6 +853,34 @@
         if (string.IsNullOrWhiteSpace(name)) return "A";
         var p = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
         return p.Length >= 2 ? $"{p[0][0]}{p[^1][0]}".ToUpper() : name[..Math.Min(2, name.Length)].ToUpper();
+    }
+
+    static string FormatTopUpStatusVi(string? status)
+    {
+        if (string.IsNullOrWhiteSpace(status)) return "—";
+        return status.Trim() switch
+        {
+            "Pending" => "Đang chờ thanh toán",
+            "Matched" => "Đã khớp (đã nạp)",
+            "Expired" => "Hết hạn",
+            "Failed" => "Thất bại",
+            "Cancelled" => "Đã hủy",
+            _ => status.Trim()
+        };
+    }
+
+    static Color TopUpStatusChipColor(string? status)
+    {
+        if (string.IsNullOrWhiteSpace(status)) return Color.Default;
+        return status.Trim() switch
+        {
+            "Pending" => Color.Warning,
+            "Matched" => Color.Success,
+            "Expired" => Color.Surface,
+            "Failed" => Color.Error,
+            "Cancelled" => Color.Surface,
+            _ => Color.Default
+        };
     }
 
     static string FormatVnd(decimal amount) =>
