@@ -66,13 +66,19 @@
                     <MudText Typo="Typo.caption" Style="font-weight:700;color:var(--navy);margin-bottom:8px">
                         @Lang.T("topup_jp_bank_title")
                     </MudText>
-                    @if (!string.IsNullOrEmpty(profileJapanBank) && !string.IsNullOrEmpty(profileJapanUrl))
+                    @if (primaryLink is not null)
                     {
-                        <MudText Typo="Typo.body2" Style="font-weight:600;margin-bottom:10px">@profileJapanBank</MudText>
-                        <MudButton Variant="Variant.Filled" Color="Color.Info" FullWidth="true"
-                                   Href="@profileJapanUrl" Target="_blank" Rel="noopener noreferrer"
-                                   StartIcon="@Icons.Material.Filled.OpenInNew" Style="border-radius:10px;font-weight:700">
-                            @Lang.T("topup_jp_bank_open")
+                        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+                            <span style="font-size:22px">@GetBankEmoji(primaryLink.BankCode)</span>
+                            <div>
+                                <div style="font-weight:700;color:var(--navy);font-size:14px">@primaryLink.BankName</div>
+                                <div style="font-size:11px;color:var(--text-muted)">@primaryLink.AccountMasked</div>
+                            </div>
+                        </div>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Default" FullWidth="true"
+                                   Href="/settings" StartIcon="@Icons.Material.Filled.Settings"
+                                   Style="border-radius:10px;font-weight:700">
+                            @Lang.T("topup_jp_bank_manage")
                         </MudButton>
                     }
                     else
@@ -80,7 +86,11 @@
                         <MudText Typo="Typo.caption" Style="color:var(--text-sub);margin-bottom:8px;display:block">
                             @Lang.T("topup_jp_bank_none")
                         </MudText>
-                        <MudLink Href="/settings" Typo="Typo.body2" Style="font-weight:700">@Lang.T("topup_configure_bank")</MudLink>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                                   Href="/settings" StartIcon="@Icons.Material.Filled.AddLink"
+                                   Style="border-radius:10px;font-weight:700">
+                            @Lang.T("topup_configure_bank")
+                        </MudButton>
                     }
                 </MudPaper>
 
@@ -149,8 +159,7 @@
     decimal balance;
     string error = "", successMsg = "", pendingRefHint = "";
     bool loading;
-    string profileJapanBank = "";
-    string profileJapanUrl = "";
+    UserBankLinkDto? primaryLink;
 
     protected override async Task OnInitializedAsync()
     {
@@ -161,13 +170,17 @@
         if (!string.IsNullOrEmpty(saved)) Lang.Set(saved);
         var wallet = await Api.GetWalletAsync();
         balance = wallet?.Balance ?? 0;
-        var p = await Api.GetProfileAsync();
-        if (p != null)
-        {
-            profileJapanBank = p.JapanBankName ?? "";
-            profileJapanUrl = p.JapanBankTopUpUrl ?? "";
-        }
+        primaryLink = await Api.GetPrimaryBankLinkAsync();
     }
+
+    static string GetBankEmoji(string code) => code.ToUpperInvariant() switch
+    {
+        "MUFG" => "🏦", "SMBC" => "🏦", "MIZUHO" => "🏦", "RESONA" => "🏦",
+        "YUCHO" => "📮", "RAKUTEN" => "🟥", "PAYPAY" => "💳",
+        "SBISHINSEI" => "🏛", "AEON" => "🛒", "SONY" => "🎮",
+        "SEVEN" => "🏪", "LAWSON" => "🏪", "GMO" => "💻", "SBISUMISHIN" => "💻",
+        _ => "🏯"
+    };
 
     async Task HandleTopUp()
     {

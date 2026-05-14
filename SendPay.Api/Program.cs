@@ -76,9 +76,21 @@ builder.Services.AddRateLimiter(options =>
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                 QueueLimit = 0
             }));
+
+    options.AddPolicy("bank-link", httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            httpContext.GetClientIpAddress(),
+            _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 30,
+                Window = TimeSpan.FromMinutes(1),
+                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                QueueLimit = 0
+            }));
 });
 
 builder.Services.AddScoped<IReconciliationService, ReconciliationService>();
+builder.Services.AddScoped<IBankLinkService, BankLinkService>();
 builder.Services.AddHostedService<SendPay.Api.Background.ReconciliationBackgroundService>();
 
 // ── Controllers ────────────────────────────────────────────
@@ -94,9 +106,20 @@ builder.Services.AddCors(opt =>
         var origins = builder.Configuration["Cors:AllowedOrigins"]?
             .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
         if (origins is { Length: > 0 })
+        {
             p.WithOrigins(origins).AllowAnyHeader().AllowAnyMethod();
-        else
+        }
+        else if (builder.Environment.IsDevelopment())
+        {
+            // Dev: cho phép mọi origin để tiện chạy WASM dev server.
             p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod();
+        }
+        else
+        {
+            // Prod mặc định: chặn cross-origin. WASM được host cùng origin
+            // qua app.UseBlazorFrameworkFiles() nên không cần CORS.
+            p.WithOrigins().AllowAnyHeader().AllowAnyMethod();
+        }
     }));
 
 var app = builder.Build();
@@ -112,6 +135,7 @@ using (var scope = app.Services.CreateScope())
     TryTransactionTransferColumns(db);
     TryUserJapanBankColumns(db);
     SendPay.Api.Infrastructure.ReconciliationSchema.EnsureTables(db);
+    SendPay.Api.Infrastructure.BankLinkSchema.EnsureTables(db);
 
     if (!db.Users.Any(u => u.IsAdmin))
     {

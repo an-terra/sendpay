@@ -6,7 +6,7 @@ using SendPay.Api.Models;
 
 namespace SendPay.Api.Services;
 
-public class TransactionService(AppDbContext db) : ITransactionService
+public class TransactionService(AppDbContext db, ILogger<TransactionService> logger) : ITransactionService
 {
     public async Task<TransactionResponse> TransferAsync(int senderId, TransferRequest req)
     {
@@ -66,11 +66,18 @@ public class TransactionService(AppDbContext db) : ITransactionService
             await db.SaveChangesAsync();
             await tx.CommitAsync();
 
+            logger.LogInformation(
+                "Transfer ok: from={Sender} to={Receiver} amount={Amount} fee={Fee} txId={TxId}",
+                sender.Id, receiver.Id, req.Amount, fee, entity.Id);
+
             return ToResponse(entity, sender.FullName, receiver.FullName);
         }
-        catch
+        catch (Exception ex)
         {
             await tx.RollbackAsync();
+            logger.LogWarning(ex,
+                "Transfer failed: sender={Sender} receiverPhone={Phone} amount={Amount}",
+                senderId, req.ReceiverPhone, req.Amount);
             throw;
         }
     }

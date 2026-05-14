@@ -11,6 +11,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<TopUpIntent>        TopUpIntents           => Set<TopUpIntent>();
     public DbSet<BankStatementLine>  BankStatementLines     => Set<BankStatementLine>();
     public DbSet<DailyTransactionStat> DailyTransactionStats => Set<DailyTransactionStat>();
+    public DbSet<BankLinkSession>    BankLinkSessions       => Set<BankLinkSession>();
+    public DbSet<UserBankLink>       UserBankLinks          => Set<UserBankLink>();
 
     protected override void OnModelCreating(ModelBuilder mb)
     {
@@ -74,6 +76,29 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
             e.Property(x => x.TotalAmount).HasColumnType("decimal(18,2)");
             e.Property(x => x.TotalFee).HasColumnType("decimal(18,2)");
             e.HasIndex(x => new { x.StatDate, x.TransactionType, x.Status }).IsUnique();
+        });
+
+        mb.Entity<UserBankLink>(e =>
+        {
+            e.HasIndex(x => new { x.UserId, x.IsActive });
+            e.HasOne(x => x.User)
+             .WithMany()
+             .HasForeignKey(x => x.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        mb.Entity<BankLinkSession>(e =>
+        {
+            e.HasIndex(x => x.State).IsUnique();
+            e.HasIndex(x => new { x.UserId, x.Status });
+            e.HasOne(x => x.User)
+             .WithMany()
+             .HasForeignKey(x => x.UserId)
+             .OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Link)
+             .WithMany()
+             .HasForeignKey(x => x.LinkId)
+             .OnDelete(DeleteBehavior.SetNull);
         });
     }
 }

@@ -23,4 +23,19 @@ public class ReferenceController : ControllerBase
             return NotFound();
         return Ok(CountryBankCatalog.GetBanks(c).Select(e => new { name = e.Name, swift = e.Swift }));
     }
+
+    /// <summary>Autocomplete ngân hàng Nhật. q là từ khoá (mã, kana, kanji, en, alias).</summary>
+    [HttpGet("japan-banks")]
+    public IActionResult JapanBanks([FromQuery] string? q = null, [FromQuery] int max = 25)
+    {
+        var capped = Math.Clamp(max, 1, 50);
+        return Ok(JapanBankCatalog.Search(q, capped)
+            .Select(e => new
+            {
+                code = e.Code,
+                nameJa = e.NameJa,
+                nameEn = e.NameEn,
+                emoji = e.Emoji
+            }));
+    }
 }

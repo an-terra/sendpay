@@ -90,17 +90,91 @@
                 </span>
                 <div style="flex:1;height:1px;background:var(--gray-border)"></div>
             </div>
-            <div class="sp-reg-row" style="margin-bottom:1rem">
-                <div class="sp-form-group">
-                    <label>@Lang.T("settings_jp_bank_name")</label>
-                    <input class="sp-form-input sp-form-input-lg" type="text" @bind="japanBankName" />
+
+            @if (linkedOkBanner)
+            {
+                <div class="sp-alert sp-alert-success" style="margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;gap:12px">
+                    <span>
+                        <i class="fa-solid fa-circle-check"></i>
+                        @Lang.T("settings_jp_bank_linked_ok")
+                        @(countdownSeconds > 0 ? $" — {countdownSeconds}s" : "")
+                    </span>
+                    <button type="button" class="sp-btn-ghost" style="font-size:12px"
+                            @onclick="StopCountdown">@Lang.T("settings_jp_bank_stay")</button>
                 </div>
-                <div class="sp-form-group" style="grid-column:1/-1">
-                    <label>@Lang.T("settings_jp_bank_url")</label>
-                    <input class="sp-form-input sp-form-input-lg" type="url" @bind="japanBankTopUpUrl" placeholder="https://…" />
-                    <div style="font-size:11px;color:var(--text-muted);margin-top:4px">@Lang.T("settings_jp_bank_hint")</div>
+            }
+
+            <!-- Linked cards -->
+            @if (bankLinks.Count > 0)
+            {
+                <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:1rem">
+                    @foreach (var l in bankLinks)
+                    {
+                        <div style="display:flex;align-items:center;gap:14px;border:1px solid var(--gray-border);border-radius:12px;padding:12px 14px;background:#f8fafc">
+                            <div style="font-size:24px">@GetBankEmoji(l.BankCode)</div>
+                            <div style="flex:1;min-width:0">
+                                <div style="font-weight:700;color:var(--navy);font-size:14px">@l.BankName</div>
+                                <div style="font-size:12px;color:var(--text-muted)">
+                                    @l.AccountMasked
+                                    @if (l.IsPrimary)
+                                    {
+                                        <span style="background:#dcfce7;color:#166534;font-size:10px;padding:2px 8px;border-radius:10px;margin-left:6px;font-weight:700">
+                                            @Lang.T("settings_jp_bank_primary")
+                                        </span>
+                                    }
+                                </div>
+                            </div>
+                            @if (!l.IsPrimary)
+                            {
+                                <button type="button" class="sp-btn-ghost" style="font-size:12px"
+                                        @onclick="() => OnSetPrimary(l.Id)">
+                                    @Lang.T("settings_jp_bank_set_primary")
+                                </button>
+                            }
+                            <button type="button" class="sp-btn-ghost" style="font-size:12px;color:var(--red)"
+                                    @onclick="() => OnUnlink(l.Id)">
+                                @Lang.T("settings_jp_bank_unlink")
+                            </button>
+                        </div>
+                    }
+                </div>
+            }
+
+            <!-- Add bank autocomplete -->
+            <div class="sp-form-group" style="position:relative;margin-bottom:0.5rem">
+                <label>@Lang.T("settings_jp_bank_search_lbl")</label>
+                <input class="sp-form-input sp-form-input-lg" type="text"
+                       placeholder="@Lang.T("settings_jp_bank_search_ph")"
+                       value="@bankFilter"
+                       @oninput="OnBankFilterInput"
+                       @onfocus="OnBankFilterFocus" />
+                @if (showBankList && bankOptions.Count > 0)
+                {
+                    <div style="position:absolute;top:100%;left:0;right:0;z-index:20;background:#fff;border:1px solid var(--gray-border);border-radius:10px;margin-top:4px;max-height:240px;overflow-y:auto;box-shadow:0 8px 24px rgba(15,23,42,.08)">
+                        @foreach (var b in bankOptions)
+                        {
+                            <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:1px solid #f1f5f9"
+                                 @onclick="() => OnPickBank(b)">
+                                <span style="font-size:18px">@b.Emoji</span>
+                                <div style="flex:1;min-width:0">
+                                    <div style="font-weight:600;color:var(--navy);font-size:13px">@b.NameJa</div>
+                                    <div style="font-size:11px;color:var(--text-muted)">@b.NameEn · @b.Code</div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                <div style="font-size:11px;color:var(--text-muted);margin-top:6px">
+                    @Lang.T("settings_jp_bank_hint_new")
                 </div>
             </div>
+
+            @if (!string.IsNullOrEmpty(linkError))
+            {
+                <div class="sp-alert sp-alert-error" style="margin:0.6rem 0">
+                    <i class="fa-solid fa-circle-exclamation"></i> @linkError
+                </div>
+            }
 
             <!-- Password divider -->
             <div style="display:flex;align-items:center;gap:10px;margin:1.2rem 0">
@@ -297,6 +371,16 @@
 @code {
     string fullName = "", email = "", phone = "";
     string japanBankName = "", japanBankTopUpUrl = "";
+
+    List<UserBankLinkDto> bankLinks = [];
+    List<JapanBankOptionDto> bankOptions = [];
+    string bankFilter = "";
+    bool showBankList;
+    string linkError = "";
+    bool linkedOkBanner;
+    int countdownSeconds;
+    System.Timers.Timer? countdownTimer;
+    System.Threading.CancellationTokenSource? _bankSearchCts;
     decimal balance = 0;
     string currentPwd = "", newPwd = "", confirmPwd = "";
     string avatarData = "";
@@ -341,7 +425,122 @@
             japanBankName = p.JapanBankName ?? "";
             japanBankTopUpUrl = p.JapanBankTopUpUrl ?? "";
         }
+        bankLinks = await Api.GetMyBankLinksAsync();
+
+        var uri = Nav.ToAbsoluteUri(Nav.Uri);
+        if (HasLinkedOkQuery(uri.Query))
+        {
+            linkedOkBanner = true;
+            StartCountdown(15);
+        }
     }
+
+    async Task OnBankFilterFocus()
+    {
+        if (bankOptions.Count == 0)
+            await DoSearch("");
+        showBankList = true;
+    }
+
+    async Task OnBankFilterInput(ChangeEventArgs e)
+    {
+        bankFilter = e.Value?.ToString() ?? "";
+        showBankList = true;
+        await DoSearch(bankFilter);
+    }
+
+    async Task DoSearch(string q)
+    {
+        _bankSearchCts?.Cancel();
+        _bankSearchCts = new System.Threading.CancellationTokenSource();
+        var ct = _bankSearchCts.Token;
+        try
+        {
+            await Task.Delay(150, ct);
+            if (ct.IsCancellationRequested) return;
+            bankOptions = await Api.SearchJapanBanksAsync(q);
+            StateHasChanged();
+        }
+        catch (TaskCanceledException) { }
+    }
+
+    async Task OnPickBank(JapanBankOptionDto b)
+    {
+        linkError = "";
+        showBankList = false;
+        bankFilter = b.NameJa;
+        StateHasChanged();
+        var (ok, data, err) = await Api.StartBankLinkAsync(b.Code, "/settings");
+        if (!ok || data is null)
+        {
+            linkError = string.IsNullOrWhiteSpace(err) ? "Không khởi tạo được phiên liên kết." : err;
+            return;
+        }
+        Nav.NavigateTo(data.AuthorizeUrl, forceLoad: false);
+    }
+
+    async Task OnUnlink(int linkId)
+    {
+        var ok = await Api.UnlinkBankAsync(linkId);
+        if (ok) bankLinks = await Api.GetMyBankLinksAsync();
+    }
+
+    async Task OnSetPrimary(int linkId)
+    {
+        var ok = await Api.SetPrimaryBankAsync(linkId);
+        if (ok) bankLinks = await Api.GetMyBankLinksAsync();
+    }
+
+    void StartCountdown(int seconds)
+    {
+        countdownSeconds = seconds;
+        countdownTimer?.Stop();
+        countdownTimer = new System.Timers.Timer(1000);
+        countdownTimer.Elapsed += async (_, _) =>
+        {
+            countdownSeconds--;
+            await InvokeAsync(StateHasChanged);
+            if (countdownSeconds <= 0)
+            {
+                countdownTimer?.Stop();
+                await InvokeAsync(() => Nav.NavigateTo("/dashboard"));
+            }
+        };
+        countdownTimer.AutoReset = true;
+        countdownTimer.Start();
+    }
+
+    void StopCountdown()
+    {
+        countdownTimer?.Stop();
+        countdownSeconds = 0;
+        linkedOkBanner = false;
+    }
+
+    static bool HasLinkedOkQuery(string query)
+    {
+        if (string.IsNullOrEmpty(query)) return false;
+        var q = query.StartsWith('?') ? query[1..] : query;
+        foreach (var part in q.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var kv = part.Split('=', 2);
+            var k = Uri.UnescapeDataString(kv[0]);
+            var v = kv.Length > 1 ? Uri.UnescapeDataString(kv[1]) : "";
+            if (string.Equals(k, "linked", StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(v, "ok", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+        return false;
+    }
+
+    static string GetBankEmoji(string code) => code.ToUpperInvariant() switch
+    {
+        "MUFG" => "🏦", "SMBC" => "🏦", "MIZUHO" => "🏦", "RESONA" => "🏦",
+        "YUCHO" => "📮", "RAKUTEN" => "🟥", "PAYPAY" => "💳",
+        "SBISHINSEI" => "🏛", "AEON" => "🛒", "SONY" => "🎮",
+        "SEVEN" => "🏪", "LAWSON" => "🏪", "GMO" => "💻", "SBISUMISHIN" => "💻",
+        _ => "🏯"
+    };
 
     async Task OnAvatarChanged(InputFileChangeEventArgs e)
     {
@@ -488,5 +687,12 @@
         }
     }
 
-    public void Dispose() => Lang.OnChanged -= StateHasChanged;
+    public void Dispose()
+    {
+        Lang.OnChanged -= StateHasChanged;
+        countdownTimer?.Stop();
+        countdownTimer?.Dispose();
+        _bankSearchCts?.Cancel();
+        _bankSearchCts?.Dispose();
+    }
 }

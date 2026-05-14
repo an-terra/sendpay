@@ -68,6 +68,33 @@ public record UserProfileResponse(int Id, string FullName, string Email, string 
 public record CurrencyRate(string Code, string Flag, string Country, decimal Rate, string Change, bool Up);
 public record ExchangeRateResponse(string Date, List<CurrencyRate> Rates);
 
+public record JapanBankOptionDto(
+    [property: JsonPropertyName("code")] string Code,
+    [property: JsonPropertyName("nameJa")] string NameJa,
+    [property: JsonPropertyName("nameEn")] string NameEn,
+    [property: JsonPropertyName("emoji")] string Emoji);
+
+public record BankLinkStartResponse(
+    [property: JsonPropertyName("state")] string State,
+    [property: JsonPropertyName("authorizeUrl")] string AuthorizeUrl,
+    [property: JsonPropertyName("expiresAt")] DateTime ExpiresAt);
+
+public record FakeBankApproveResponse(
+    [property: JsonPropertyName("redirectUrl")] string RedirectUrl,
+    [property: JsonPropertyName("linkId")] int LinkId,
+    [property: JsonPropertyName("bankCode")] string BankCode,
+    [property: JsonPropertyName("bankName")] string BankName,
+    [property: JsonPropertyName("accountMasked")] string AccountMasked);
+
+public record UserBankLinkDto(
+    [property: JsonPropertyName("id")] int Id,
+    [property: JsonPropertyName("bankCode")] string BankCode,
+    [property: JsonPropertyName("bankName")] string BankName,
+    [property: JsonPropertyName("accountMasked")] string AccountMasked,
+    [property: JsonPropertyName("isPrimary")] bool IsPrimary,
+    [property: JsonPropertyName("isActive")] bool IsActive,
+    [property: JsonPropertyName("linkedAt")] DateTime LinkedAt);
+
 public record ReceiverLookupDto(
     [property: JsonPropertyName("found")] bool Found,
     [property: JsonPropertyName("fullName")] string? FullName,
@@ -187,6 +214,62 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
 
     /// <summary>Tương thích: tương đương GetCatalogBanksAsync("VN").</summary>
     public Task<List<CatalogBankOption>> GetVietnamBanksAsync() => GetCatalogBanksAsync("VN");
+
+    // ── Japan banks + bank-link (mock provider) ────────────────
+    public async Task<List<JapanBankOptionDto>> SearchJapanBanksAsync(string? query, int max = 25)
+    {
+        await SetAuthHeader();
+        var url = $"api/reference/japan-banks?max={max}";
+        if (!string.IsNullOrWhiteSpace(query))
+            url += $"&q={Uri.EscapeDataString(query.Trim())}";
+        return await http.GetFromJsonAsync<List<JapanBankOptionDto>>(url) ?? [];
+    }
+
+    public async Task<(bool ok, BankLinkStartResponse? data, string error)> StartBankLinkAsync(string bankCode, string? returnUrl)
+    {
+        await SetAuthHeader();
+        var res = await http.PostAsJsonAsync("api/bank-link/start", new { bankCode, returnUrl });
+        if (res.IsSuccessStatusCode)
+            return (true, await res.Content.ReadFromJsonAsync<BankLinkStartResponse>(), "");
+        return (false, null, await ReadErrorMessageAsync(res, "Không khởi tạo được phiên liên kết."));
+    }
+
+    public async Task<(bool ok, FakeBankApproveResponse? data, string error)> FakeBankApproveAsync(string state, string accountNo, string loginId)
+    {
+        var res = await http.PostAsJsonAsync("api/bank-link/fake-approve", new { state, accountNo, loginId });
+        if (res.IsSuccessStatusCode)
+            return (true, await res.Content.ReadFromJsonAsync<FakeBankApproveResponse>(), "");
+        return (false, null, await ReadErrorMessageAsync(res, "Xác nhận thất bại."));
+    }
+
+    public async Task<List<UserBankLinkDto>> GetMyBankLinksAsync()
+    {
+        await SetAuthHeader();
+        return await http.GetFromJsonAsync<List<UserBankLinkDto>>("api/bank-link/me") ?? [];
+    }
+
+    public async Task<UserBankLinkDto?> GetPrimaryBankLinkAsync()
+    {
+        await SetAuthHeader();
+        var res = await http.GetAsync("api/bank-link/primary");
+        if (res.StatusCode == System.Net.HttpStatusCode.NoContent) return null;
+        if (!res.IsSuccessStatusCode) return null;
+        return await res.Content.ReadFromJsonAsync<UserBankLinkDto>();
+    }
+
+    public async Task<bool> UnlinkBankAsync(int linkId)
+    {
+        await SetAuthHeader();
+        var res = await http.DeleteAsync($"api/bank-link/{linkId}");
+        return res.IsSuccessStatusCode;
+    }
+
+    public async Task<bool> SetPrimaryBankAsync(int linkId)
+    {
+        await SetAuthHeader();
+        var res = await http.PutAsync($"api/bank-link/{linkId}/primary", null);
+        return res.IsSuccessStatusCode;
+    }
 
     sealed class BankCatalogJsonDto
     {

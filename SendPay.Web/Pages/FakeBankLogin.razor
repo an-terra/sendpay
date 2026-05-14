@@ -1,0 +1,167 @@
+@page "/fake-bank/{BankCode}"
+@inject ApiService Api
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<div style="min-height:100vh;background:linear-gradient(180deg,#f1f5f9,#e2e8f0);padding:40px 16px">
+    <div style="max-width:520px;margin:0 auto">
+        <!-- Bank header -->
+        <div style="background:@HeaderColor;color:#fff;border-radius:14px 14px 0 0;padding:22px 26px;display:flex;align-items:center;gap:14px">
+            <div style="font-size:36px">@BankEmoji</div>
+            <div>
+                <div style="font-size:11px;opacity:.85;letter-spacing:1px">JAPAN BANKING DEMO</div>
+                <div style="font-size:20px;font-weight:800;line-height:1.2">@BankNameJa</div>
+                <div style="font-size:12px;opacity:.85">@BankNameEn</div>
+            </div>
+        </div>
+
+        <div style="background:#fff;border-radius:0 0 14px 14px;padding:26px;box-shadow:0 6px 24px rgba(15,23,42,.08)">
+            <div style="background:#fef3c7;border:1px solid #fde68a;color:#92400e;font-size:12px;padding:10px 12px;border-radius:8px;margin-bottom:18px;line-height:1.5">
+                <strong>⚠️ デモ環境 / Mock UI:</strong>
+                ここは SendPay のデモ用の銀行ログイン画面です。実際の銀行ではありません。
+                どんな ID/パスワードを入力しても認証されます。
+            </div>
+
+            @if (!string.IsNullOrEmpty(error))
+            {
+                <div style="background:#fee2e2;border:1px solid #fecaca;color:#991b1b;font-size:13px;padding:10px 12px;border-radius:8px;margin-bottom:14px">
+                    @error
+                </div>
+            }
+
+            <div style="margin-bottom:14px">
+                <label style="font-size:12px;font-weight:600;color:#334155;display:block;margin-bottom:6px">店番号 / 支店コード</label>
+                <input type="text" @bind="branchCode" maxlength="3" placeholder="001"
+                       style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px" />
+            </div>
+
+            <div style="margin-bottom:14px">
+                <label style="font-size:12px;font-weight:600;color:#334155;display:block;margin-bottom:6px">口座番号 (普通預金)</label>
+                <input type="text" @bind="accountNo" maxlength="10" placeholder="1234567"
+                       style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px" />
+            </div>
+
+            <div style="margin-bottom:14px">
+                <label style="font-size:12px;font-weight:600;color:#334155;display:block;margin-bottom:6px">ログイン ID</label>
+                <input type="text" @bind="loginId" maxlength="40" placeholder="user@@@BankCode"
+                       style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px" />
+            </div>
+
+            <div style="margin-bottom:18px">
+                <label style="font-size:12px;font-weight:600;color:#334155;display:block;margin-bottom:6px">パスワード</label>
+                <input type="password" @bind="password" maxlength="80"
+                       style="width:100%;padding:11px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px" />
+            </div>
+
+            <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;margin-bottom:18px;font-size:12px;color:#475569;line-height:1.6">
+                以下の SendPay サービスとの連携を許可します:
+                <ul style="margin:8px 0 0 18px;padding:0">
+                    <li>口座基本情報（マスク済み番号）の参照</li>
+                    <li>入金・残高同期</li>
+                </ul>
+            </div>
+
+            <div style="display:flex;gap:10px">
+                <button type="button" @onclick="OnCancel"
+                        style="flex:1;padding:13px;border:1px solid #cbd5e1;background:#fff;color:#334155;border-radius:10px;font-weight:600;cursor:pointer">
+                    キャンセル
+                </button>
+                <button type="button" @onclick="OnApprove" disabled="@loading"
+                        style="flex:2;padding:13px;background:@HeaderColor;color:#fff;border:none;border-radius:10px;font-weight:700;cursor:pointer">
+                    @if (loading) { <span>処理中…</span> }
+                    else { <span>同意して連携</span> }
+                </button>
+            </div>
+
+            <div style="text-align:center;margin-top:14px;font-size:11px;color:#64748b">
+                © @BankNameJa — Demo banking UI for SendPay
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string BankCode { get; set; } = "";
+
+    [SupplyParameterFromQuery(Name = "state")]
+    public string? State { get; set; }
+
+    string branchCode = "001";
+    string accountNo = "";
+    string loginId = "";
+    string password = "";
+    string error = "";
+    bool loading;
+
+    string BankEmoji = "🏦";
+    string BankNameJa = "";
+    string BankNameEn = "";
+    string HeaderColor = "#0f172a";
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrWhiteSpace(State))
+        {
+            error = "リンクが無効です。SendPay から再度お試しください。";
+            return;
+        }
+
+        var banks = await Api.SearchJapanBanksAsync(BankCode);
+        var b = banks.FirstOrDefault(x => string.Equals(x.Code, BankCode, StringComparison.OrdinalIgnoreCase));
+        if (b is not null)
+        {
+            BankEmoji  = b.Emoji;
+            BankNameJa = b.NameJa;
+            BankNameEn = b.NameEn;
+        }
+        else
+        {
+            BankNameJa = BankCode;
+            BankNameEn = "Unknown Bank";
+        }
+
+        HeaderColor = BankCode.ToUpperInvariant() switch
+        {
+            "MUFG"       => "#b91c1c",
+            "SMBC"       => "#15803d",
+            "MIZUHO"     => "#1d4ed8",
+            "RESONA"     => "#7c3aed",
+            "YUCHO"      => "#16a34a",
+            "RAKUTEN"    => "#b91c1c",
+            "PAYPAY"     => "#dc2626",
+            "SBISHINSEI" => "#0e7490",
+            "AEON"       => "#7c3aed",
+            "SONY"       => "#0284c7",
+            "SEVEN"      => "#0f766e",
+            "LAWSON"     => "#1e40af",
+            "GMO"        => "#16a34a",
+            _ => "#0f172a"
+        };
+
+        loginId = $"demo@{BankCode.ToLowerInvariant()}";
+
+        var rnd = new Random(BankCode.GetHashCode());
+        accountNo = rnd.Next(1_000_000, 9_999_999).ToString();
+    }
+
+    async Task OnApprove()
+    {
+        error = "";
+        if (string.IsNullOrWhiteSpace(State)) { error = "State 無効"; return; }
+        if (string.IsNullOrWhiteSpace(loginId) || string.IsNullOrWhiteSpace(password))
+        { error = "ログイン ID とパスワードを入力してください。"; return; }
+
+        loading = true;
+        var (ok, data, err) = await Api.FakeBankApproveAsync(State!, accountNo.Trim(), loginId.Trim());
+        loading = false;
+        if (!ok || data is null)
+        {
+            error = string.IsNullOrWhiteSpace(err) ? "連携に失敗しました。" : err;
+            return;
+        }
+
+        Nav.NavigateTo(data.RedirectUrl, forceLoad: false);
+    }
+
+    void OnCancel() => Nav.NavigateTo("/settings", forceLoad: false);
+}
