@@ -77,7 +77,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 // ── Middleware pipeline ────────────────────────────────────
-app.UseDefaultFiles();
+app.UseBlazorFrameworkFiles();
 app.UseStaticFiles();
 
 app.MapOpenApi();
