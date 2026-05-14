@@ -15,14 +15,10 @@ services:
       - key: ASPNETCORE_URLS
         value: http://+:8080
       - key: ConnectionStrings__DefaultConnection
-        value: Data Source=/var/data/sendpay.db
+        value: Data Source=/tmp/sendpay.db
       - key: Jwt__Key
         sync: false
       - key: Jwt__Issuer
         value: SendPay
       - key: Jwt__Audience
         value: SendPayClients
-    disk:
-      name: sendpay-data
-      mountPath: /var/data
-      sizeGB: 1
