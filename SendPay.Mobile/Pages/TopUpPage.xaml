@@ -12,7 +12,7 @@
             <Frame BackgroundColor="White" CornerRadius="16" Padding="20" HasShadow="True">
                 <VerticalStackLayout Spacing="16">
 
-                    <Label Text="Ngân hàng nạp tại Nhật (do quản trị gán)" FontSize="13"
+                    <Label Text="Ngân hàng nạp tại Nhật (bạn tự cấu hình)" FontSize="13"
                            TextColor="#334155" FontAttributes="Bold"/>
                     <Label x:Name="JapanBankNameLabel" FontSize="15" FontAttributes="Bold"
                            TextColor="#0f172a" IsVisible="False"/>
@@ -20,10 +20,14 @@
                             Clicked="OnOpenJapanBankClicked" BackgroundColor="#0284c7"
                             TextColor="White" CornerRadius="12" HeightRequest="48"
                             FontAttributes="Bold" IsVisible="False"/>
-                    <Label x:Name="JapanBankNoneLabel" Text="Chưa có ngân hàng được gán. Liên hệ quản trị viên."
-                           FontSize="12" TextColor="#64748b" IsVisible="False"/>
+                    <Label x:Name="JapanBankNoneLabel" Text="Chưa cấu hình ngân hàng. Vào trang chủ → “Ngân hàng nạp (Nhật)” để thêm tên và URL trang nạp."
+                           FontSize="12" TextColor="#64748b" IsVisible="False" LineBreakMode="WordWrap"/>
+                    <Button x:Name="GoBankSettingsBtn" Text="Mở cài đặt ngân hàng"
+                            Clicked="OnGoBankSettingsClicked" BackgroundColor="#e0f2fe"
+                            TextColor="#0369a1" CornerRadius="12" HeightRequest="44"
+                            FontAttributes="Bold" IsVisible="False"/>
 
-                    <Label Text="Nạp ví demo không cần OTP. Có thể nạp tức thì (instant) hoặc tạo lệnh chờ chuyển khoản từ ngân hàng Nhật."
+                    <Label Text="Có thể nạp tức thì (instant) hoặc tạo lệnh chờ chuyển khoản khi bật chế độ đối soát."
                            FontSize="12" TextColor="#64748b" LineBreakMode="WordWrap"/>
 
                     <Label x:Name="RefHintLabel" FontSize="13" TextColor="#0f172a" FontAttributes="Bold"

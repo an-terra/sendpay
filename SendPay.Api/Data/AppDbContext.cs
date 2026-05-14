@@ -8,7 +8,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<User>                 Users                  => Set<User>();
     public DbSet<Transaction>        Transactions           => Set<Transaction>();
     public DbSet<Recipient>          Recipients             => Set<Recipient>();
-    public DbSet<OtpChallenge>       OtpChallenges          => Set<OtpChallenge>();
     public DbSet<TopUpIntent>        TopUpIntents           => Set<TopUpIntent>();
     public DbSet<BankStatementLine>  BankStatementLines     => Set<BankStatementLine>();
     public DbSet<DailyTransactionStat> DailyTransactionStats => Set<DailyTransactionStat>();
@@ -44,15 +43,6 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
              .WithMany(u => u.ReceivedTransactions)
              .HasForeignKey(t => t.ReceiverId)
              .OnDelete(DeleteBehavior.Restrict);
-        });
-
-        mb.Entity<OtpChallenge>(e =>
-        {
-            e.HasIndex(x => x.UserId);
-            e.HasOne(x => x.User)
-             .WithMany()
-             .HasForeignKey(x => x.UserId)
-             .OnDelete(DeleteBehavior.Cascade);
         });
 
         mb.Entity<TopUpIntent>(e =>

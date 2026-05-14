@@ -28,6 +28,7 @@ public partial class TopUpPage : ContentPage
             JapanBankNameLabel.IsVisible = has;
             OpenJapanBankBtn.IsVisible = has;
             JapanBankNoneLabel.IsVisible = !has;
+            GoBankSettingsBtn.IsVisible = !has;
         }
         catch
         {
@@ -35,7 +36,14 @@ public partial class TopUpPage : ContentPage
             JapanBankNameLabel.IsVisible = false;
             OpenJapanBankBtn.IsVisible = false;
             JapanBankNoneLabel.IsVisible = true;
+            GoBankSettingsBtn.IsVisible = true;
         }
+    }
+
+    async void OnGoBankSettingsClicked(object sender, EventArgs e)
+    {
+        MsgLabel.IsVisible = false;
+        await Shell.Current.GoToAsync("banksettings");
     }
 
     async void OnOpenJapanBankClicked(object sender, EventArgs e)

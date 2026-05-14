@@ -53,6 +53,9 @@ public partial class DashboardPage : ContentPage
         await Shell.Current.GoToAsync("//login");
     }
 
+    async void OnJapanBankSettingsTapped(object sender, EventArgs e)
+        => await Shell.Current.GoToAsync("banksettings");
+
     async void OnRecipientsTapped(object sender, EventArgs e)
         => await Shell.Current.GoToAsync("recipients");
 

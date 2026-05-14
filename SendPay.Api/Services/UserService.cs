@@ -27,9 +27,25 @@ public class UserService(AppDbContext db) : IUserService
         if (await db.Users.AnyAsync(x => x.Phone == req.Phone && x.Id != userId))
             throw new InvalidOperationException("Số điện thoại đã được sử dụng.");
 
-        u.FullName = req.FullName;
-        u.Email    = req.Email;
-        u.Phone    = req.Phone;
+        u.FullName = req.FullName.Trim();
+        u.Email    = req.Email.Trim();
+        u.Phone    = req.Phone.Trim();
+
+        u.JapanBankName = string.IsNullOrWhiteSpace(req.JapanBankName)
+            ? null
+            : req.JapanBankName.Trim();
+
+        if (string.IsNullOrWhiteSpace(req.JapanBankTopUpUrl))
+            u.JapanBankTopUpUrl = null;
+        else
+        {
+            var url = req.JapanBankTopUpUrl.Trim();
+            if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                throw new InvalidOperationException("URL ngân hàng phải bắt đầu bằng http:// hoặc https://.");
+            u.JapanBankTopUpUrl = url;
+        }
+
         await db.SaveChangesAsync();
         return new UserProfileResponse(u.Id, u.FullName, u.Email, u.Phone, u.Balance, u.CreatedAt,
             u.JapanBankName, u.JapanBankTopUpUrl);

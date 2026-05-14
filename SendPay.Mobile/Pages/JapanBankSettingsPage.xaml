@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="SendPay.Mobile.Pages.JapanBankSettingsPage"
+             BackgroundColor="#f5f5f7" Title="Ngân hàng nạp (Nhật)">
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16">
+            <Label x:Name="MsgLabel" IsVisible="False" FontSize="14"
+                   HorizontalOptions="Center" HorizontalTextAlignment="Center"/>
+
+            <Frame BackgroundColor="White" CornerRadius="16" Padding="20" HasShadow="True">
+                <VerticalStackLayout Spacing="14">
+                    <Label Text="Thêm ngân hàng nạp tại Nhật và URL trang nạp/chuyển khoản. URL phải bắt đầu bằng https:// hoặc http://."
+                           FontSize="12" TextColor="#64748b" LineBreakMode="WordWrap"/>
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="Tên ngân hàng (hiển thị)" FontSize="13" TextColor="#8b8b9b" FontAttributes="Bold"/>
+                        <Entry x:Name="BankNameEntry" Placeholder="Ví dụ: MUFG / 楽天銀行"/>
+                    </VerticalStackLayout>
+
+                    <VerticalStackLayout Spacing="4">
+                        <Label Text="URL trang nạp" FontSize="13" TextColor="#8b8b9b" FontAttributes="Bold"/>
+                        <Entry x:Name="BankUrlEntry" Placeholder="https://..." Keyboard="Url"/>
+                    </VerticalStackLayout>
+
+                    <Button x:Name="SaveBtn" Text="Lưu"
+                            Clicked="OnSaveClicked" BackgroundColor="#6c47ff"
+                            TextColor="White" CornerRadius="12" HeightRequest="48"
+                            FontAttributes="Bold"/>
+                </VerticalStackLayout>
+            </Frame>
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

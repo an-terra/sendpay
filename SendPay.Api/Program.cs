@@ -30,8 +30,6 @@ builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<RatesService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddHttpClient();
-builder.Services.AddScoped<IOtpDeliveryService, OtpDeliveryService>();
-builder.Services.AddScoped<IOtpVerificationService, OtpVerificationService>();
 builder.Services.AddScoped<IWalletService, WalletService>();
 builder.Services.AddScoped<ITransactionService, TransactionService>();
 builder.Services.AddScoped<IRecipientService, RecipientService>();
@@ -74,16 +72,6 @@ builder.Services.AddRateLimiter(options =>
             _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = 25,
-                Window = TimeSpan.FromMinutes(1),
-                QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                QueueLimit = 0
-            }));
-    options.AddPolicy("otp", httpContext =>
-        RateLimitPartition.GetFixedWindowLimiter(
-            httpContext.GetClientIpAddress(),
-            _ => new FixedWindowRateLimiterOptions
-            {
-                PermitLimit = 15,
                 Window = TimeSpan.FromMinutes(1),
                 QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
                 QueueLimit = 0

@@ -82,6 +82,26 @@
                 </div>
             </div>
 
+            <div style="display:flex;align-items:center;gap:10px;margin:1.2rem 0 0.9rem">
+                <div style="flex:1;height:1px;background:var(--gray-border)"></div>
+                <span style="font-size:11px;color:var(--text-muted);white-space:nowrap;display:flex;align-items:center;gap:5px">
+                    <i class="fa-solid fa-building-columns" style="color:#0284c7"></i>
+                    @Lang.T("settings_jp_bank_section")
+                </span>
+                <div style="flex:1;height:1px;background:var(--gray-border)"></div>
+            </div>
+            <div class="sp-reg-row" style="margin-bottom:1rem">
+                <div class="sp-form-group">
+                    <label>@Lang.T("settings_jp_bank_name")</label>
+                    <input class="sp-form-input sp-form-input-lg" type="text" @bind="japanBankName" />
+                </div>
+                <div class="sp-form-group" style="grid-column:1/-1">
+                    <label>@Lang.T("settings_jp_bank_url")</label>
+                    <input class="sp-form-input sp-form-input-lg" type="url" @bind="japanBankTopUpUrl" placeholder="https://…" />
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:4px">@Lang.T("settings_jp_bank_hint")</div>
+                </div>
+            </div>
+
             <!-- Password divider -->
             <div style="display:flex;align-items:center;gap:10px;margin:1.2rem 0">
                 <div style="flex:1;height:1px;background:var(--gray-border)"></div>
@@ -276,6 +296,7 @@
 
 @code {
     string fullName = "", email = "", phone = "";
+    string japanBankName = "", japanBankTopUpUrl = "";
     decimal balance = 0;
     string currentPwd = "", newPwd = "", confirmPwd = "";
     string avatarData = "";
@@ -314,7 +335,12 @@
     async Task LoadProfile()
     {
         var p = await Api.GetProfileAsync();
-        if (p != null) { fullName = p.FullName; email = p.Email; phone = p.Phone; balance = p.Balance; }
+        if (p != null)
+        {
+            fullName = p.FullName; email = p.Email; phone = p.Phone; balance = p.Balance;
+            japanBankName = p.JapanBankName ?? "";
+            japanBankTopUpUrl = p.JapanBankTopUpUrl ?? "";
+        }
     }
 
     async Task OnAvatarChanged(InputFileChangeEventArgs e)
@@ -345,7 +371,10 @@
         }
 
         savingGroup1 = true;
-        var (profOk, profErr) = await Api.UpdateProfileAsync(fullName.Trim(), email.Trim(), phone.Trim());
+        var (profOk, profErr) = await Api.UpdateProfileAsync(
+            fullName.Trim(), email.Trim(), phone.Trim(),
+            string.IsNullOrWhiteSpace(japanBankName) ? null : japanBankName.Trim(),
+            string.IsNullOrWhiteSpace(japanBankTopUpUrl) ? null : japanBankTopUpUrl.Trim());
         if (profOk) await LocalStorage.SetItemAsync("fullName", fullName.Trim());
 
         bool pwdOk = true; string pwdErrMsg = "";

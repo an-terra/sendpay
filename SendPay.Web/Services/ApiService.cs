@@ -68,12 +68,6 @@ public record UserProfileResponse(int Id, string FullName, string Email, string 
 public record CurrencyRate(string Code, string Flag, string Country, decimal Rate, string Change, bool Up);
 public record ExchangeRateResponse(string Date, List<CurrencyRate> Rates);
 
-public record VerificationStartResponse(
-    [property: JsonPropertyName("verificationId")] Guid VerificationId,
-    [property: JsonPropertyName("expiresInSeconds")] int ExpiresInSeconds,
-    [property: JsonPropertyName("debugOtp")] string? DebugOtp,
-    [property: JsonPropertyName("message")] string? Message);
-
 public record ReceiverLookupDto(
     [property: JsonPropertyName("found")] bool Found,
     [property: JsonPropertyName("fullName")] string? FullName,
@@ -119,26 +113,6 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
     {
         await SetAuthHeader();
         return await http.GetFromJsonAsync<WalletResponse>("api/wallet");
-    }
-
-    public async Task<(bool ok, VerificationStartResponse? data, string error)> StartTopUpVerificationAsync(decimal amount)
-    {
-        await SetAuthHeader();
-        var res = await http.PostAsJsonAsync("api/verification/topup/start", new { amount });
-        if (res.IsSuccessStatusCode)
-            return (true, await res.Content.ReadFromJsonAsync<VerificationStartResponse>(), "");
-        return (false, null, await ReadErrorMessageAsync(res, "Không gửi được mã OTP"));
-    }
-
-    public async Task<(bool ok, VerificationStartResponse? data, string error)> StartTransferVerificationAsync(
-        string receiverPhone, decimal amount, string note)
-    {
-        await SetAuthHeader();
-        var res = await http.PostAsJsonAsync("api/verification/transfer/start",
-            new { receiverPhone, amount, note });
-        if (res.IsSuccessStatusCode)
-            return (true, await res.Content.ReadFromJsonAsync<VerificationStartResponse>(), "");
-        return (false, null, await ReadErrorMessageAsync(res, "Không gửi được mã OTP"));
     }
 
     public async Task<ReceiverLookupDto?> LookupTransferCounterpartyAsync(
@@ -274,10 +248,12 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
     }
 
     public async Task<(bool ok, string error)> UpdateProfileAsync(
-        string fullName, string email, string phone)
+        string fullName, string email, string phone,
+        string? japanBankName, string? japanBankTopUpUrl)
     {
         await SetAuthHeader();
-        var res = await http.PutAsJsonAsync("api/user/profile", new { fullName, email, phone });
+        var res = await http.PutAsJsonAsync("api/user/profile",
+            new { fullName, email, phone, japanBankName, japanBankTopUpUrl });
         if (res.IsSuccessStatusCode) return (true, "");
         return (false, await ReadErrorMessageAsync(res, "Cập nhật thất bại"));
     }

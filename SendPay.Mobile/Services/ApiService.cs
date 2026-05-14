@@ -114,6 +114,18 @@ public class ApiService
         return await _http.GetFromJsonAsync<UserProfileDto>("api/user/profile");
     }
 
+    public async Task<(bool ok, string error)> UpdateProfileAsync(
+        string fullName, string email, string phone,
+        string? japanBankName, string? japanBankTopUpUrl)
+    {
+        SetToken();
+        var res = await _http.PutAsJsonAsync("api/user/profile",
+            new { fullName, email, phone, japanBankName, japanBankTopUpUrl });
+        if (res.IsSuccessStatusCode) return (true, "");
+        var body = await res.Content.ReadAsStringAsync();
+        return (false, body.Length > 240 ? "Cập nhật thất bại" : body);
+    }
+
     public async Task<(bool ok, WalletTopUpResponseDto? data, string error)> TopUpAsync(decimal amount)
     {
         SetToken();

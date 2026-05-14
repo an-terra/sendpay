@@ -37,6 +37,7 @@
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto"/>
                         <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
                     <Grid ColumnSpacing="12" Grid.Row="0">
                     <Grid.ColumnDefinitions>
@@ -70,7 +71,10 @@
                         </Frame.GestureRecognizers>
                     </Frame>
                 </Grid>
-                <Button Grid.Row="1" Text="👥 Danh bạ người nhận" Clicked="OnRecipientsTapped"
+                <Button Grid.Row="1" Text="🏦 Ngân hàng nạp (Nhật)" Clicked="OnJapanBankSettingsTapped"
+                        BackgroundColor="#e0f2fe" TextColor="#0369a1"
+                        CornerRadius="12" HeightRequest="46" FontAttributes="Bold" FontSize="13"/>
+                <Button Grid.Row="2" Text="👥 Danh bạ người nhận" Clicked="OnRecipientsTapped"
                         BackgroundColor="White" TextColor="#6c47ff"
                         CornerRadius="12" HeightRequest="48" FontAttributes="Bold"/>
                 </Grid>

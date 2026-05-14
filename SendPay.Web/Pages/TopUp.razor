@@ -77,12 +77,14 @@
                     }
                     else
                     {
-                        <MudText Typo="Typo.caption" Style="color:var(--text-sub)">@Lang.T("topup_jp_bank_none")</MudText>
+                        <MudText Typo="Typo.caption" Style="color:var(--text-sub);margin-bottom:8px;display:block">
+                            @Lang.T("topup_jp_bank_none")
+                        </MudText>
+                        <MudLink Href="/settings" Typo="Typo.body2" Style="font-weight:700">@Lang.T("topup_configure_bank")</MudLink>
                     }
                 </MudPaper>
 
                 <MudAlert Severity="Severity.Info" Dense="true" Class="mb-4">@Lang.T("topup_free")</MudAlert>
-                <MudAlert Severity="Severity.Normal" Dense="true" Class="mb-4" Style="font-size:12px">@Lang.T("topup_no_otp_hint")</MudAlert>
 
                 <MudTextField @bind-Value="amount"
                               Label="@Lang.T("topup_custom_lbl")"
