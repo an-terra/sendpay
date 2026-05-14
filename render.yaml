@@ -15,10 +15,10 @@ services:
       - key: ASPNETCORE_URLS
         value: http://+:8080
       - key: ConnectionStrings__DefaultConnection
-        value: Data Source=/tmp/sendpay.db
+        sync: false
       - key: Jwt__Key
         sync: false
       - key: Jwt__Issuer
-        value: SendPay
+        value: SendPay.Api
       - key: Jwt__Audience
-        value: SendPayClients
+        value: SendPay.Client

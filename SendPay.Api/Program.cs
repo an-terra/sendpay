@@ -3,6 +3,7 @@ using BCrypt.Net;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Npgsql;
 using Scalar.AspNetCore;
 using SendPay.Api.Data;
 using SendPay.Api.Models;
@@ -11,8 +12,11 @@ using SendPay.Api.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Database ───────────────────────────────────────────────
+var connectionString = NormalizePostgresConnectionString(
+    builder.Configuration.GetConnectionString("DefaultConnection"));
+
 builder.Services.AddDbContext<AppDbContext>(opt =>
-    opt.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+    opt.UseNpgsql(connectionString));
 
 // ── Services ──────────────────────────────────────────────
 builder.Services.AddMemoryCache();
@@ -55,11 +59,11 @@ builder.Services.AddCors(opt =>
 
 var app = builder.Build();
 
-// ── Auto-run migrations & seed admin ──────────────────────
+// ── Auto-create schema & seed admin ───────────────────────
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
+    db.Database.EnsureCreated();
 
     if (!db.Users.Any(u => u.IsAdmin))
     {
@@ -94,3 +98,34 @@ app.MapControllers();
 app.MapFallbackToFile("index.html");
 
 app.Run();
+
+
+// Convert URI dạng `postgresql://user:pass@host/db?sslmode=require`
+// sang Npgsql key=value format. Hỗ trợ paste trực tiếp connection string từ Neon/Supabase.
+static string? NormalizePostgresConnectionString(string? raw)
+{
+    if (string.IsNullOrWhiteSpace(raw)) return raw;
+
+    var trimmed = raw.Trim();
+    if (!trimmed.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase) &&
+        !trimmed.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase))
+    {
+        return trimmed;
+    }
+
+    var uri = new Uri(trimmed);
+    var userInfo = uri.UserInfo.Split(':', 2);
+
+    var nb = new NpgsqlConnectionStringBuilder
+    {
+        Host = uri.Host,
+        Port = uri.IsDefaultPort ? 5432 : uri.Port,
+        Database = uri.AbsolutePath.TrimStart('/'),
+        Username = Uri.UnescapeDataString(userInfo[0]),
+        Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : null,
+        SslMode = SslMode.Require,
+        TrustServerCertificate = true
+    };
+
+    return nb.ConnectionString;
+}

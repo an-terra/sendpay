@@ -16,3 +16,6 @@ obj/
 
 *.db-shm
 *.db-wal
+
+SendPay.Api/appsettings.Development.json
+SendPay.Api/sendpay.db
