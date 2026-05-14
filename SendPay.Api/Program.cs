@@ -12,11 +12,18 @@ using SendPay.Api.Data;
 var builder = WebApplication.CreateBuilder(args);
 
 // ── Database ───────────────────────────────────────────────
-var connectionString = NormalizePostgresConnectionString(
-    builder.Configuration.GetConnectionString("DefaultConnection"));
+var rawConn = builder.Configuration.GetConnectionString("DefaultConnection") ?? "";
+var isSqlite = rawConn.StartsWith("Data Source", StringComparison.OrdinalIgnoreCase)
+            || rawConn.EndsWith(".db", StringComparison.OrdinalIgnoreCase)
+            || string.IsNullOrWhiteSpace(rawConn);
 
 builder.Services.AddDbContext<AppDbContext>(opt =>
-    opt.UseNpgsql(connectionString));
+{
+    if (isSqlite)
+        opt.UseSqlite(string.IsNullOrWhiteSpace(rawConn) ? "Data Source=sendpay.db" : rawConn);
+    else
+        opt.UseNpgsql(NormalizePostgresConnectionString(rawConn));
+});
 
 // ── Services ──────────────────────────────────────────────
 builder.Services.AddMemoryCache();
