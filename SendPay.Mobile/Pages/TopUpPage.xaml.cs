@@ -1,4 +1,5 @@
-using System.Linq;
+using System.Globalization;
+using Microsoft.Maui.ApplicationModel;
 using SendPay.Mobile.Services;
 
 namespace SendPay.Mobile.Pages;
@@ -6,7 +7,7 @@ namespace SendPay.Mobile.Pages;
 public partial class TopUpPage : ContentPage
 {
     private readonly ApiService _api;
-    private Guid? _verificationId;
+    string? _japanTopUpUrl;
 
     public TopUpPage(ApiService api)
     {
@@ -14,61 +15,53 @@ public partial class TopUpPage : ContentPage
         _api = api;
     }
 
-    async void OnSendOtpClicked(object sender, EventArgs e)
+    protected override async void OnAppearing()
+    {
+        base.OnAppearing();
+        try
+        {
+            var p = await _api.GetProfileAsync();
+            _japanTopUpUrl = p?.JapanBankTopUpUrl?.Trim();
+            var name = (p?.JapanBankName ?? "").Trim();
+            var has = !string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(_japanTopUpUrl);
+            JapanBankNameLabel.Text = name;
+            JapanBankNameLabel.IsVisible = has;
+            OpenJapanBankBtn.IsVisible = has;
+            JapanBankNoneLabel.IsVisible = !has;
+        }
+        catch
+        {
+            _japanTopUpUrl = null;
+            JapanBankNameLabel.IsVisible = false;
+            OpenJapanBankBtn.IsVisible = false;
+            JapanBankNoneLabel.IsVisible = true;
+        }
+    }
+
+    async void OnOpenJapanBankClicked(object sender, EventArgs e)
     {
         MsgLabel.IsVisible = false;
-        if (!decimal.TryParse(AmountEntry.Text?.Replace(",", ""), out decimal amount))
+        if (string.IsNullOrWhiteSpace(_japanTopUpUrl) ||
+            !Uri.TryCreate(_japanTopUpUrl, UriKind.Absolute, out var uri))
         {
-            ShowMsg("Số tiền không hợp lệ", "#dc2626");
+            ShowMsg("Chưa có liên kết ngân hàng hợp lệ.", "#dc2626");
             return;
         }
 
-        SendOtpBtn.IsEnabled = false;
-        SendOtpBtn.Text = "Đang gửi...";
-        var (ok, data, err) = await _api.StartTopUpVerificationAsync(amount);
-        SendOtpBtn.IsEnabled = true;
-        SendOtpBtn.Text = "1. Gửi mã OTP";
-
-        if (!ok || data is null)
+        try
         {
-            _verificationId = null;
-            OtpHintLabel.IsVisible = false;
-            ShowMsg(err, "#dc2626");
-            return;
+            await Launcher.Default.OpenAsync(uri);
         }
-
-        _verificationId = data.VerificationId;
-        if (!string.IsNullOrEmpty(data.DebugOtp))
+        catch
         {
-            OtpHintLabel.Text = $"Mã OTP (dev): {data.DebugOtp}";
-            OtpHintLabel.IsVisible = true;
+            ShowMsg("Không mở được trình duyệt / liên kết.", "#dc2626");
         }
-        else
-        {
-            OtpHintLabel.Text = "Kiểm tra SMS/email số đăng ký.";
-            OtpHintLabel.IsVisible = true;
-        }
-
-        ShowMsg("Đã gửi OTP. Nhập mã rồi bấm xác nhận nạp.", "#0f766e");
     }
 
     async void OnTopUpClicked(object sender, EventArgs e)
     {
         MsgLabel.IsVisible = false;
-        if (_verificationId is null)
-        {
-            ShowMsg("Bấm \"Gửi mã OTP\" trước.", "#dc2626");
-            return;
-        }
-
-        var otp = (OtpEntry.Text ?? "").Trim();
-        if (otp.Length != 6 || !otp.All(char.IsDigit))
-        {
-            ShowMsg("Nhập đúng 6 chữ số OTP.", "#dc2626");
-            return;
-        }
-
-        if (!decimal.TryParse(AmountEntry.Text?.Replace(",", ""), out decimal amount))
+        if (!decimal.TryParse(AmountEntry.Text?.Replace(",", ""), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal amount))
         {
             ShowMsg("Số tiền không hợp lệ", "#dc2626");
             return;
@@ -77,18 +70,15 @@ public partial class TopUpPage : ContentPage
         TopUpBtn.IsEnabled = false;
         TopUpBtn.Text = "Đang xử lý...";
 
-        var (ok, data, err) = await _api.TopUpAsync(amount, _verificationId.Value, otp);
+        var (ok, data, err) = await _api.TopUpAsync(amount);
 
         TopUpBtn.IsEnabled = true;
-        TopUpBtn.Text = "2. Xác nhận nạp";
+        TopUpBtn.Text = "Xác nhận nạp ví";
 
         if (ok && data != null)
         {
-            ShowMsg($"✓ Nạp thành công. Số dư: {data.Balance:N0}₫", "#16a34a");
+            ShowMsg($"✓ Nạp thành công. Số dư: ¥{data.Balance:N0}", "#16a34a");
             AmountEntry.Text = "";
-            OtpEntry.Text = "";
-            _verificationId = null;
-            OtpHintLabel.IsVisible = false;
         }
         else ShowMsg(err, "#dc2626");
     }

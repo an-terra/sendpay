@@ -4,4 +4,6 @@ public record AdminUpdateUserRequest(
     string FullName,
     string Email,
     string Phone,
-    decimal? Balance);
+    decimal? Balance,
+    string? JapanBankName,
+    string? JapanBankTopUpUrl);

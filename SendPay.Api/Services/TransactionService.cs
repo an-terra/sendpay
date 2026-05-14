@@ -6,13 +6,10 @@ using SendPay.Api.Models;
 
 namespace SendPay.Api.Services;
 
-public class TransactionService(AppDbContext db, IOtpVerificationService otp) : ITransactionService
+public class TransactionService(AppDbContext db) : ITransactionService
 {
     public async Task<TransactionResponse> TransferAsync(int senderId, TransferRequest req)
     {
-        await otp.VerifyTransferAsync(senderId, req.VerificationId, req.OtpCode,
-            req.ReceiverPhone, req.Amount, req.Note);
-
         await using var tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable);
         try
         {

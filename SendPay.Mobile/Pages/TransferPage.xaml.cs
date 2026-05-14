@@ -12,7 +12,6 @@ namespace SendPay.Mobile.Pages;
 public partial class TransferPage : ContentPage
 {
     private readonly ApiService _api;
-    private Guid? _verificationId;
     CancellationTokenSource? _phoneLookupCts;
     List<RecipientResponse> _recipients = [];
     private readonly Dictionary<string, List<CatalogBankOption>> _bankCache = new(StringComparer.OrdinalIgnoreCase);
@@ -199,7 +198,7 @@ public partial class TransferPage : ContentPage
         await DebouncedLookupAsync();
     }
 
-    async void OnSendOtpClicked(object sender, EventArgs e)
+    async void OnTransferClicked(object sender, EventArgs e)
     {
         MsgLabel.IsVisible = false;
         if (!decimal.TryParse(AmountEntry.Text?.Replace(",", ""), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal amount))
@@ -256,93 +255,15 @@ public partial class TransferPage : ContentPage
             return;
         }
 
-        SendOtpBtn.IsEnabled = false;
-        SendOtpBtn.Text = "Đang gửi...";
-        var (ok, data, err) = await _api.StartTransferVerificationAsync(eff, amount, NoteEntry.Text ?? "");
-        SendOtpBtn.IsEnabled = true;
-        SendOtpBtn.Text = "1. Gửi mã OTP";
-
-        if (!ok || data is null)
-        {
-            _verificationId = null;
-            OtpHintLabel.IsVisible = false;
-            ShowMsg(err, "#dc2626");
-            return;
-        }
-
-        _verificationId = data.VerificationId;
-        if (!string.IsNullOrEmpty(data.DebugOtp))
-        {
-            OtpHintLabel.Text = $"Mã OTP (giả lập / dev): {data.DebugOtp}";
-            OtpHintLabel.IsVisible = true;
-        }
-        else
-        {
-            OtpHintLabel.Text = "Kiểm tra SMS/email số đăng ký.";
-            OtpHintLabel.IsVisible = true;
-        }
-
-        ShowMsg("Đã gửi OTP. Nhập mã rồi bấm xác nhận.", "#0f766e");
-    }
-
-    async void OnTransferClicked(object sender, EventArgs e)
-    {
-        MsgLabel.IsVisible = false;
-        if (_verificationId is null)
-        {
-            ShowMsg("Bấm \"Gửi mã OTP\" trước.", "#dc2626");
-            return;
-        }
-
-        var otp = (OtpEntry.Text ?? "").Trim();
-        if (otp.Length != 6 || !otp.All(char.IsDigit))
-        {
-            ShowMsg("Nhập đúng 6 chữ số OTP.", "#dc2626");
-            return;
-        }
-
-        if (!decimal.TryParse(AmountEntry.Text?.Replace(",", ""), NumberStyles.Any, CultureInfo.InvariantCulture, out decimal amount))
-        {
-            ShowMsg("Số tiền không hợp lệ", "#dc2626");
-            return;
-        }
-
-        var bank = BankForApi();
-        if (IsCatalogCountrySelected &&
-            !_catalogBanks.Exists(b => string.Equals(b.Name, bank, StringComparison.OrdinalIgnoreCase)))
-        {
-            ShowMsg("Chọn ngân hàng từ danh sách gợi ý đúng quốc gia.", "#dc2626");
-            return;
-        }
-
-        if (!IsCatalogCountrySelected && string.IsNullOrWhiteSpace(bank))
-        {
-            ShowMsg("Nhập tên ngân hàng người nhận.", "#dc2626");
-            return;
-        }
-
-        var lookup = await _api.LookupTransferCounterpartyAsync(
-            string.IsNullOrWhiteSpace(PhoneEntry.Text) ? null : PhoneEntry.Text.Trim(),
-            string.IsNullOrWhiteSpace(AccountEntry.Text) ? null : AccountEntry.Text.Trim(),
-            string.IsNullOrWhiteSpace(bank) ? null : bank);
-        var eff = string.IsNullOrWhiteSpace(lookup?.ResolvedPhone)
-            ? PhoneEntry.Text?.Trim() ?? ""
-            : lookup!.ResolvedPhone!.Trim();
-        if (DigitsOnly(eff).Length < 8)
-        {
-            ShowMsg("Thiếu SĐT người nhận hợp lệ.", "#dc2626");
-            return;
-        }
-
         TransferBtn.IsEnabled = false;
         TransferBtn.Text = "Đang xử lý...";
 
         var rb = string.IsNullOrWhiteSpace(bank) ? null : bank;
         var racct = string.IsNullOrWhiteSpace(AccountEntry.Text) ? null : AccountEntry.Text.Trim();
-        var (ok, data, err) = await _api.TransferAsync(eff, amount, NoteEntry.Text ?? "", _verificationId.Value, otp, rb, racct);
+        var (ok, data, err) = await _api.TransferAsync(eff, amount, NoteEntry.Text ?? "", rb, racct);
 
         TransferBtn.IsEnabled = true;
-        TransferBtn.Text = "2. Xác nhận chuyển tiền";
+        TransferBtn.Text = "Chuyển tiền";
 
         if (ok && data != null)
         {
@@ -353,11 +274,8 @@ public partial class TransferPage : ContentPage
             ApplyCountryBankUi();
             try { await LoadCatalogBanksAsync(); }
             catch { _catalogBanks = []; }
-            OtpEntry.Text = "";
             ReceiverHintLabel.Text = "";
             ReceiverHintLabel.IsVisible = false;
-            _verificationId = null;
-            OtpHintLabel.IsVisible = false;
             SuggestBorder.IsVisible = false;
             SuggestStack.Children.Clear();
             VnBankSuggestBorder.IsVisible = false;

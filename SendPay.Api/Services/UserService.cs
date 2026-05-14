@@ -12,7 +12,8 @@ public class UserService(AppDbContext db) : IUserService
     {
         var u = await db.Users.FindAsync(userId)
             ?? throw new KeyNotFoundException("User not found.");
-        return new UserProfileResponse(u.Id, u.FullName, u.Email, u.Phone, u.Balance, u.CreatedAt);
+        return new UserProfileResponse(u.Id, u.FullName, u.Email, u.Phone, u.Balance, u.CreatedAt,
+            u.JapanBankName, u.JapanBankTopUpUrl);
     }
 
     public async Task<UserProfileResponse> UpdateProfileAsync(int userId, UpdateProfileRequest req)
@@ -30,7 +31,8 @@ public class UserService(AppDbContext db) : IUserService
         u.Email    = req.Email;
         u.Phone    = req.Phone;
         await db.SaveChangesAsync();
-        return new UserProfileResponse(u.Id, u.FullName, u.Email, u.Phone, u.Balance, u.CreatedAt);
+        return new UserProfileResponse(u.Id, u.FullName, u.Email, u.Phone, u.Balance, u.CreatedAt,
+            u.JapanBankName, u.JapanBankTopUpUrl);
     }
 
     public async Task ChangePasswordAsync(int userId, ChangePasswordRequest req)

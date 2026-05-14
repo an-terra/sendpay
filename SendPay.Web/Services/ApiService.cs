@@ -19,7 +19,8 @@ public record AdminStatsResponse(
 
 public record AdminUserResponse(
     int Id, string FullName, string Email, string Phone,
-    decimal Balance, bool IsActive, bool IsAdmin, DateTime CreatedAt);
+    decimal Balance, bool IsActive, bool IsAdmin, DateTime CreatedAt,
+    string? JapanBankName, string? JapanBankTopUpUrl);
 
 public record AdminTransactionResponse(
     int Id, string SenderName, string ReceiverName,
@@ -31,7 +32,8 @@ public record RecipientResponse(
     string? BankName, string? AccountNumber, string? AccountHolderName, string? SwiftBic, DateTime CreatedAt);
 
 public record CatalogBankOption(string Name, string Swift);
-public record UserProfileResponse(int Id, string FullName, string Email, string Phone, decimal Balance, DateTime CreatedAt);
+public record UserProfileResponse(int Id, string FullName, string Email, string Phone, decimal Balance, DateTime CreatedAt,
+    string? JapanBankName, string? JapanBankTopUpUrl);
 public record CurrencyRate(string Code, string Flag, string Country, decimal Rate, string Change, bool Up);
 public record ExchangeRateResponse(string Date, List<CurrencyRate> Rates);
 
@@ -124,11 +126,10 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
         return await http.GetFromJsonAsync<ReceiverLookupDto>($"api/user/receiver-lookup?{qs}");
     }
 
-    public async Task<(bool ok, WalletResponse? data, string error)> TopUpAsync(
-        decimal amount, Guid verificationId, string otpCode)
+    public async Task<(bool ok, WalletResponse? data, string error)> TopUpAsync(decimal amount)
     {
         await SetAuthHeader();
-        var res = await http.PostAsJsonAsync("api/wallet/topup", new { amount, verificationId, otpCode });
+        var res = await http.PostAsJsonAsync("api/wallet/topup", new { amount });
 
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<WalletResponse>(), "");
@@ -137,12 +138,12 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
     }
 
     public async Task<(bool ok, TransactionResponse? data, string error)> TransferAsync(
-        string receiverPhone, decimal amount, string note, Guid verificationId, string otpCode,
+        string receiverPhone, decimal amount, string note,
         string? receiverBankName = null, string? receiverAccountNumber = null)
     {
         await SetAuthHeader();
         var res = await http.PostAsJsonAsync("api/transaction/transfer",
-            new { receiverPhone, amount, note, verificationId, otpCode, receiverBankName, receiverAccountNumber });
+            new { receiverPhone, amount, note, receiverBankName, receiverAccountNumber });
 
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<TransactionResponse>(), "");
@@ -296,11 +297,12 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
     }
 
     public async Task<(bool ok, AdminUserResponse? data, string error)> AdminUpdateUserAsync(
-        int id, string fullName, string email, string phone, decimal? balance)
+        int id, string fullName, string email, string phone, decimal? balance,
+        string? japanBankName, string? japanBankTopUpUrl)
     {
         await SetAuthHeader();
         var res = await http.PutAsJsonAsync($"api/admin/users/{id}",
-            new { fullName, email, phone, balance });
+            new { fullName, email, phone, balance, japanBankName, japanBankTopUpUrl });
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<AdminUserResponse>(), "");
         return (false, null, await ReadErrorMessageAsync(res, "Cập nhật thất bại"));

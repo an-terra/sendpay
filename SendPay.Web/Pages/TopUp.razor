@@ -62,7 +62,27 @@
                     </div>
                 }
 
+                <MudPaper Class="mud-elevation-0 mb-4" Style="background:var(--gray-bg);border-radius:12px;padding:16px;border:1px solid var(--gray-border)">
+                    <MudText Typo="Typo.caption" Style="font-weight:700;color:var(--navy);margin-bottom:8px">
+                        @Lang.T("topup_jp_bank_title")
+                    </MudText>
+                    @if (!string.IsNullOrEmpty(profileJapanBank) && !string.IsNullOrEmpty(profileJapanUrl))
+                    {
+                        <MudText Typo="Typo.body2" Style="font-weight:600;margin-bottom:10px">@profileJapanBank</MudText>
+                        <MudButton Variant="Variant.Filled" Color="Color.Info" FullWidth="true"
+                                   Href="@profileJapanUrl" Target="_blank" Rel="noopener noreferrer"
+                                   StartIcon="@Icons.Material.Filled.OpenInNew" Style="border-radius:10px;font-weight:700">
+                            @Lang.T("topup_jp_bank_open")
+                        </MudButton>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.caption" Style="color:var(--text-sub)">@Lang.T("topup_jp_bank_none")</MudText>
+                    }
+                </MudPaper>
+
                 <MudAlert Severity="Severity.Info" Dense="true" Class="mb-4">@Lang.T("topup_free")</MudAlert>
+                <MudAlert Severity="Severity.Normal" Dense="true" Class="mb-4" Style="font-size:12px">@Lang.T("topup_no_otp_hint")</MudAlert>
 
                 <MudTextField @bind-Value="amount"
                               Label="@Lang.T("topup_custom_lbl")"
@@ -82,28 +102,6 @@
                 {
                     <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">@error</MudAlert>
                 }
-
-                @if (!string.IsNullOrEmpty(otpDevHint))
-                {
-                    <MudAlert Severity="Severity.Info" Dense="true" Class="mb-3">@otpDevHint</MudAlert>
-                }
-
-                <MudButton Variant="Variant.Outlined" Color="Color.Primary"
-                           FullWidth="true" Class="mb-3" OnClick="SendOtpAsync" Disabled="@otpSending"
-                           StartIcon="@Icons.Material.Filled.Sms">
-                    @if (otpSending) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" /> }
-                    @Lang.T("otp_send")
-                </MudButton>
-
-                <MudTextField @bind-Value="otpCode"
-                              Label="@Lang.T("otp_code_lbl")"
-                              Placeholder="@Lang.T("otp_code_ph")"
-                              MaxLength="6"
-                              InputType="InputType.Number"
-                              Variant="Variant.Outlined"
-                              FullWidth="true"
-                              Class="mb-2" />
-                <MudText Typo="Typo.caption" Style="color:var(--text-sub)" Class="mb-4">@Lang.T("otp_hint")</MudText>
 
                 <MudButton Variant="Variant.Filled" Color="Color.Primary"
                            FullWidth="true" Size="Size.Large"
@@ -143,10 +141,8 @@
     decimal balance;
     string error = "", successMsg = "";
     bool loading;
-    Guid? verificationId;
-    string otpCode = "";
-    string otpDevHint = "";
-    bool otpSending;
+    string profileJapanBank = "";
+    string profileJapanUrl = "";
 
     protected override async Task OnInitializedAsync()
     {
@@ -157,48 +153,26 @@
         if (!string.IsNullOrEmpty(saved)) Lang.Set(saved);
         var wallet = await Api.GetWalletAsync();
         balance = wallet?.Balance ?? 0;
-    }
-
-    async Task SendOtpAsync()
-    {
-        error = successMsg = "";
-        otpDevHint = "";
-        otpSending = true;
-        var (ok, data, err) = await Api.StartTopUpVerificationAsync(amount);
-        otpSending = false;
-        if (!ok) { error = err; verificationId = null; return; }
-        verificationId = data!.VerificationId;
-        var hintParts = new List<string>();
-        if (!string.IsNullOrEmpty(data.DebugOtp)) hintParts.Add($"{Lang.T("otp_dev_hint")} {data.DebugOtp}");
-        if (!string.IsNullOrEmpty(data.Message)) hintParts.Add(data.Message);
-        otpDevHint = string.Join(" · ", hintParts);
+        var p = await Api.GetProfileAsync();
+        if (p != null)
+        {
+            profileJapanBank = p.JapanBankName ?? "";
+            profileJapanUrl = p.JapanBankTopUpUrl ?? "";
+        }
     }
 
     async Task HandleTopUp()
     {
         error = successMsg = "";
-        if (verificationId is null)
-        {
-            error = Lang.T("otp_need");
-            return;
-        }
-        var code = (otpCode ?? "").Trim();
-        if (code.Length != 6 || !code.All(char.IsDigit))
-        {
-            error = Lang.T("otp_code_lbl") + " (6)";
-            return;
-        }
+        if (amount < 1_000) { error = "Min ¥1,000"; return; }
         loading = true;
-        var (ok, data, err) = await Api.TopUpAsync(amount, verificationId.Value, code);
+        var (ok, data, err) = await Api.TopUpAsync(amount);
         loading = false;
 
         if (ok && data != null)
         {
             balance = data.Balance;
             successMsg = $"{Lang.T("topup_success")} +¥{amount:N0} · ¥{data.Balance:N0}";
-            verificationId = null;
-            otpCode = "";
-            otpDevHint = "";
         }
         else error = err;
     }

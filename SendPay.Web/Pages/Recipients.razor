@@ -20,76 +20,6 @@
 
         <div class="sp-recip-grid">
 
-            <div>
-                @if (loading)
-                {
-                    <MudPaper Class="mud-elevation-1 pa-6" Style="border-radius:16px;text-align:center">
-                        <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Medium" />
-                    </MudPaper>
-                }
-                else if (recipients.Count == 0)
-                {
-                    <MudPaper Class="mud-elevation-1 pa-8" Style="border-radius:16px;text-align:center">
-                        <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Style="font-size:42px;color:var(--gray-border)" />
-                        <MudText Typo="Typo.body1" Style="color:var(--text-muted);margin-top:12px">@Lang.T("recip_empty")</MudText>
-                    </MudPaper>
-                }
-                else
-                {
-                    <MudPaper Class="mud-elevation-1" Style="border-radius:16px;overflow:hidden">
-                        <MudList T="RecipientResponse" Padding="false">
-                            @foreach (var (r, idx) in recipients.Select((x, i) => (x, i)))
-                            {
-                                <MudListItem T="RecipientResponse" Style="@($"padding:14px 20px;{(idx < recipients.Count - 1 ? "border-bottom:1px solid var(--gray-border)" : "")}")">
-                                    <div style="display:flex;align-items:flex-start;gap:14px">
-                                        <MudAvatar Style="background:#7048e8;color:white;font-weight:700;flex-shrink:0">
-                                            @GetInitials(r.Name)
-                                        </MudAvatar>
-                                        <div style="flex:1;min-width:0">
-                                            <MudText Typo="Typo.body2" Style="font-weight:600;color:var(--navy)">@r.Name</MudText>
-                                            <MudText Typo="Typo.caption" Style="color:var(--text-sub);line-height:1.4">
-                                                @if (!string.IsNullOrEmpty(r.Phone))
-                                                {
-                                                    <span><MudIcon Icon="@Icons.Material.Filled.Phone" Style="font-size:11px;vertical-align:middle" /> @r.Phone</span>
-                                                }
-                                                else
-                                                {
-                                                    <span style="color:var(--text-muted)">—</span>
-                                                }
-                                                @if (!string.IsNullOrEmpty(r.BankName) || !string.IsNullOrEmpty(r.AccountNumber))
-                                                {
-                                                    <span> · @(string.IsNullOrEmpty(r.BankName) ? "" : r.BankName + " ")</span>
-                                                    @if (!string.IsNullOrEmpty(r.AccountNumber))
-                                                    {
-                                                        <span>****@Last4Digits(r.AccountNumber)</span>
-                                                    }
-                                                }
-                                                @if (!string.IsNullOrEmpty(r.Note)) { <span> · @r.Note</span> }
-                                            </MudText>
-                                        </div>
-                                        <div style="display:flex;flex-wrap:wrap;gap:6px;flex-shrink:0;justify-content:flex-end">
-                                            <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small"
-                                                       OnClick="@(async _ => await StartEdit(r))" Style="border-radius:8px;font-size:11px">
-                                                @Lang.T("recip_edit")
-                                            </MudButton>
-                                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
-                                                       Href="@($"/transfer?recipientId={r.Id}")"
-                                                       StartIcon="@Icons.Material.Filled.Send"
-                                                       Style="border-radius:8px;font-size:11px">
-                                                @Lang.T("recip_send")
-                                            </MudButton>
-                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
-                                                           Variant="Variant.Outlined" Style="border-radius:8px"
-                                                           OnClick="() => DeleteRecipient(r.Id)" />
-                                        </div>
-                                    </div>
-                                </MudListItem>
-                            }
-                        </MudList>
-                    </MudPaper>
-                }
-            </div>
-
             <MudPaper Class="sp-side-card mud-elevation-1" Style="border-radius:16px;padding:24px">
                 <MudText Typo="Typo.subtitle1" Style="font-weight:700;color:var(--navy);margin-bottom:1rem;display:flex;align-items:center;gap:8px">
                     <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Style="color:#7048e8" />
@@ -213,6 +143,78 @@
                     </MudButton>
                 </MudStack>
             </MudPaper>
+
+            <div>
+                <MudText Typo="Typo.subtitle1" Style="font-weight:700;color:var(--navy);margin-bottom:12px">@Lang.T("recip_list_title")</MudText>
+                @if (loading)
+                {
+                    <MudPaper Class="mud-elevation-1 pa-6" Style="border-radius:16px;text-align:center">
+                        <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Medium" />
+                    </MudPaper>
+                }
+                else if (recipients.Count == 0)
+                {
+                    <MudPaper Class="mud-elevation-1 pa-8" Style="border-radius:16px;text-align:center">
+                        <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Style="font-size:42px;color:var(--gray-border)" />
+                        <MudText Typo="Typo.body1" Style="color:var(--text-muted);margin-top:12px">@Lang.T("recip_empty")</MudText>
+                    </MudPaper>
+                }
+                else
+                {
+                    <MudPaper Class="mud-elevation-1" Style="border-radius:16px;overflow:hidden">
+                        <MudList T="RecipientResponse" Padding="false">
+                            @foreach (var (r, idx) in recipients.Select((x, i) => (x, i)))
+                            {
+                                <MudListItem T="RecipientResponse" Style="@($"padding:14px 20px;{(idx < recipients.Count - 1 ? "border-bottom:1px solid var(--gray-border)" : "")}")">
+                                    <div style="display:flex;align-items:flex-start;gap:14px">
+                                        <MudAvatar Style="background:#7048e8;color:white;font-weight:700;flex-shrink:0">
+                                            @GetInitials(r.Name)
+                                        </MudAvatar>
+                                        <div style="flex:1;min-width:0">
+                                            <MudText Typo="Typo.body2" Style="font-weight:600;color:var(--navy)">@r.Name</MudText>
+                                            <MudText Typo="Typo.caption" Style="color:var(--text-sub);line-height:1.4">
+                                                @if (!string.IsNullOrEmpty(r.Phone))
+                                                {
+                                                    <span><MudIcon Icon="@Icons.Material.Filled.Phone" Style="font-size:11px;vertical-align:middle" /> @r.Phone</span>
+                                                }
+                                                else
+                                                {
+                                                    <span style="color:var(--text-muted)">—</span>
+                                                }
+                                                @if (!string.IsNullOrEmpty(r.BankName) || !string.IsNullOrEmpty(r.AccountNumber))
+                                                {
+                                                    <span> · @(string.IsNullOrEmpty(r.BankName) ? "" : r.BankName + " ")</span>
+                                                    @if (!string.IsNullOrEmpty(r.AccountNumber))
+                                                    {
+                                                        <span>****@Last4Digits(r.AccountNumber)</span>
+                                                    }
+                                                }
+                                                @if (!string.IsNullOrEmpty(r.Note)) { <span> · @r.Note</span> }
+                                            </MudText>
+                                        </div>
+                                        <div style="display:flex;flex-wrap:wrap;gap:6px;flex-shrink:0;justify-content:flex-end">
+                                            <MudButton Variant="Variant.Outlined" Color="Color.Default" Size="Size.Small"
+                                                       OnClick="@(async _ => await StartEdit(r))" Style="border-radius:8px;font-size:11px">
+                                                @Lang.T("recip_edit")
+                                            </MudButton>
+                                            <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                                                       Href="@($"/transfer?recipientId={r.Id}")"
+                                                       StartIcon="@Icons.Material.Filled.Send"
+                                                       Style="border-radius:8px;font-size:11px">
+                                                @Lang.T("recip_send")
+                                            </MudButton>
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                                           Variant="Variant.Outlined" Style="border-radius:8px"
+                                                           OnClick="() => DeleteRecipient(r.Id)" />
+                                        </div>
+                                    </div>
+                                </MudListItem>
+                            }
+                        </MudList>
+                    </MudPaper>
+                }
+            </div>
+
         </div>
     </div>
 </div>

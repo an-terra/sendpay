@@ -49,7 +49,8 @@ public class AdminController(AppDbContext db) : ControllerBase
             .Take(pageSize)
             .Select(u => new AdminUserResponse(
                 u.Id, u.FullName, u.Email, u.Phone,
-                u.Balance, u.IsActive, u.IsAdmin, u.CreatedAt))
+                u.Balance, u.IsActive, u.IsAdmin, u.CreatedAt,
+                u.JapanBankName, u.JapanBankTopUpUrl))
             .ToListAsync();
     }
 
@@ -66,7 +67,8 @@ public class AdminController(AppDbContext db) : ControllerBase
 
         return Ok(new AdminUserResponse(
             user.Id, user.FullName, user.Email, user.Phone,
-            user.Balance, user.IsActive, user.IsAdmin, user.CreatedAt));
+            user.Balance, user.IsActive, user.IsAdmin, user.CreatedAt,
+            user.JapanBankName, user.JapanBankTopUpUrl));
     }
 
     // PUT /api/admin/users/{id}
@@ -82,10 +84,26 @@ public class AdminController(AppDbContext db) : ControllerBase
         if (req.Balance.HasValue && req.Balance >= 0)
             user.Balance = req.Balance.Value;
 
+        user.JapanBankName = string.IsNullOrWhiteSpace(req.JapanBankName)
+            ? null
+            : req.JapanBankName.Trim();
+
+        if (string.IsNullOrWhiteSpace(req.JapanBankTopUpUrl))
+            user.JapanBankTopUpUrl = null;
+        else
+        {
+            var url = req.JapanBankTopUpUrl.Trim();
+            if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
+                !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                return BadRequest(new { message = "URL ngân hàng phải bắt đầu bằng http:// hoặc https://." });
+            user.JapanBankTopUpUrl = url;
+        }
+
         await db.SaveChangesAsync();
         return Ok(new AdminUserResponse(
             user.Id, user.FullName, user.Email, user.Phone,
-            user.Balance, user.IsActive, user.IsAdmin, user.CreatedAt));
+            user.Balance, user.IsActive, user.IsAdmin, user.CreatedAt,
+            user.JapanBankName, user.JapanBankTopUpUrl));
     }
 
     // DELETE /api/admin/users/{id}

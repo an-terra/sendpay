@@ -277,9 +277,16 @@
                                       AdornmentIcon="@Icons.Material.Filled.Phone" FullWidth="true" />
                     </MudItem>
                     <MudItem xs="12">
-                        <MudTextField @bind-Value="editBalance" Label="Số dư (JPY)" InputType="InputType.Number"
-                                      Variant="Variant.Outlined" Adornment="Adornment.Start"
-                                      AdornmentText="¥" FullWidth="true" />
+                        <MudText Typo="Typo.caption" Style="font-weight:700;color:var(--text-muted);margin-bottom:6px">
+                            Ngân hàng nạp tiền (Nhật Bản)
+                        </MudText>
+                        <MudTextField @bind-Value="editJapanBank" Label="Tên ngân hàng hiển thị" Variant="Variant.Outlined"
+                                      Placeholder="VD: MUFG / Sumitomo..." FullWidth="true" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="editJapanUrl" Label="URL trang nạp/chuyển khoản (https…)"
+                                      Variant="Variant.Outlined" Placeholder="https://..." FullWidth="true"
+                                      HelperText="Người dùng mở link này từ màn Nạp tiền" />
                     </MudItem>
                 </MudGrid>
             </div>
@@ -348,6 +355,7 @@
 
     AdminUserResponse? editUser;
     string editFullName = "", editEmail = "", editPhone = "", editError = "";
+    string editJapanBank = "", editJapanUrl = "";
     decimal editBalance;
     bool editSaving;
 
@@ -405,7 +413,10 @@
     void OpenEdit(AdminUserResponse u)
     {
         editUser = u; editFullName = u.FullName; editEmail = u.Email;
-        editPhone = u.Phone; editBalance = u.Balance; editError = "";
+        editPhone = u.Phone; editBalance = u.Balance;
+        editJapanBank = u.JapanBankName ?? "";
+        editJapanUrl = u.JapanBankTopUpUrl ?? "";
+        editError = "";
     }
     void CloseEdit() { editUser = null; editError = ""; }
 
@@ -415,7 +426,9 @@
         { editError = "Họ tên và email không được để trống."; return; }
 
         editSaving = true;
-        var (ok, updated, err) = await Api.AdminUpdateUserAsync(editUser!.Id, editFullName, editEmail, editPhone, editBalance);
+        var (ok, updated, err) = await Api.AdminUpdateUserAsync(editUser!.Id, editFullName, editEmail, editPhone, editBalance,
+            string.IsNullOrWhiteSpace(editJapanBank) ? null : editJapanBank.Trim(),
+            string.IsNullOrWhiteSpace(editJapanUrl) ? null : editJapanUrl.Trim());
         editSaving = false;
 
         if (ok && updated is not null)

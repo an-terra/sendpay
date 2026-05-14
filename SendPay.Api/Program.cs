@@ -119,6 +119,7 @@ using (var scope = app.Services.CreateScope())
     db.Database.EnsureCreated();
     TryRecipientBankColumns(db);
     TryTransactionTransferColumns(db);
+    TryUserJapanBankColumns(db);
 
     if (!db.Users.Any(u => u.IsAdmin))
     {
@@ -181,6 +182,19 @@ static void TryTransactionTransferColumns(AppDbContext db)
     {
         db.Database.ExecuteSqlRaw("""ALTER TABLE "Transactions" ADD COLUMN IF NOT EXISTS "ReceiverBankName" text NULL;""");
         db.Database.ExecuteSqlRaw("""ALTER TABLE "Transactions" ADD COLUMN IF NOT EXISTS "ReceiverAccountNumber" text NULL;""");
+    }
+    catch
+    {
+        // ignore
+    }
+}
+
+static void TryUserJapanBankColumns(AppDbContext db)
+{
+    try
+    {
+        db.Database.ExecuteSqlRaw("""ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "JapanBankName" text NULL;""");
+        db.Database.ExecuteSqlRaw("""ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "JapanBankTopUpUrl" text NULL;""");
     }
     catch
     {

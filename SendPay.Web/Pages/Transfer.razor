@@ -265,25 +265,6 @@
                     <div class="csub">@Lang.T("tr_fee"): ¥@Fee.ToString("N0")</div>
                 </div>
 
-                @if (!string.IsNullOrEmpty(otpDevHint))
-                {
-                    <div class="sp-alert sp-alert-info" style="margin-bottom:12px;font-size:13px">@otpDevHint</div>
-                }
-
-                <button type="button" class="sp-btn-gray" style="width:100%;margin-bottom:12px;padding:12px;font-weight:600"
-                        @onclick="SendTransferOtpAsync" disabled="@otpSending">
-                    @if (otpSending) { <i class="fa-solid fa-spinner fa-spin"></i> }
-                    else { <i class="fa-solid fa-sms"></i> }
-                    &nbsp;@Lang.T("tr_otp_send")
-                </button>
-
-                <div class="sp-form-group" style="margin-bottom:12px">
-                    <label>@Lang.T("otp_code_lbl")</label>
-                    <input class="sp-form-input sp-form-input-lg" type="text" maxlength="6" inputmode="numeric"
-                           placeholder="@Lang.T("otp_code_ph")" @bind="otpCode" />
-                    <div style="font-size:11px;color:var(--text-muted);margin-top:6px">@Lang.T("otp_hint")</div>
-                </div>
-
                 @if (!string.IsNullOrEmpty(error))
                 {
                     <div class="sp-alert-error" style="margin-bottom:12px">
@@ -299,7 +280,7 @@
                     }
                     else
                     {
-                        <i class="fa-solid fa-lock"></i>
+                        <i class="fa-solid fa-check"></i>
                         <span> @Lang.T("tr_confirm_btn")</span>
                     }
                 </button>
@@ -358,11 +339,6 @@
     decimal balance;
     bool loading;
     TransactionResponse? successData;
-    Guid? verificationId;
-    string otpCode = "";
-    string otpDevHint = "";
-    bool otpSending;
-
     string receiverResolvedName = "";
     string receiverBankDisplay = "";
     string? lookupResolvedPhone;
@@ -662,9 +638,6 @@
     async Task GoToConfirm()
     {
         error = "";
-        verificationId = null;
-        otpCode = "";
-        otpDevHint = "";
         if (amount < 1_000) { error = "Min ¥1,000"; return; }
         var phD = DigitsOnly(phone);
         var acK = AccountKey(bankAccount);
@@ -692,31 +665,13 @@
         step = "confirm";
     }
 
-    async Task SendTransferOtpAsync()
-    {
-        error = "";
-        otpDevHint = "";
-        otpSending = true;
-        var (ok, data, err) = await Api.StartTransferVerificationAsync(EffectivePhone.Trim(), amount, note);
-        otpSending = false;
-        if (!ok) { verificationId = null; error = err; return; }
-        verificationId = data!.VerificationId;
-        var hintParts = new List<string>();
-        if (!string.IsNullOrEmpty(data.DebugOtp)) hintParts.Add($"{Lang.T("otp_dev_hint")} {data.DebugOtp}");
-        if (!string.IsNullOrEmpty(data.Message)) hintParts.Add(data.Message);
-        otpDevHint = string.Join(" · ", hintParts);
-    }
-
     async Task HandleTransfer()
     {
         error = "";
-        if (verificationId is null) { error = Lang.T("tr_otp_need"); return; }
-        var code = (otpCode ?? "").Trim();
-        if (code.Length != 6 || !code.All(char.IsDigit)) { error = Lang.T("otp_code_lbl") + " (6)"; return; }
         loading = true;
         var rb = string.IsNullOrWhiteSpace(bankName) ? null : bankName.Trim();
         var ra = string.IsNullOrWhiteSpace(bankAccount) ? null : bankAccount.Trim();
-        var (ok, data, err) = await Api.TransferAsync(EffectivePhone.Trim(), amount, note, verificationId.Value, code, rb, ra);
+        var (ok, data, err) = await Api.TransferAsync(EffectivePhone.Trim(), amount, note, rb, ra);
         loading = false;
         if (ok) { successData = data; step = "success"; }
         else { error = err; }
@@ -730,9 +685,6 @@
         amount = 0; successData = null;
         recipientSuggestions = [];
         purpose = "tr_purpose_1";
-        verificationId = null;
-        otpCode = "";
-        otpDevHint = "";
         receiverResolvedName = "";
         receiverBankDisplay = "";
         lookupResolvedPhone = null;

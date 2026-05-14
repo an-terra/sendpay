@@ -8,6 +8,18 @@ namespace SendPay.Mobile.Services;
 public record AuthResponse(string Token, string FullName, string Email, string Phone);
 public record WalletResponse(string FullName, string Phone, decimal Balance);
 
+public class UserProfileDto
+{
+    public int Id { get; set; }
+    public string FullName { get; set; } = "";
+    public string Email { get; set; } = "";
+    public string Phone { get; set; } = "";
+    public decimal Balance { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public string? JapanBankName { get; set; }
+    public string? JapanBankTopUpUrl { get; set; }
+}
+
 public class TransactionResponse
 {
     public int Id { get; set; }
@@ -23,12 +35,6 @@ public class TransactionResponse
     public string? ReceiverBankName { get; set; }
     public string? ReceiverAccountNumber { get; set; }
 }
-
-public record VerificationStartResponse(
-    [property: JsonPropertyName("verificationId")] Guid VerificationId,
-    [property: JsonPropertyName("expiresInSeconds")] int ExpiresInSeconds,
-    [property: JsonPropertyName("debugOtp")] string? DebugOtp,
-    [property: JsonPropertyName("message")] string? Message);
 
 public record ReceiverLookupDto(
     [property: JsonPropertyName("found")] bool Found,
@@ -92,31 +98,16 @@ public class ApiService
         return await _http.GetFromJsonAsync<WalletResponse>("api/wallet");
     }
 
-    public async Task<(bool ok, VerificationStartResponse? data, string error)> StartTopUpVerificationAsync(decimal amount)
+    public async Task<UserProfileDto?> GetProfileAsync()
     {
         SetToken();
-        var res = await _http.PostAsJsonAsync("api/verification/topup/start", new { amount });
-        if (res.IsSuccessStatusCode)
-            return (true, await res.Content.ReadFromJsonAsync<VerificationStartResponse>(), "");
-        return (false, null, "Không gửi được OTP");
+        return await _http.GetFromJsonAsync<UserProfileDto>("api/user/profile");
     }
 
-    public async Task<(bool ok, VerificationStartResponse? data, string error)> StartTransferVerificationAsync(
-        string receiverPhone, decimal amount, string note)
+    public async Task<(bool ok, WalletResponse? data, string error)> TopUpAsync(decimal amount)
     {
         SetToken();
-        var res = await _http.PostAsJsonAsync("api/verification/transfer/start",
-            new { receiverPhone, amount, note });
-        if (res.IsSuccessStatusCode)
-            return (true, await res.Content.ReadFromJsonAsync<VerificationStartResponse>(), "");
-        return (false, null, "Không gửi được OTP");
-    }
-
-    public async Task<(bool ok, WalletResponse? data, string error)> TopUpAsync(
-        decimal amount, Guid verificationId, string otpCode)
-    {
-        SetToken();
-        var res = await _http.PostAsJsonAsync("api/wallet/topup", new { amount, verificationId, otpCode });
+        var res = await _http.PostAsJsonAsync("api/wallet/topup", new { amount });
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<WalletResponse>(), "");
         return (false, null, "Nạp tiền thất bại");
@@ -204,15 +195,15 @@ public class ApiService
     }
 
     public async Task<(bool ok, TransactionResponse? data, string error)> TransferAsync(
-        string receiverPhone, decimal amount, string note, Guid verificationId, string otpCode,
+        string receiverPhone, decimal amount, string note,
         string? receiverBankName = null, string? receiverAccountNumber = null)
     {
         SetToken();
         var res = await _http.PostAsJsonAsync("api/transaction/transfer",
-            new { receiverPhone, amount, note, verificationId, otpCode, receiverBankName, receiverAccountNumber });
+            new { receiverPhone, amount, note, receiverBankName, receiverAccountNumber });
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<TransactionResponse>(), "");
-        return (false, null, "Chuyển tiền thất bại. Kiểm tra số dư, OTP hoặc SĐT.");
+        return (false, null, "Chuyển tiền thất bại. Kiểm tra số dư hoặc SĐT.");
     }
 
     public async Task<List<TransactionResponse>> GetHistoryAsync(int page = 1)

@@ -702,7 +702,7 @@ select.sp-form-input { cursor: pointer; }
 .sp-receipt-row strong { color: var(--navy); text-align: right; max-width: 60%; }
 
 /* ===== RECIPIENTS PAGE ===== */
-.sp-recip-grid { display: grid; grid-template-columns: 1fr 360px; gap: 2rem; align-items: start; }
+.sp-recip-grid { display: grid; grid-template-columns: 1fr; gap: 2rem; align-items: start; }
 .sp-recip-row { display: flex; align-items: center; gap: 14px; padding: 14px 20px; border-bottom: 1px solid var(--gray-border); }
 .sp-recip-row:last-child { border-bottom: none; }
 .sp-recip-row:hover { background: var(--gray-bg); }

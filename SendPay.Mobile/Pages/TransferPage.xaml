@@ -72,17 +72,7 @@
                         <Entry x:Name="NoteEntry" Placeholder="Trả tiền ăn, cà phê..."/>
                     </VerticalStackLayout>
 
-                    <Button x:Name="SendOtpBtn" Text="1. Gửi mã OTP"
-                            Clicked="OnSendOtpClicked" BackgroundColor="#334155"
-                            TextColor="White" CornerRadius="12" HeightRequest="48" FontAttributes="Bold"/>
-                    <Label x:Name="OtpHintLabel" Text="Dev: sau khi gửi, xem debugOtp trong log API hoặc Fiddler."
-                           FontSize="11" TextColor="#64748b" IsVisible="False"/>
-                    <VerticalStackLayout Spacing="4">
-                        <Label Text="Mã OTP 6 số" FontSize="13" TextColor="#8b8b9b" FontAttributes="Bold"/>
-                        <Entry x:Name="OtpEntry" Placeholder="123456" Keyboard="Numeric" MaxLength="6"/>
-                    </VerticalStackLayout>
-
-                    <Button x:Name="TransferBtn" Text="2. Xác nhận chuyển tiền"
+                    <Button x:Name="TransferBtn" Text="Chuyển tiền"
                             Clicked="OnTransferClicked" BackgroundColor="#6c47ff"
                             TextColor="White" CornerRadius="12" HeightRequest="52"
                             FontAttributes="Bold" FontSize="16"/>
