@@ -1,0 +1,26 @@
+**/bin/
+**/obj/
+**/.vs/
+**/.vscode/
+**/.idea/
+**/*.user
+**/*.suo
+**/*.rsuser
+**/*.log
+**/*.db-shm
+**/*.db-wal
+**/node_modules/
+
+.git/
+.github/
+.gitignore
+.dockerignore
+
+# Mobile project không cần khi build server
+SendPay.Mobile/
+
+# Local DB không nên đưa vào image (Render sẽ tạo trên persistent disk)
+**/sendpay.db
+
+README*.md
+*.md

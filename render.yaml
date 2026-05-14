@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: sendpay-api
+    runtime: docker
+    plan: free
+    region: singapore
+    branch: main
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /scalar
+    autoDeploy: false
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_URLS
+        value: http://+:8080
+      - key: ConnectionStrings__DefaultConnection
+        value: Data Source=/var/data/sendpay.db
+      - key: Jwt__Key
+        sync: false
+      - key: Jwt__Issuer
+        value: SendPay
+      - key: Jwt__Audience
+        value: SendPayClients
+    disk:
+      name: sendpay-data
+      mountPath: /var/data
+      sizeGB: 1
