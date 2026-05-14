@@ -55,13 +55,15 @@ public class TransactionService(AppDbContext db, IOtpVerificationService otp) : 
 
             var entity = new Transaction
             {
-                SenderId   = sender.Id,
-                ReceiverId = receiver.Id,
-                Amount     = req.Amount,
-                Fee        = fee,
-                Note       = req.Note,
-                Type       = TransactionType.Transfer,
-                Status     = TransactionStatus.Success
+                SenderId              = sender.Id,
+                ReceiverId            = receiver.Id,
+                Amount                = req.Amount,
+                Fee                   = fee,
+                Note                  = req.Note,
+                ReceiverBankName      = string.IsNullOrWhiteSpace(req.ReceiverBankName) ? null : req.ReceiverBankName.Trim(),
+                ReceiverAccountNumber = string.IsNullOrWhiteSpace(req.ReceiverAccountNumber) ? null : req.ReceiverAccountNumber.Trim(),
+                Type                  = TransactionType.Transfer,
+                Status                = TransactionStatus.Success
             };
             db.Transactions.Add(entity);
             await db.SaveChangesAsync();
@@ -107,7 +109,9 @@ public class TransactionService(AppDbContext db, IOtpVerificationService otp) : 
         ReceiverName = receiverName,
         Amount       = t.Amount,
         Fee          = t.Fee,
-        Note         = t.Note,
+        Note                  = t.Note,
+        ReceiverBankName      = t.ReceiverBankName,
+        ReceiverAccountNumber = t.ReceiverAccountNumber,
         Type         = t.Type,
         Status       = t.Status,
         CreatedAt    = t.CreatedAt

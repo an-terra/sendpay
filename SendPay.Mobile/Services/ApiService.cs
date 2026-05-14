@@ -7,8 +7,22 @@ namespace SendPay.Mobile.Services;
 
 public record AuthResponse(string Token, string FullName, string Email, string Phone);
 public record WalletResponse(string FullName, string Phone, decimal Balance);
-public record TransactionResponse(int Id, string SenderName, string ReceiverName,
-    decimal Amount, string Note, int Type, int Status, DateTime CreatedAt);
+
+public class TransactionResponse
+{
+    public int Id { get; set; }
+    public int SenderId { get; set; }
+    public string SenderName { get; set; } = "";
+    public string ReceiverName { get; set; } = "";
+    public decimal Amount { get; set; }
+    public decimal Fee { get; set; }
+    public string Note { get; set; } = "";
+    public int Type { get; set; }
+    public int Status { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public string? ReceiverBankName { get; set; }
+    public string? ReceiverAccountNumber { get; set; }
+}
 
 public record VerificationStartResponse(
     [property: JsonPropertyName("verificationId")] Guid VerificationId,
@@ -27,7 +41,7 @@ public record ReceiverLookupDto(
 
 public record RecipientResponse(
     int Id, string Name, string? Phone, string Note,
-    string? BankName, string? AccountNumber, string? AccountHolderName, DateTime CreatedAt);
+    string? BankName, string? AccountNumber, string? AccountHolderName, string? SwiftBic, DateTime CreatedAt);
 
 public class ApiService
 {
@@ -136,15 +150,28 @@ public class ApiService
 
     public async Task<(bool ok, RecipientResponse? data, string error)> AddRecipientAsync(
         string name, string? phone, string note,
-        string? bankName = null, string? accountNumber = null, string? accountHolderName = null)
+        string? bankName = null, string? accountNumber = null, string? accountHolderName = null, string? swiftBic = null)
     {
         SetToken();
         var res = await _http.PostAsJsonAsync("api/recipient",
-            new { name, phone, note, bankName, accountNumber, accountHolderName });
+            new { name, phone, note, bankName, accountNumber, accountHolderName, swiftBic });
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<RecipientResponse>(), "");
         var err = await res.Content.ReadAsStringAsync();
         return (false, null, err.Length > 200 ? "Thêm thất bại" : err);
+    }
+
+    public async Task<(bool ok, RecipientResponse? data, string error)> UpdateRecipientAsync(
+        int id, string name, string? phone, string note,
+        string? bankName = null, string? accountNumber = null, string? accountHolderName = null, string? swiftBic = null)
+    {
+        SetToken();
+        var res = await _http.PutAsJsonAsync($"api/recipient/{id}",
+            new { name, phone, note, bankName, accountNumber, accountHolderName, swiftBic });
+        if (res.IsSuccessStatusCode)
+            return (true, await res.Content.ReadFromJsonAsync<RecipientResponse>(), "");
+        var err = await res.Content.ReadAsStringAsync();
+        return (false, null, err.Length > 200 ? "Cập nhật thất bại" : err);
     }
 
     public async Task<bool> DeleteRecipientAsync(int id)
@@ -155,11 +182,12 @@ public class ApiService
     }
 
     public async Task<(bool ok, TransactionResponse? data, string error)> TransferAsync(
-        string receiverPhone, decimal amount, string note, Guid verificationId, string otpCode)
+        string receiverPhone, decimal amount, string note, Guid verificationId, string otpCode,
+        string? receiverBankName = null, string? receiverAccountNumber = null)
     {
         SetToken();
         var res = await _http.PostAsJsonAsync("api/transaction/transfer",
-            new { receiverPhone, amount, note, verificationId, otpCode });
+            new { receiverPhone, amount, note, verificationId, otpCode, receiverBankName, receiverAccountNumber });
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<TransactionResponse>(), "");
         return (false, null, "Chuyển tiền thất bại. Kiểm tra số dư, OTP hoặc SĐT.");

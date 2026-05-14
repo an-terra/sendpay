@@ -111,6 +111,7 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     db.Database.EnsureCreated();
     TryRecipientBankColumns(db);
+    TryTransactionTransferColumns(db);
 
     if (!db.Users.Any(u => u.IsAdmin))
     {
@@ -158,10 +159,24 @@ static void TryRecipientBankColumns(AppDbContext db)
         db.Database.ExecuteSqlRaw("""ALTER TABLE "Recipients" ADD COLUMN IF NOT EXISTS "BankName" text NULL;""");
         db.Database.ExecuteSqlRaw("""ALTER TABLE "Recipients" ADD COLUMN IF NOT EXISTS "AccountNumber" text NULL;""");
         db.Database.ExecuteSqlRaw("""ALTER TABLE "Recipients" ADD COLUMN IF NOT EXISTS "AccountHolderName" text NULL;""");
+        db.Database.ExecuteSqlRaw("""ALTER TABLE "Recipients" ADD COLUMN IF NOT EXISTS "SwiftBic" text NULL;""");
     }
     catch
     {
         // ignore nếu không phải Postgres / DB đã đồng bộ
+    }
+}
+
+static void TryTransactionTransferColumns(AppDbContext db)
+{
+    try
+    {
+        db.Database.ExecuteSqlRaw("""ALTER TABLE "Transactions" ADD COLUMN IF NOT EXISTS "ReceiverBankName" text NULL;""");
+        db.Database.ExecuteSqlRaw("""ALTER TABLE "Transactions" ADD COLUMN IF NOT EXISTS "ReceiverAccountNumber" text NULL;""");
+    }
+    catch
+    {
+        // ignore
     }
 }
 

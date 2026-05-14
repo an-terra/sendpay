@@ -21,6 +21,9 @@
                                         <Label Text="{Binding Detail}" FontSize="12" TextColor="#64748b" LineBreakMode="TailTruncation"/>
                                     </VerticalStackLayout>
                                     <HorizontalStackLayout Grid.Column="1" Spacing="6" VerticalOptions="Center">
+                                        <Button Text="Sửa" Padding="12,6" FontSize="12" BackgroundColor="#e0e7ff"
+                                                TextColor="#3730a3" CornerRadius="8"
+                                                Clicked="OnEditClicked" CommandParameter="{Binding Id}"/>
                                         <Button Text="Gửi" Padding="12,6" FontSize="12" BackgroundColor="#6c47ff"
                                                 TextColor="White" CornerRadius="8"
                                                 Clicked="OnSendClicked" CommandParameter="{Binding Id}"/>
@@ -37,14 +40,17 @@
 
             <Frame BackgroundColor="White" CornerRadius="14" Padding="16" HasShadow="True">
                 <VerticalStackLayout Spacing="12">
-                    <Label Text="Thêm người nhận" FontAttributes="Bold" FontSize="15"/>
+                    <Label x:Name="FormTitleLabel" Text="Thêm người nhận" FontAttributes="Bold" FontSize="15"/>
                     <Entry x:Name="NameEntry" Placeholder="Họ tên"/>
-                    <Entry x:Name="PhoneEntryForm" Placeholder="SĐT SendPay (≥8 số) hoặc để trống nếu chỉ có STK" Keyboard="Telephone"/>
-                    <Entry x:Name="BankEntry" Placeholder="Ngân hàng (VD: Vietcombank)"/>
-                    <Entry x:Name="AccountEntry" Placeholder="Số tài khoản" Keyboard="Numeric"/>
-                    <Entry x:Name="HolderEntry" Placeholder="Chủ tài khoản"/>
+                    <Entry x:Name="PhoneEntryForm" Placeholder="SĐT SendPay (tuỳ chọn)" Keyboard="Telephone"/>
+                    <Entry x:Name="BankEntry" Placeholder="Tên ngân hàng (bắt buộc)"/>
+                    <Entry x:Name="AccountEntry" Placeholder="Số tài khoản (bắt buộc)" Keyboard="Default"/>
+                    <Entry x:Name="HolderEntry" Placeholder="Chủ TK đúng sổ ngân hàng (bắt buộc)"/>
+                    <Entry x:Name="SwiftEntry" Placeholder="SWIFT/BIC (bắt buộc, VD: BIDVVNVX)" Keyboard="Default"/>
                     <Entry x:Name="NoteEntryForm" Placeholder="Ghi chú"/>
-                    <Button Text="Thêm vào danh bạ" Clicked="OnAddClicked" BackgroundColor="#334155"
+                    <Button x:Name="CancelEditBtn" Text="Hủy sửa" Clicked="OnCancelEditClicked" BackgroundColor="#f1f5f9"
+                            TextColor="#334155" CornerRadius="10" HeightRequest="44" FontAttributes="Bold" IsVisible="False"/>
+                    <Button x:Name="SaveRecipientBtn" Text="Thêm vào danh bạ" Clicked="OnSaveClicked" BackgroundColor="#334155"
                             TextColor="White" CornerRadius="10" HeightRequest="46" FontAttributes="Bold"/>
                 </VerticalStackLayout>
             </Frame>

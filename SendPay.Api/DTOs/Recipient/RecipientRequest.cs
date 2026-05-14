@@ -6,4 +6,5 @@ public record RecipientRequest(
     string Note = "",
     string? BankName = null,
     string? AccountNumber = null,
-    string? AccountHolderName = null);
+    string? AccountHolderName = null,
+    string? SwiftBic = null);

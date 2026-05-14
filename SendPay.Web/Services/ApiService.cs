@@ -9,7 +9,8 @@ namespace SendPay.Web.Services;
 public record AuthResponse(int UserId, string Token, string FullName, string Email, string Phone, bool IsAdmin = false);
 public record WalletResponse(string FullName, string Phone, decimal Balance);
 public record TransactionResponse(int Id, int SenderId, string SenderName, string ReceiverName,
-    decimal Amount, decimal Fee, string Note, int Type, int Status, DateTime CreatedAt);
+    decimal Amount, decimal Fee, string Note, int Type, int Status, DateTime CreatedAt,
+    string? ReceiverBankName = null, string? ReceiverAccountNumber = null);
 
 public record AdminStatsResponse(
     int TotalUsers, int ActiveUsers,
@@ -26,7 +27,7 @@ public record AdminTransactionResponse(
 
 public record RecipientResponse(
     int Id, string Name, string? Phone, string Note,
-    string? BankName, string? AccountNumber, string? AccountHolderName, DateTime CreatedAt);
+    string? BankName, string? AccountNumber, string? AccountHolderName, string? SwiftBic, DateTime CreatedAt);
 public record UserProfileResponse(int Id, string FullName, string Email, string Phone, decimal Balance, DateTime CreatedAt);
 public record CurrencyRate(string Code, string Flag, string Country, decimal Rate, string Change, bool Up);
 public record ExchangeRateResponse(string Date, List<CurrencyRate> Rates);
@@ -133,11 +134,12 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
     }
 
     public async Task<(bool ok, TransactionResponse? data, string error)> TransferAsync(
-        string receiverPhone, decimal amount, string note, Guid verificationId, string otpCode)
+        string receiverPhone, decimal amount, string note, Guid verificationId, string otpCode,
+        string? receiverBankName = null, string? receiverAccountNumber = null)
     {
         await SetAuthHeader();
         var res = await http.PostAsJsonAsync("api/transaction/transfer",
-            new { receiverPhone, amount, note, verificationId, otpCode });
+            new { receiverPhone, amount, note, verificationId, otpCode, receiverBankName, receiverAccountNumber });
 
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<TransactionResponse>(), "");
@@ -180,11 +182,11 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
 
     public async Task<(bool ok, RecipientResponse? data, string error)> AddRecipientAsync(
         string name, string? phone, string note,
-        string? bankName = null, string? accountNumber = null, string? accountHolderName = null)
+        string? bankName = null, string? accountNumber = null, string? accountHolderName = null, string? swiftBic = null)
     {
         await SetAuthHeader();
         var res = await http.PostAsJsonAsync("api/recipient",
-            new { name, phone, note, bankName, accountNumber, accountHolderName });
+            new { name, phone, note, bankName, accountNumber, accountHolderName, swiftBic });
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<RecipientResponse>(), "");
         return (false, null, await ReadErrorMessageAsync(res, "Thêm thất bại"));
@@ -192,11 +194,11 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
 
     public async Task<(bool ok, RecipientResponse? data, string error)> UpdateRecipientAsync(
         int id, string name, string? phone, string note,
-        string? bankName = null, string? accountNumber = null, string? accountHolderName = null)
+        string? bankName = null, string? accountNumber = null, string? accountHolderName = null, string? swiftBic = null)
     {
         await SetAuthHeader();
         var res = await http.PutAsJsonAsync($"api/recipient/{id}",
-            new { name, phone, note, bankName, accountNumber, accountHolderName });
+            new { name, phone, note, bankName, accountNumber, accountHolderName, swiftBic });
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<RecipientResponse>(), "");
         return (false, null, await ReadErrorMessageAsync(res, "Cập nhật thất bại"));

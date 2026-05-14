@@ -56,9 +56,13 @@
                                                 {
                                                     <span style="color:var(--text-muted)">—</span>
                                                 }
-                                                @if (!string.IsNullOrEmpty(r.BankName) || !string.IsNullOrEmpty(r.AccountNumber))
+                                                @if (!string.IsNullOrEmpty(r.BankName) || !string.IsNullOrEmpty(r.AccountNumber) || !string.IsNullOrEmpty(r.SwiftBic))
                                                 {
                                                     <span> · @(string.IsNullOrEmpty(r.BankName) ? "" : r.BankName + " ")</span>
+                                                    @if (!string.IsNullOrEmpty(r.SwiftBic))
+                                                    {
+                                                        <span>SWIFT @r.SwiftBic </span>
+                                                    }
                                                     @if (!string.IsNullOrEmpty(r.AccountNumber))
                                                     {
                                                         <span>****@Last4Digits(r.AccountNumber)</span>
@@ -116,7 +120,7 @@
 
                 <MudTextField @bind-Value="newPhone"
                               Label="@Lang.T("recip_phone")"
-                              Placeholder="090-1234-5678"
+                              Placeholder="@Lang.T("recip_phone_ph")"
                               Variant="Variant.Outlined"
                               Adornment="Adornment.Start"
                               AdornmentIcon="@Icons.Material.Filled.Phone"
@@ -139,9 +143,21 @@
 
                 <MudTextField @bind-Value="newHolder"
                               Label="@Lang.T("recip_holder")"
+                              Placeholder="@Lang.T("recip_holder_ph")"
                               Variant="Variant.Outlined"
                               FullWidth="true"
                               Class="mb-3" />
+
+                <MudTextField @bind-Value="newSwift"
+                              Label="@Lang.T("recip_swift")"
+                              Placeholder="BIDVVNVX"
+                              Variant="Variant.Outlined"
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Numbers"
+                              FullWidth="true"
+                              Class="mb-3"
+                              HelperText="@Lang.T("recip_swift_help")"
+                              HelperTextOnFocus="true" />
 
                 <MudTextField @bind-Value="newNote"
                               Label="@Lang.T("recip_note")"
@@ -180,7 +196,7 @@
     bool loading = true;
     bool adding;
     int? editingId;
-    string newName = "", newPhone = "", newNote = "", newBank = "", newAccount = "", newHolder = "";
+    string newName = "", newPhone = "", newNote = "", newBank = "", newAccount = "", newHolder = "", newSwift = "";
     string addError = "", addSuccess = "";
 
     protected override async Task OnInitializedAsync()
@@ -210,6 +226,7 @@
         newBank = r.BankName ?? "";
         newAccount = r.AccountNumber ?? "";
         newHolder = r.AccountHolderName ?? "";
+        newSwift = r.SwiftBic ?? "";
     }
 
     void CancelEdit()
@@ -221,7 +238,7 @@
 
     void ClearFormFields()
     {
-        newName = newPhone = newNote = newBank = newAccount = newHolder = "";
+        newName = newPhone = newNote = newBank = newAccount = newHolder = newSwift = "";
     }
 
     async Task SaveRecipient()
@@ -234,14 +251,21 @@
         var bk = string.IsNullOrWhiteSpace(newBank) ? null : newBank.Trim();
         var ac = string.IsNullOrWhiteSpace(newAccount) ? null : newAccount.Trim();
         var ho = string.IsNullOrWhiteSpace(newHolder) ? null : newHolder.Trim();
+        var sw = string.IsNullOrWhiteSpace(newSwift) ? null : newSwift.Trim();
 
-        if (string.IsNullOrEmpty(DigitsOnly(ph)) && string.IsNullOrEmpty(DigitsOnly(ac)))
-        { addError = Lang.T("recip_err_required"); return; }
+        if (string.IsNullOrEmpty(bk) || string.IsNullOrEmpty(ac) || string.IsNullOrEmpty(ho) || string.IsNullOrEmpty(sw))
+        { addError = Lang.T("recip_err_bank_full"); return; }
+
+        if (AccountKey(ac).Length < 6)
+        { addError = Lang.T("recip_err_account"); return; }
+
+        if (!IsValidBic(sw))
+        { addError = Lang.T("recip_err_swift"); return; }
 
         adding = true;
         (bool ok, _, string err) = editingId is int eid
-            ? await Api.UpdateRecipientAsync(eid, newName.Trim(), ph, newNote.Trim(), bk, ac, ho)
-            : await Api.AddRecipientAsync(newName.Trim(), ph, newNote.Trim(), bk, ac, ho);
+            ? await Api.UpdateRecipientAsync(eid, newName.Trim(), ph, newNote.Trim(), bk, ac, ho, sw)
+            : await Api.AddRecipientAsync(newName.Trim(), ph, newNote.Trim(), bk, ac, ho, sw);
         adding = false;
 
         if (ok)
@@ -255,12 +279,27 @@
         else addError = err;
     }
 
-    static string DigitsOnly(string? s) =>
-        string.IsNullOrEmpty(s) ? "" : new string(s.Where(char.IsDigit).ToArray());
+    static string AccountKey(string? s) =>
+        string.IsNullOrEmpty(s) ? "" : string.Concat(s.Where(char.IsLetterOrDigit)).ToUpperInvariant();
+
+    static bool IsValidBic(string swift)
+    {
+        var s = string.Concat(swift.Trim().ToUpperInvariant().Where(c =>
+            c is >= 'A' and <= 'Z' || char.IsDigit(c)));
+        if (s.Length is not (8 or 11)) return false;
+        for (var i = 0; i < 6; i++)
+            if (!char.IsLetter(s[i])) return false;
+        for (var i = 6; i < 8; i++)
+            if (!char.IsLetterOrDigit(s[i])) return false;
+        if (s.Length == 11)
+            for (var i = 8; i < 11; i++)
+                if (!char.IsLetterOrDigit(s[i])) return false;
+        return true;
+    }
 
     static string Last4Digits(string? acct)
     {
-        var d = DigitsOnly(acct);
+        var d = AccountKey(acct);
         return d.Length <= 4 ? d : d[^4..];
     }
 

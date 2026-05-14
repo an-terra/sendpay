@@ -20,6 +20,8 @@
                                 <Label Text="{Binding Name}" FontAttributes="Bold" FontSize="14"/>
                                 <Label Text="{Binding Note}" FontSize="12" TextColor="#6b7280"
                                        IsVisible="{Binding HasNote}"/>
+                                <Label Text="{Binding BankLine}" FontSize="11" TextColor="#64748b"
+                                       IsVisible="{Binding HasBank}" LineBreakMode="TailTruncation"/>
                                 <Label Text="{Binding Date}" FontSize="11" TextColor="#8b8b9b"/>
                             </VerticalStackLayout>
                             <VerticalStackLayout Grid.Column="2" VerticalOptions="Center" Spacing="2" HorizontalOptions="End">

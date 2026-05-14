@@ -37,6 +37,7 @@
                     string label = tx.Type == 1
                         ? Lang.T("hist_topup")
                         : isIncoming ? $"{tx.SenderName} → {Lang.T("hist_you")}" : $"{Lang.T("hist_you")} → {tx.ReceiverName}";
+                    var bankLine = tx.Type == 0 ? FormatBankLine(tx.ReceiverBankName, tx.ReceiverAccountNumber) : "";
                     string avatarBg = tx.Type == 1 ? "linear-gradient(140deg,#38d9a9,#0C8599)"
                                     : isIncoming  ? "linear-gradient(140deg,#51cf66,#0D7A4E)"
                                     : "linear-gradient(140deg,#ff8fa3,#D0001F)";
@@ -51,6 +52,10 @@
                             @if (!string.IsNullOrEmpty(tx.Note) && tx.Type != 1)
                             {
                                 <div style="color:var(--text-sub);font-size:12px;font-style:italic;margin-top:2px">@tx.Note</div>
+                            }
+                            @if (!string.IsNullOrEmpty(bankLine))
+                            {
+                                <div style="color:var(--text-sub);font-size:11px;margin-top:2px">@Lang.T("tr_bank_lbl") · @bankLine</div>
                             }
                             <div style="color:var(--text-muted);font-size:12px;margin-top:2px">@tx.CreatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</div>
                         </div>
@@ -110,6 +115,18 @@
 
     async Task PrevPage() { if (page > 1) { page--; await LoadPage(); } }
     async Task NextPage() { page++; await LoadPage(); }
+
+    static string AccountKey(string? s) =>
+        string.IsNullOrEmpty(s) ? "" : string.Concat(s.Where(char.IsLetterOrDigit)).ToUpperInvariant();
+
+    static string FormatBankLine(string? bankName, string? accountNumber)
+    {
+        if (string.IsNullOrWhiteSpace(bankName) && string.IsNullOrWhiteSpace(accountNumber)) return "";
+        var bn = string.IsNullOrWhiteSpace(bankName) ? "—" : bankName.Trim();
+        var key = AccountKey(accountNumber);
+        var tail = string.IsNullOrEmpty(key) ? "" : (key.Length <= 4 ? key : key[^4..]);
+        return string.IsNullOrEmpty(tail) ? bn : $"{bn} · ****{tail}";
+    }
 
     public void Dispose() => Lang.OnChanged -= StateHasChanged;
 }

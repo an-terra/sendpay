@@ -8,4 +8,5 @@ public record RecipientResponse(
     string? BankName,
     string? AccountNumber,
     string? AccountHolderName,
+    string? SwiftBic,
     DateTime CreatedAt);

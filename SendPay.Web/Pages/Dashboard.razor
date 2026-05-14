@@ -143,6 +143,7 @@
                     bool isIncoming = tx.Type == 1 || (tx.Type == 0 && tx.SenderId != currentUserId);
                     string otherName = tx.Type == 1 ? Lang.T("dash_topup_lbl")
                                      : isIncoming ? tx.SenderName : tx.ReceiverName;
+                    var bankLine = tx.Type == 0 ? FormatBankLine(tx.ReceiverBankName, tx.ReceiverAccountNumber) : "";
                     string txIcon = tx.Type == 1 ? "fa-solid fa-plus" : "fa-solid fa-paper-plane";
                     string avatarBg = tx.Type == 1 ? "linear-gradient(140deg,#38d9a9,#0C8599)"
                                     : isIncoming  ? "linear-gradient(140deg,#51cf66,#0D7A4E)"
@@ -156,6 +157,10 @@
                         </div>
                         <div class="sp-tx-info">
                             <div class="sp-tx-name">@otherName</div>
+                            @if (!string.IsNullOrEmpty(bankLine))
+                            {
+                                <div class="sp-tx-meta" style="font-size:11px;color:var(--text-sub)">@Lang.T("tr_bank_lbl") · @bankLine</div>
+                            }
                             <div class="sp-tx-meta">@tx.CreatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm") · @(tx.Type == 1 ? Lang.T("dash_topup_lbl") : Lang.T("dash_transfer_lbl"))</div>
                         </div>
                         <div class="sp-tx-amt-col">
@@ -250,6 +255,18 @@
         await LocalStorage.RemoveItemAsync("fullName");
         await LocalStorage.RemoveItemAsync("isAdmin");
         Nav.NavigateTo("/login");
+    }
+
+    static string AccountKey(string? s) =>
+        string.IsNullOrEmpty(s) ? "" : string.Concat(s.Where(char.IsLetterOrDigit)).ToUpperInvariant();
+
+    static string FormatBankLine(string? bankName, string? accountNumber)
+    {
+        if (string.IsNullOrWhiteSpace(bankName) && string.IsNullOrWhiteSpace(accountNumber)) return "";
+        var bn = string.IsNullOrWhiteSpace(bankName) ? "—" : bankName.Trim();
+        var key = AccountKey(accountNumber);
+        var tail = string.IsNullOrEmpty(key) ? "" : (key.Length <= 4 ? key : key[^4..]);
+        return string.IsNullOrEmpty(tail) ? bn : $"{bn} · ****{tail}";
     }
 
     static string GetInitials(string? name)

@@ -11,6 +11,8 @@ public class TransactionResponse
     public decimal           Amount       { get; set; }
     public decimal           Fee          { get; set; }
     public string            Note         { get; set; } = string.Empty;
+    public string?           ReceiverBankName       { get; set; }
+    public string?           ReceiverAccountNumber   { get; set; }
     public TransactionType   Type         { get; set; }
     public TransactionStatus Status       { get; set; }
     public DateTime          CreatedAt    { get; set; }

@@ -56,6 +56,12 @@
                                         @tx.CreatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm") ·
                                         @(isTopUp ? Lang.T("dash_topup_lbl") : Lang.T("dash_transfer_lbl"))
                                     </MudText>
+                                    @if (!isTopUp && (!string.IsNullOrWhiteSpace(tx.ReceiverBankName) || !string.IsNullOrWhiteSpace(tx.ReceiverAccountNumber)))
+                                    {
+                                        <MudText Typo="Typo.caption" Style="color:var(--text-sub);font-size:11px;margin-top:2px">
+                                            @Lang.T("tr_bank_lbl") · @FormatReceiptBank(tx.ReceiverBankName, tx.ReceiverAccountNumber)
+                                        </MudText>
+                                    }
                                 </div>
                                 <div style="text-align:right;flex-shrink:0">
                                     <MudText Typo="Typo.body2" Style="@($"font-weight:700;{(isTopUp ? "color:#0D7A4E" : "color:var(--red)")}")">
@@ -120,6 +126,10 @@
                 {
                     <div class="sp-receipt-row"><span>@Lang.T("receipt_note")</span><strong>@selected.Note</strong></div>
                 }
+                @if (selected.Type != 1 && (!string.IsNullOrWhiteSpace(selected.ReceiverBankName) || !string.IsNullOrWhiteSpace(selected.ReceiverAccountNumber)))
+                {
+                    <div class="sp-receipt-row"><span>@Lang.T("tr_bank_lbl") / @Lang.T("tr_account_lbl")</span><strong>@FormatReceiptBank(selected.ReceiverBankName, selected.ReceiverAccountNumber)</strong></div>
+                }
                 <div class="sp-receipt-row"><span>@Lang.T("receipt_date")</span><strong>@selected.CreatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</strong></div>
                 <div class="sp-receipt-row"><span>@Lang.T("receipt_status")</span><strong style="color:var(--green)">✓ @Lang.T("dash_done")</strong></div>
             </div>
@@ -162,6 +172,17 @@
 
     void OpenReceipt(TransactionResponse tx) => selected = tx;
     void CloseReceipt() => selected = null;
+
+    static string AccountKey(string? s) =>
+        string.IsNullOrEmpty(s) ? "" : string.Concat(s.Where(char.IsLetterOrDigit)).ToUpperInvariant();
+
+    static string FormatReceiptBank(string? bankName, string? accountNumber)
+    {
+        var bn = string.IsNullOrWhiteSpace(bankName) ? "—" : bankName.Trim();
+        var key = AccountKey(accountNumber);
+        var tail = string.IsNullOrEmpty(key) ? "—" : (key.Length <= 4 ? key : key[^4..]);
+        return $"{bn} · ****{tail}";
+    }
 
     static string GetInitials(string? name)
     {

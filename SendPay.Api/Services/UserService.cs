@@ -51,7 +51,7 @@ public class UserService(AppDbContext db) : IUserService
         int userId, string? phone, string? accountNumber, string? bankName)
     {
         var phoneNorm = OtpPayloadBuilder.NormalizePhone(phone);
-        var acctNorm  = OtpPayloadBuilder.NormalizePhone(accountNumber);
+        var acctNorm  = OtpPayloadBuilder.NormalizeAccountKey(accountNumber);
 
         var mePhone = await db.Users.AsNoTracking()
             .Where(u => u.Id == userId)
@@ -74,7 +74,7 @@ public class UserService(AppDbContext db) : IUserService
         if (acctNorm.Length >= 6)
         {
             savedMatch = saved.FirstOrDefault(r =>
-                OtpPayloadBuilder.NormalizePhone(r.AccountNumber) == acctNorm
+                OtpPayloadBuilder.NormalizeAccountKey(r.AccountNumber) == acctNorm
                 && BankMatches(r.BankName, bankName));
         }
 
@@ -130,11 +130,13 @@ public class UserService(AppDbContext db) : IUserService
 
     private static string? ToBankDisplay(Recipient r)
     {
-        var acct = OtpPayloadBuilder.NormalizePhone(r.AccountNumber);
+        var acct = OtpPayloadBuilder.NormalizeAccountKey(r.AccountNumber);
         if (string.IsNullOrEmpty(acct))
             return string.IsNullOrWhiteSpace(r.BankName) ? null : r.BankName;
         var tail = acct.Length <= 4 ? acct : acct[^4..];
         var bank = string.IsNullOrWhiteSpace(r.BankName) ? "STK" : r.BankName!;
-        return $"{bank} · ****{tail}";
+        var swift = string.IsNullOrWhiteSpace(r.SwiftBic) ? null : r.SwiftBic.Trim().ToUpperInvariant();
+        var swiftPart = string.IsNullOrEmpty(swift) ? "" : $" · SWIFT {swift}";
+        return $"{bank}{swiftPart} · ****{tail}";
     }
 }

@@ -59,6 +59,12 @@
                                @bind="bankAccount" @bind:event="oninput" @bind:after="OnReceiverBindAfter" />
                     </div>
                     <div class="sp-form-group">
+                        <label>@Lang.T("recip_swift")</label>
+                        <input class="sp-form-input sp-form-input-lg" type="text" autocomplete="off"
+                               placeholder="@Lang.T("recip_swift_help")"
+                               @bind="bankSwift" @bind:event="oninput" />
+                    </div>
+                    <div class="sp-form-group">
                         @if (receiverLookupLoading)
                         {
                             <div style="font-size:12px;color:var(--text-muted);margin-top:4px">@Lang.T("tr_receiver_checking")</div>
@@ -146,6 +152,20 @@
                         @(string.IsNullOrEmpty(receiverResolvedName) ? "—" : receiverResolvedName)
                     </span>
                 </div>
+                @if (!string.IsNullOrEmpty(TransferBankSummaryLine))
+                {
+                    <div class="sp-detail-row" style="border-bottom:none;padding-top:4px">
+                        <span class="dlabel">@Lang.T("tr_bank_lbl") / @Lang.T("tr_account_lbl")</span>
+                        <span class="dval" style="text-align:right;font-size:13px">@TransferBankSummaryLine</span>
+                    </div>
+                }
+                @if (!string.IsNullOrEmpty(TransferSwiftSummary))
+                {
+                    <div class="sp-detail-row" style="border-bottom:none;padding-top:4px">
+                        <span class="dlabel">@Lang.T("recip_swift")</span>
+                        <span class="dval" style="text-align:right;font-size:13px;font-family:monospace">@TransferSwiftSummary</span>
+                    </div>
+                }
 
                 <button class="sp-cta-full" style="margin-top:20px" @onclick="GoToConfirm">
                     @Lang.T("tr_continue") <i class="fa-solid fa-arrow-right"></i>
@@ -171,6 +191,14 @@
             <!-- LEFT: detail rows -->
             <div class="sp-detail-card">
                 <div class="sp-detail-row"><span class="dlabel">@Lang.T("tr_receiver")</span><span class="dval">@ConfirmReceiverLine</span></div>
+                @if (!string.IsNullOrEmpty(TransferBankSummaryLine))
+                {
+                    <div class="sp-detail-row"><span class="dlabel">@Lang.T("tr_bank_lbl") / @Lang.T("tr_account_lbl")</span><span class="dval">@TransferBankSummaryLine</span></div>
+                }
+                @if (!string.IsNullOrEmpty(TransferSwiftSummary))
+                {
+                    <div class="sp-detail-row"><span class="dlabel">@Lang.T("recip_swift")</span><span class="dval" style="font-family:monospace">@TransferSwiftSummary</span></div>
+                }
                 <div class="sp-detail-row"><span class="dlabel">@Lang.T("tr_send_amt")</span><span class="dval">¥@amount.ToString("N0")</span></div>
                 <div class="sp-detail-row"><span class="dlabel">@Lang.T("tr_fee")</span><span class="dval" style="color:var(--green)">¥@Fee.ToString("N0")</span></div>
                 <div class="sp-detail-row"><span class="dlabel">@Lang.T("tr_total")</span><span class="dval" style="color:var(--red);font-size:15px">¥@((amount + Fee).ToString("N0"))</span></div>
@@ -243,6 +271,14 @@
 
             <div class="sp-detail-card" style="text-align:left;margin-bottom:20px">
                 <div class="sp-detail-row"><span class="dlabel">@Lang.T("tr_receiver")</span><span class="dval">@(successData?.ReceiverName ?? ConfirmReceiverLine)</span></div>
+                @if (!string.IsNullOrWhiteSpace(successData?.ReceiverBankName) || !string.IsNullOrWhiteSpace(successData?.ReceiverAccountNumber))
+                {
+                    <div class="sp-detail-row"><span class="dlabel">@Lang.T("tr_bank_lbl") / @Lang.T("tr_account_lbl")</span><span class="dval">@FormatBankAcctLine(successData?.ReceiverBankName, successData?.ReceiverAccountNumber)</span></div>
+                }
+                else if (!string.IsNullOrEmpty(TransferBankSummaryLine))
+                {
+                    <div class="sp-detail-row"><span class="dlabel">@Lang.T("tr_bank_lbl") / @Lang.T("tr_account_lbl")</span><span class="dval">@TransferBankSummaryLine</span></div>
+                }
                 <div class="sp-detail-row"><span class="dlabel">@Lang.T("tr_send_amt")</span><span class="dval">¥@(successData?.Amount.ToString("N0") ?? amount.ToString("N0"))</span></div>
                 <div class="sp-detail-row"><span class="dlabel">@Lang.T("tr_time")</span><span class="dval">@DateTime.Now.ToString("yyyy/MM/dd HH:mm:ss")</span></div>
                 <div class="sp-detail-row" style="border-bottom:none"><span class="dlabel">@Lang.T("tr_status")</span><span class="dval"><span class="badge-fast">@Lang.T("tr_success_status")</span></span></div>
@@ -263,7 +299,7 @@
 
 @code {
     string step = "form";
-    string phone = "", bankAccount = "", bankName = "", note = "", error = "", purpose = "tr_purpose_1";
+    string phone = "", bankAccount = "", bankName = "", bankSwift = "", note = "", error = "", purpose = "tr_purpose_1";
     decimal amount;
     List<CurrencyRate> allRates = [];
     decimal balance;
@@ -297,8 +333,33 @@
             ? EffectivePhone
             : $"{receiverResolvedName} · {EffectivePhone}";
 
+    string TransferBankSummaryLine
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(bankName) && string.IsNullOrWhiteSpace(bankAccount)) return "";
+            var bn = string.IsNullOrWhiteSpace(bankName) ? "—" : bankName.Trim();
+            var key = AccountKey(bankAccount);
+            var tail = string.IsNullOrEmpty(key) ? "—" : (key.Length <= 4 ? key : key[^4..]);
+            return $"{bn} · ****{tail}";
+        }
+    }
+
+    string? TransferSwiftSummary => string.IsNullOrWhiteSpace(bankSwift) ? null : bankSwift.Trim().ToUpperInvariant();
+
     static string DigitsOnly(string? s) =>
         string.IsNullOrEmpty(s) ? "" : new string(s.Where(char.IsDigit).ToArray());
+
+    static string AccountKey(string? s) =>
+        string.IsNullOrEmpty(s) ? "" : string.Concat(s.Where(char.IsLetterOrDigit)).ToUpperInvariant();
+
+    static string FormatBankAcctLine(string? bankName, string? accountNumber)
+    {
+        var bn = string.IsNullOrWhiteSpace(bankName) ? "—" : bankName.Trim();
+        var key = AccountKey(accountNumber);
+        var tail = string.IsNullOrEmpty(key) ? "—" : (key.Length <= 4 ? key : key[^4..]);
+        return $"{bn} · ****{tail}";
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -335,6 +396,7 @@
                     phone = rec.Phone ?? "";
                     bankAccount = rec.AccountNumber ?? "";
                     bankName = rec.BankName ?? "";
+                    bankSwift = rec.SwiftBic ?? "";
                     if (string.IsNullOrEmpty(note))
                         note = rec.Note ?? "";
                     await RefreshReceiverLookupAsync(forContinueButton: true);
@@ -378,8 +440,8 @@
     async Task RefreshReceiverLookupAsync(bool forContinueButton = false)
     {
         var phDigits = DigitsOnly(phone);
-        var acctDigits = DigitsOnly(bankAccount);
-        if (!forContinueButton && phDigits.Length < 8 && acctDigits.Length < 6)
+        var acctKey = AccountKey(bankAccount);
+        if (!forContinueButton && phDigits.Length < 8 && acctKey.Length < 6)
         {
             receiverResolvedName = "";
             receiverBankDisplay = "";
@@ -409,7 +471,7 @@
                 receiverBankDisplay = "";
                 lookupResolvedPhone = null;
                 receiverIsSelf = false;
-                receiverShowNotFound = !forContinueButton && (phDigits.Length >= 8 || acctDigits.Length >= 6);
+                receiverShowNotFound = !forContinueButton && (phDigits.Length >= 8 || acctKey.Length >= 6);
             }
             else
             {
@@ -417,7 +479,7 @@
                 receiverResolvedName = res.Found && !string.IsNullOrEmpty(res.FullName) ? res.FullName! : "";
                 receiverBankDisplay = res.BankDisplay ?? "";
                 lookupResolvedPhone = string.IsNullOrWhiteSpace(res.ResolvedPhone) ? null : res.ResolvedPhone;
-                var canShowNotFound = !forContinueButton && (phDigits.Length >= 8 || acctDigits.Length >= 6);
+                var canShowNotFound = !forContinueButton && (phDigits.Length >= 8 || acctKey.Length >= 6);
                 receiverShowNotFound = canShowNotFound && !res.Found && !res.IsSelf;
             }
         }
@@ -436,8 +498,8 @@
         otpDevHint = "";
         if (amount < 1_000) { error = "Min ¥1,000"; return; }
         var phD = DigitsOnly(phone);
-        var acD = DigitsOnly(bankAccount);
-        if (phD.Length < 8 && acD.Length < 6)
+        var acK = AccountKey(bankAccount);
+        if (phD.Length < 8 && acK.Length < 6)
         { error = Lang.T("tr_lookup_need_input"); return; }
 
         await RefreshReceiverLookupAsync(forContinueButton: true);
@@ -474,7 +536,9 @@
         var code = (otpCode ?? "").Trim();
         if (code.Length != 6 || !code.All(char.IsDigit)) { error = Lang.T("otp_code_lbl") + " (6)"; return; }
         loading = true;
-        var (ok, data, err) = await Api.TransferAsync(EffectivePhone.Trim(), amount, note, verificationId.Value, code);
+        var rb = string.IsNullOrWhiteSpace(bankName) ? null : bankName.Trim();
+        var ra = string.IsNullOrWhiteSpace(bankAccount) ? null : bankAccount.Trim();
+        var (ok, data, err) = await Api.TransferAsync(EffectivePhone.Trim(), amount, note, verificationId.Value, code, rb, ra);
         loading = false;
         if (ok) { successData = data; step = "success"; }
         else { error = err; }
@@ -482,7 +546,7 @@
 
     void Reset()
     {
-        step = "form"; phone = bankAccount = bankName = note = error = ""; amount = 0; successData = null;
+        step = "form"; phone = bankAccount = bankName = bankSwift = note = error = ""; amount = 0; successData = null;
         purpose = "tr_purpose_1";
         verificationId = null;
         otpCode = "";

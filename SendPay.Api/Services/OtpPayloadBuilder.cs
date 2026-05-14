@@ -27,4 +27,12 @@ public static class OtpPayloadBuilder
         if (string.IsNullOrWhiteSpace(phone)) return "";
         return new string(phone.Where(char.IsDigit).ToArray());
     }
+
+    /// <summary>Chuẩn hóa số TK (bỏ khoảng trắng, chữ số chữ cái, so khớp danh bạ / tra cứu).</summary>
+    public static string NormalizeAccountKey(string? account)
+    {
+        if (string.IsNullOrWhiteSpace(account)) return "";
+        var raw = string.Concat(account.Where(char.IsLetterOrDigit));
+        return raw.ToUpperInvariant();
+    }
 }

@@ -47,6 +47,7 @@ public partial class TransferPage : ContentPage
             PhoneEntry.Text = rec.Phone ?? "";
             BankNameEntry.Text = rec.BankName ?? "";
             AccountEntry.Text = rec.AccountNumber ?? "";
+            SwiftEntry.Text = rec.SwiftBic ?? "";
             NoteEntry.Text = rec.Note ?? "";
         });
         await DebouncedLookupAsync();
@@ -62,8 +63,8 @@ public partial class TransferPage : ContentPage
         }
 
         var phD = DigitsOnly(PhoneEntry.Text);
-        var acD = DigitsOnly(AccountEntry.Text);
-        if (phD.Length < 8 && acD.Length < 6)
+        var acK = AccountKey(AccountEntry.Text);
+        if (phD.Length < 8 && acK.Length < 6)
         {
             ShowMsg("Nhập SĐT (≥8 số) hoặc STK (≥6 số).", "#dc2626");
             return;
@@ -162,7 +163,9 @@ public partial class TransferPage : ContentPage
         TransferBtn.IsEnabled = false;
         TransferBtn.Text = "Đang xử lý...";
 
-        var (ok, data, err) = await _api.TransferAsync(eff, amount, NoteEntry.Text ?? "", _verificationId.Value, otp);
+        var rb = string.IsNullOrWhiteSpace(BankNameEntry.Text) ? null : BankNameEntry.Text.Trim();
+        var racct = string.IsNullOrWhiteSpace(AccountEntry.Text) ? null : AccountEntry.Text.Trim();
+        var (ok, data, err) = await _api.TransferAsync(eff, amount, NoteEntry.Text ?? "", _verificationId.Value, otp, rb, racct);
 
         TransferBtn.IsEnabled = true;
         TransferBtn.Text = "2. Xác nhận chuyển tiền";
@@ -171,7 +174,7 @@ public partial class TransferPage : ContentPage
         {
             ShowMsg($"✓ Đã chuyển {data.Amount:N0}₫ cho {data.ReceiverName} thành công!", "#16a34a");
             PhoneEntry.Text = AmountEntry.Text = NoteEntry.Text = "";
-            BankNameEntry.Text = AccountEntry.Text = "";
+            BankNameEntry.Text = AccountEntry.Text = SwiftEntry.Text = "";
             OtpEntry.Text = "";
             ReceiverHintLabel.Text = "";
             ReceiverHintLabel.IsVisible = false;
@@ -200,8 +203,8 @@ public partial class TransferPage : ContentPage
         catch (TaskCanceledException) { return; }
 
         var phD = DigitsOnly(PhoneEntry.Text);
-        var acD = DigitsOnly(AccountEntry.Text);
-        if (phD.Length < 8 && acD.Length < 6)
+        var acK = AccountKey(AccountEntry.Text);
+        if (phD.Length < 8 && acK.Length < 6)
         {
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
@@ -237,6 +240,9 @@ public partial class TransferPage : ContentPage
             }
         });
     }
+
+    static string AccountKey(string? s) =>
+        string.IsNullOrEmpty(s) ? "" : string.Concat(s.Where(char.IsLetterOrDigit)).ToUpperInvariant();
 
     static string DigitsOnly(string? s) =>
         string.IsNullOrEmpty(s) ? "" : new string(s.Where(char.IsDigit).ToArray());
