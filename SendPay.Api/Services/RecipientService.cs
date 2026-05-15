@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SendPay.Api.Data;
 using SendPay.Api.DTOs.Recipient;
+using SendPay.Api.Infrastructure;
 using SendPay.Api.Models;
 
 namespace SendPay.Api.Services;
@@ -20,7 +21,7 @@ public class RecipientService(AppDbContext db) : IRecipientService
     {
         var r = await db.Recipients.AsNoTracking()
                      .FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId)
-                 ?? throw new KeyNotFoundException("Không tìm thấy người nhận.");
+                 ?? throw AppError.NotFound(ErrorCodes.RecipientNotFound, "Không tìm thấy người nhận.");
         return ToResponse(r);
     }
 
@@ -37,7 +38,7 @@ public class RecipientService(AppDbContext db) : IRecipientService
     {
         EnsureRecipientValid(req);
         var r = await db.Recipients.FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId)
-                ?? throw new KeyNotFoundException("Không tìm thấy người nhận.");
+                ?? throw AppError.NotFound(ErrorCodes.RecipientNotFound, "Không tìm thấy người nhận.");
         r.Name              = req.Name.Trim();
         r.Phone             = req.Phone?.Trim() ?? "";
         r.Note              = req.Note?.Trim() ?? "";
@@ -51,7 +52,7 @@ public class RecipientService(AppDbContext db) : IRecipientService
     public async Task DeleteAsync(int userId, int id)
     {
         var r = await db.Recipients.FirstOrDefaultAsync(x => x.Id == id && x.UserId == userId)
-                ?? throw new KeyNotFoundException("Không tìm thấy người nhận.");
+                ?? throw AppError.NotFound(ErrorCodes.RecipientNotFound, "Không tìm thấy người nhận.");
         db.Recipients.Remove(r);
         await db.SaveChangesAsync();
     }
@@ -59,22 +60,24 @@ public class RecipientService(AppDbContext db) : IRecipientService
     private static void EnsureRecipientValid(RecipientRequest req)
     {
         if (string.IsNullOrWhiteSpace(req.Name))
-            throw new InvalidOperationException("Tên người nhận không được để trống.");
+            throw AppError.BadRequest(ErrorCodes.RecipientNameRequired, "Tên người nhận không được để trống.");
         if (string.IsNullOrWhiteSpace(req.BankName))
-            throw new InvalidOperationException("Tên ngân hàng không được để trống.");
+            throw AppError.BadRequest(ErrorCodes.RecipientBankRequired, "Tên ngân hàng không được để trống.");
         if (string.IsNullOrWhiteSpace(req.AccountHolderName))
-            throw new InvalidOperationException("Tên chủ tài khoản (theo sổ ngân hàng) không được để trống.");
+            throw AppError.BadRequest(ErrorCodes.RecipientHolderRequired,
+                "Tên chủ tài khoản (theo sổ ngân hàng) không được để trống.");
         if (string.IsNullOrWhiteSpace(req.AccountNumber))
-            throw new InvalidOperationException("Số tài khoản không được để trống.");
+            throw AppError.BadRequest(ErrorCodes.RecipientAccountRequired, "Số tài khoản không được để trống.");
         var acctKey = OtpPayloadBuilder.NormalizeAccountKey(req.AccountNumber);
         if (acctKey.Length < 6)
-            throw new InvalidOperationException("Số tài khoản không hợp lệ (ít nhất 6 ký tự chữ hoặc số).");
+            throw AppError.BadRequest(ErrorCodes.RecipientAccountInvalid,
+                "Số tài khoản không hợp lệ (ít nhất 6 ký tự chữ hoặc số).");
 
         var cc = CountryBankCatalog.NormalizeCountry(req.CountryCode);
         if (CountryBankCatalog.IsCatalogCountry(cc))
         {
             if (!CountryBankCatalog.TryGetSwiftByBankName(cc, req.BankName, out _))
-                throw new InvalidOperationException(
+                throw AppError.BadRequest(ErrorCodes.RecipientBankNotInCatalog,
                     "Hãy chọn ngân hàng đúng trong danh sách gợi ý theo quốc gia (để hệ thống lấy mã SWIFT).");
         }
     }
@@ -86,7 +89,8 @@ public class RecipientService(AppDbContext db) : IRecipientService
         if (CountryBankCatalog.IsCatalogCountry(cc))
         {
             if (!CountryBankCatalog.TryGetSwiftByBankName(cc, req.BankName, out var swift))
-                throw new InvalidOperationException("Không xác định được mã SWIFT cho ngân hàng đã chọn.");
+                throw AppError.BadRequest(ErrorCodes.RecipientSwiftMissing,
+                    "Không xác định được mã SWIFT cho ngân hàng đã chọn.");
             r.SwiftBic = swift;
             r.BankName = CountryBankCatalog.CanonicalBankName(cc, req.BankName) ?? req.BankName!.Trim();
         }

@@ -22,19 +22,5 @@ public class WalletController(IWalletService walletService) : ControllerBase
 
     [HttpPost("topup")]
     public async Task<IActionResult> TopUp(TopUpRequest request)
-    {
-        try
-        {
-            var result = await walletService.TopUpAsync(UserId, request);
-            return Ok(result);
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return NotFound(new { message = ex.Message });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-    }
+        => Ok(await walletService.TopUpAsync(UserId, request));
 }

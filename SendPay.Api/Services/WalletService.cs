@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SendPay.Api.Data;
 using SendPay.Api.DTOs.Wallet;
+using SendPay.Api.Infrastructure;
 using SendPay.Api.Models;
 
 namespace SendPay.Api.Services;
@@ -13,7 +14,7 @@ public class WalletService(
     public async Task<WalletResponse> GetBalanceAsync(int userId)
     {
         var user = await db.Users.FindAsync(userId)
-            ?? throw new KeyNotFoundException("Người dùng không tồn tại.");
+            ?? throw AppError.NotFound(ErrorCodes.UserNotFound, "Người dùng không tồn tại.");
 
         return ToResponse(user);
     }
@@ -21,11 +22,11 @@ public class WalletService(
     public async Task<WalletTopUpResponse> TopUpAsync(int userId, TopUpRequest req)
     {
         if (!env.IsDevelopment() && !config.GetValue("Features:AllowDemoTopUp", false))
-            throw new InvalidOperationException(
+            throw AppError.BadRequest(ErrorCodes.TopUpDisabled,
                 "Nạp tiền qua API đã tắt trên production. Hãy bật Features:AllowDemoTopUp (chỉ demo) hoặc tích hợp cổng thanh toán thật.");
 
         var user = await db.Users.FindAsync(userId)
-            ?? throw new KeyNotFoundException("Người dùng không tồn tại.");
+            ?? throw AppError.NotFound(ErrorCodes.UserNotFound, "Người dùng không tồn tại.");
 
         var instant = config.GetValue("Features:InstantWalletTopUp", false);
         if (instant)
@@ -83,7 +84,7 @@ public class WalletService(
                 return code;
         }
 
-        throw new InvalidOperationException("Không tạo được mã tham chiếu duy nhất.");
+        throw AppError.BadRequest(ErrorCodes.TopUpRefCollision, "Không tạo được mã tham chiếu duy nhất.");
     }
 
     private static WalletResponse ToResponse(User u) => new()

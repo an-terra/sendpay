@@ -65,31 +65,21 @@
 
                 @if (RecipientCatalogCountries.UsesCatalog(newCountry))
                 {
-                    <MudTextField @bind-Value="newBankFilter"
-                                  Immediate="true"
-                                  Label="@Lang.T("recip_bank_search")"
-                                  Placeholder="@Lang.T("recip_bank_ph")"
-                                  Variant="Variant.Outlined"
-                                  Adornment="Adornment.Start"
-                                  AdornmentIcon="@Icons.Material.Filled.Search"
-                                  FullWidth="true"
-                                  Class="mb-2" />
-                    @if (FilteredCatalogBanks.Count > 0 && (string.IsNullOrEmpty(newBank) || !string.Equals(newBankFilter, newBank, StringComparison.Ordinal)))
-                    {
-                        <div style="max-height:180px;overflow-y:auto;border:1px solid var(--gray-border);border-radius:10px;margin-bottom:12px">
-                            @foreach (var b in FilteredCatalogBanks.Take(25))
-                            {
-                                <div style="padding:10px 14px;cursor:pointer;border-bottom:1px solid var(--gray-border);font-size:13px"
-                                     @onclick="@(() => SelectCatalogBank(b))" @onclick:stopPropagation="true">
-                                    @b.Name
-                                </div>
-                            }
-                        </div>
-                    }
-                    @if (!string.IsNullOrEmpty(newBank))
-                    {
-                        <MudAlert Severity="Severity.Success" Dense="true" Class="mb-3" Style="font-size:12px">@Lang.T("recip_bank_picked"): @newBank</MudAlert>
-                    }
+                    <MudSelect T="string"
+                               @bind-Value="newBank"
+                               Label="@Lang.T("recip_bank")"
+                               Placeholder="@Lang.T("recip_bank_ph")"
+                               Variant="Variant.Outlined"
+                               Adornment="Adornment.Start"
+                               AdornmentIcon="@Icons.Material.Filled.AccountBalance"
+                               FullWidth="true"
+                               AnchorOrigin="Origin.BottomCenter"
+                               Class="mb-3">
+                        @foreach (var b in catalogBanks)
+                        {
+                            <MudSelectItem Value="@b.Name">@b.Name</MudSelectItem>
+                        }
+                    </MudSelect>
                 }
                 else
                 {
@@ -226,20 +216,9 @@
     bool loading = true;
     bool adding;
     int? editingId;
-    string newName = "", newPhone = "", newNote = "", newCountry = "VN", newBank = "", newBankFilter = "";
+    string newName = "", newPhone = "", newNote = "", newCountry = "VN", newBank = "";
     string newAccount = "", newHolder = "";
     string addError = "", addSuccess = "";
-
-    List<CatalogBankOption> FilteredCatalogBanks
-    {
-        get
-        {
-            if (catalogBanks.Count == 0) return [];
-            var q = (newBankFilter ?? "").Trim();
-            if (string.IsNullOrEmpty(q)) return catalogBanks;
-            return [.. catalogBanks.Where(b => b.Name.Contains(q, StringComparison.OrdinalIgnoreCase))];
-        }
-    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -256,7 +235,6 @@
     {
         addError = "";
         newBank = "";
-        newBankFilter = "";
         await EnsureCatalogLoadedAsync(newCountry);
         await InvokeAsync(StateHasChanged);
     }
@@ -287,13 +265,6 @@
         }
     }
 
-    void SelectCatalogBank(CatalogBankOption b)
-    {
-        newBank = b.Name;
-        newBankFilter = b.Name;
-        addError = "";
-    }
-
     async Task Reload()
     {
         loading = true;
@@ -310,7 +281,6 @@
         newNote = r.Note;
         newCountry = RecipientCatalogCountries.FormCountryFromRecipient(r);
         newBank = r.BankName ?? "";
-        newBankFilter = RecipientCatalogCountries.UsesCatalog(newCountry) ? newBank : "";
         newAccount = r.AccountNumber ?? "";
         newHolder = r.AccountHolderName ?? "";
         await EnsureCatalogLoadedAsync(newCountry);
@@ -325,7 +295,7 @@
 
     async Task ClearFormFieldsAsync()
     {
-        newName = newPhone = newNote = newBank = newBankFilter = newAccount = newHolder = "";
+        newName = newPhone = newNote = newBank = newAccount = newHolder = "";
         newCountry = "VN";
         await EnsureCatalogLoadedAsync("VN");
     }

@@ -59,26 +59,15 @@
                     @if (RecipientCatalogCountries.UsesCatalog(countryCode))
                     {
                         <div class="sp-form-group">
-                            <label>@Lang.T("recip_bank_search")</label>
-                            <input class="sp-form-input sp-form-input-lg" type="text" autocomplete="off"
-                                   placeholder="@Lang.T("recip_bank_ph")"
-                                   @bind="catalogBankSearch" @bind:event="oninput" @bind:after="OnReceiverBindAfter" />
-                            @if (FilteredTransferCatalogBanks.Count > 0 && (string.IsNullOrEmpty(bankName) || !string.Equals(catalogBankSearch, bankName, StringComparison.Ordinal)))
-                            {
-                                <div style="max-height:180px;overflow-y:auto;border:1px solid var(--gray-border);border-radius:10px;margin-top:8px">
-                                    @foreach (var b in FilteredTransferCatalogBanks.Take(25))
-                                    {
-                                        <button type="button" class="sp-btn-gray" style="width:100%;text-align:left;padding:10px 12px;border-radius:0;border:none;border-bottom:1px solid var(--gray-border);font-size:13px;background:white"
-                                                @onclick="@(() => PickTransferCatalogBank(b))">
-                                            @b.Name
-                                        </button>
-                                    }
-                                </div>
-                            }
-                            @if (!string.IsNullOrEmpty(bankName) && RecipientCatalogCountries.UsesCatalog(countryCode))
-                            {
-                                <div style="font-size:12px;color:var(--green);margin-top:6px">@Lang.T("recip_bank_picked"): @bankName</div>
-                            }
+                            <label>@Lang.T("tr_bank_lbl")</label>
+                            <select class="sp-form-input sp-form-input-lg"
+                                    @bind="bankName" @bind:after="OnReceiverBindAfter">
+                                <option value="">@Lang.T("recip_bank_ph")</option>
+                                @foreach (var b in transferCatalogBanks)
+                                {
+                                    <option value="@b.Name">@b.Name</option>
+                                }
+                            </select>
                         </div>
                     }
                     else
@@ -330,7 +319,7 @@
 
 @code {
     string step = "form";
-    string phone = "", bankAccount = "", bankName = "", bankHolder = "", countryCode = "VN", catalogBankSearch = "";
+    string phone = "", bankAccount = "", bankName = "", bankHolder = "", countryCode = "VN";
     string note = "", error = "", purpose = "tr_purpose_1";
     decimal amount;
     List<CurrencyRate> allRates = [];
@@ -349,17 +338,6 @@
 
     List<RecipientResponse> allRecipients = [];
     List<RecipientResponse> recipientSuggestions = [];
-
-    List<CatalogBankOption> FilteredTransferCatalogBanks
-    {
-        get
-        {
-            if (transferCatalogBanks.Count == 0) return [];
-            var q = (catalogBankSearch ?? "").Trim();
-            if (string.IsNullOrEmpty(q)) return transferCatalogBanks;
-            return [.. transferCatalogBanks.Where(b => b.Name.Contains(q, StringComparison.OrdinalIgnoreCase))];
-        }
-    }
 
     static readonly Dictionary<string, string> _langCurrency = new()
     {
@@ -468,7 +446,6 @@
                     bankAccount = rec.AccountNumber ?? "";
                     countryCode = RecipientCatalogCountries.FormCountryFromRecipient(rec);
                     bankName = rec.BankName ?? "";
-                    catalogBankSearch = RecipientCatalogCountries.UsesCatalog(countryCode) ? bankName : "";
                     await EnsureTransferCatalogLoadedAsync(countryCode);
                     bankHolder = rec.AccountHolderName ?? "";
                     if (string.IsNullOrEmpty(note))
@@ -552,16 +529,8 @@
         return $"{ph} · {string.Join(" · ", parts)}";
     }
 
-    async Task PickTransferCatalogBank(CatalogBankOption b)
-    {
-        bankName = b.Name;
-        catalogBankSearch = b.Name;
-        await OnReceiverBindAfter();
-    }
-
     async Task OnCountryChanged()
     {
-        catalogBankSearch = "";
         bankName = "";
         await EnsureTransferCatalogLoadedAsync(countryCode);
         await OnReceiverBindAfter();
@@ -572,7 +541,6 @@
         phone = r.Phone ?? "";
         countryCode = RecipientCatalogCountries.FormCountryFromRecipient(r);
         bankName = r.BankName ?? "";
-        catalogBankSearch = RecipientCatalogCountries.UsesCatalog(countryCode) ? bankName : "";
         bankAccount = r.AccountNumber ?? "";
         await EnsureTransferCatalogLoadedAsync(countryCode);
         bankHolder = r.AccountHolderName ?? "";
@@ -679,7 +647,7 @@
 
     void Reset()
     {
-        step = "form"; phone = bankAccount = bankName = bankHolder = catalogBankSearch = note = error = "";
+        step = "form"; phone = bankAccount = bankName = bankHolder = note = error = "";
         countryCode = "VN";
         _ = EnsureTransferCatalogLoadedAsync("VN");
         amount = 0; successData = null;

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using SendPay.Api.Data;
 using SendPay.Api.DTOs.BankLink;
+using SendPay.Api.Infrastructure;
 using SendPay.Api.Models;
 using SendPay.Api.Services.BankLink;
 
@@ -22,7 +23,7 @@ public class BankLinkService(
         int userId, BankLinkStartRequest req, string? ipAddress, CancellationToken ct = default)
     {
         var bank = JapanBankCatalog.FindByCode(req.BankCode)
-            ?? throw new InvalidOperationException("Ngân hàng không hợp lệ.");
+            ?? throw AppError.BadRequest(ErrorCodes.BankLinkInvalidBank, "Ngân hàng không hợp lệ.");
 
         var safeReturn = NormalizeReturnUrl(req.ReturnUrl);
 
@@ -59,26 +60,26 @@ public class BankLinkService(
         FakeBankApproveRequest req, string? ipAddress, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(req.State))
-            throw new InvalidOperationException("Thiếu state.");
+            throw AppError.BadRequest(ErrorCodes.BankLinkStateMissing, "Thiếu state.");
 
         await using var trx = await db.Database.BeginTransactionAsync(ct);
         var session = await db.BankLinkSessions
             .FirstOrDefaultAsync(s => s.State == req.State, ct)
-            ?? throw new InvalidOperationException("State không hợp lệ hoặc đã hết hạn.");
+            ?? throw AppError.BadRequest(ErrorCodes.BankLinkStateInvalid, "State không hợp lệ hoặc đã hết hạn.");
 
         if (session.Status != BankLinkSessionStatus.Pending)
-            throw new InvalidOperationException("Phiên liên kết đã được sử dụng hoặc bị hủy.");
+            throw AppError.BadRequest(ErrorCodes.BankLinkSessionUsed, "Phiên liên kết đã được sử dụng hoặc bị hủy.");
 
         if (session.ExpiresAt < DateTime.UtcNow)
         {
             session.Status = BankLinkSessionStatus.Expired;
             await db.SaveChangesAsync(ct);
             await trx.CommitAsync(ct);
-            throw new InvalidOperationException("Phiên liên kết đã hết hạn.");
+            throw AppError.BadRequest(ErrorCodes.BankLinkSessionExpired, "Phiên liên kết đã hết hạn.");
         }
 
         var bank = JapanBankCatalog.FindByCode(session.BankCode)
-            ?? throw new InvalidOperationException("Ngân hàng không hợp lệ.");
+            ?? throw AppError.BadRequest(ErrorCodes.BankLinkInvalidBank, "Ngân hàng không hợp lệ.");
 
         var rawAccount = (req.AccountNo ?? "").Trim();
         if (rawAccount.Length < 4)

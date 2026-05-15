@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
@@ -122,9 +123,11 @@ builder.Services.AddRateLimiter(options =>
     options.OnRejected = async (ctx, ct) =>
     {
         ctx.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
-        await ctx.HttpContext.Response.WriteAsJsonAsync(
-            new { message = "Quá nhiều yêu cầu đăng nhập hoặc đăng ký. Vui lòng thử lại sau ít phút." },
-            ct);
+        await ctx.HttpContext.Response.WriteAsJsonAsync(new ApiErrorResponse
+        {
+            Code    = ErrorCodes.RateLimitAuth,
+            Message = "Quá nhiều yêu cầu đăng nhập hoặc đăng ký. Vui lòng thử lại sau ít phút."
+        }, ct);
     };
     options.AddPolicy("auth", httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
@@ -199,6 +202,43 @@ using (var scope = app.Services.CreateScope())
 }
 
 // ── Middleware pipeline ────────────────────────────────────
+// Bắt mọi exception thoát khỏi controller, chuẩn hoá JSON { code, message, args }.
+// AppError: trả status/code/args đã định nghĩa. Exception khác: trả error.system 500.
+app.UseExceptionHandler(handlerApp =>
+{
+    handlerApp.Run(async context =>
+    {
+        var feature = context.Features.Get<IExceptionHandlerFeature>();
+        var ex = feature?.Error;
+        var logger = context.RequestServices
+            .GetRequiredService<ILoggerFactory>()
+            .CreateLogger("UnhandledException");
+
+        context.Response.ContentType = "application/json";
+
+        if (ex is AppError appErr)
+        {
+            logger.LogInformation(
+                "AppError {Code} ({Status}) at {Method} {Path}: {Message}",
+                appErr.Code, appErr.StatusCode,
+                context.Request.Method, context.Request.Path,
+                appErr.Message);
+
+            context.Response.StatusCode = appErr.StatusCode;
+            await context.Response.WriteAsJsonAsync(ApiErrorResponse.From(appErr));
+            return;
+        }
+
+        logger.LogError(ex,
+            "Unhandled exception at {Method} {Path}",
+            context.Request.Method, context.Request.Path);
+
+        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+        await context.Response.WriteAsJsonAsync(
+            ApiErrorResponse.System("Đã xảy ra lỗi hệ thống. Vui lòng thử lại sau."));
+    });
+});
+
 app.UseForwardedHeaders();
 
 if (!app.Environment.IsDevelopment())

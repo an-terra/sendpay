@@ -19,16 +19,8 @@ public class BankLinkController(IBankLinkService svc) : ControllerBase
     [EnableRateLimiting("bank-link")]
     public async Task<IActionResult> Start([FromBody] BankLinkStartRequest req)
     {
-        try
-        {
-            var ip = HttpContext.GetClientIpAddress();
-            var data = await svc.StartAsync(UserId, req, ip);
-            return Ok(data);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var ip = HttpContext.GetClientIpAddress();
+        return Ok(await svc.StartAsync(UserId, req, ip));
     }
 
     [AllowAnonymous]
@@ -36,16 +28,8 @@ public class BankLinkController(IBankLinkService svc) : ControllerBase
     [EnableRateLimiting("bank-link")]
     public async Task<IActionResult> FakeApprove([FromBody] FakeBankApproveRequest req)
     {
-        try
-        {
-            var ip = HttpContext.GetClientIpAddress();
-            var data = await svc.FakeApproveAsync(req, ip);
-            return Ok(data);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
+        var ip = HttpContext.GetClientIpAddress();
+        return Ok(await svc.FakeApproveAsync(req, ip));
     }
 
     [Authorize]

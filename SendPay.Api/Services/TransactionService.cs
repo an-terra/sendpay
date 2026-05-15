@@ -22,24 +22,35 @@ public class TransactionService(
                 .Where(u => u.Id == senderId)
                 .Select(u => new { u.Id, u.FullName, u.Balance })
                 .FirstOrDefaultAsync()
-                ?? throw new KeyNotFoundException("Người gửi không tồn tại.");
+                ?? throw AppError.NotFound(ErrorCodes.TransferSenderNotFound, "Người gửi không tồn tại.");
 
-            var normalized = OtpPayloadBuilder.NormalizePhone(req.ReceiverPhone);
+            var phoneRaw = req.ReceiverPhone ?? "";
+            var normalized = OtpPayloadBuilder.NormalizePhone(phoneRaw);
             var receiver = await db.Users.AsNoTracking()
-                .Where(u => u.Phone == req.ReceiverPhone || OtpPayloadBuilder.NormalizePhone(u.Phone) == normalized)
+                .Where(u => u.Phone == phoneRaw
+                         || u.Phone == normalized
+                         || u.Phone.Replace(" ", "")
+                                   .Replace("-", "")
+                                   .Replace("+", "")
+                                   .Replace("(", "")
+                                   .Replace(")", "")
+                                   .Replace(".", "") == normalized)
                 .Select(u => new { u.Id, u.FullName })
                 .FirstOrDefaultAsync()
-                ?? throw new KeyNotFoundException($"Không tìm thấy số điện thoại {req.ReceiverPhone}.");
+                ?? throw AppError.NotFound(ErrorCodes.TransferReceiverNotFound,
+                    $"Không tìm thấy số điện thoại {phoneRaw}.",
+                    new { phone = phoneRaw });
 
             if (sender.Id == receiver.Id)
-                throw new InvalidOperationException("Không thể chuyển tiền cho chính mình.");
+                throw AppError.BadRequest(ErrorCodes.TransferSelf, "Không thể chuyển tiền cho chính mình.");
 
             decimal fee = req.Amount <= 10_000 ? 200 : req.Amount <= 50_000 ? 400 : 800;
             decimal total = req.Amount + fee;
 
             if (sender.Balance < total)
-                throw new InvalidOperationException(
-                    $"Số dư không đủ. Cần ¥{total:N0} (bao gồm phí ¥{fee:N0}), hiện có: ¥{sender.Balance:N0}.");
+                throw AppError.BadRequest(ErrorCodes.TransferInsufficient,
+                    $"Số dư không đủ. Cần ¥{total:N0} (bao gồm phí ¥{fee:N0}), hiện có: ¥{sender.Balance:N0}.",
+                    new { total, fee, balance = sender.Balance });
 
             var rows = await db.Database.ExecuteSqlAsync(
                 $"""
@@ -47,7 +58,8 @@ public class TransactionService(
                  WHERE "Id" = {senderId} AND "Balance" >= {total}
                  """);
             if (rows != 1)
-                throw new InvalidOperationException("Không thể hoàn tất giao dịch (số dư đã thay đổi). Hãy thử lại.");
+                throw AppError.Conflict(ErrorCodes.TransferRace,
+                    "Không thể hoàn tất giao dịch (số dư đã thay đổi). Hãy thử lại.");
 
             await db.Database.ExecuteSqlAsync(
                 $"""
@@ -99,7 +111,7 @@ public class TransactionService(
         var t = await db.Transactions
             .Include(x => x.Sender).Include(x => x.Receiver)
             .FirstOrDefaultAsync(x => x.Id == id && (x.SenderId == userId || x.ReceiverId == userId))
-            ?? throw new KeyNotFoundException("Không tìm thấy giao dịch.");
+            ?? throw AppError.NotFound(ErrorCodes.TransferNotFound, "Không tìm thấy giao dịch.");
         return ToResponse(t, t.Sender.FullName, t.Receiver.FullName);
     }
 

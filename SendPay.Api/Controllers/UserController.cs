@@ -19,17 +19,13 @@ public class UserController(IUserService svc) : ControllerBase
 
     [HttpPut("profile")]
     public async Task<IActionResult> UpdateProfile(UpdateProfileRequest req)
-    {
-        try { return Ok(await svc.UpdateProfileAsync(UserId, req)); }
-        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
-    }
+        => Ok(await svc.UpdateProfileAsync(UserId, req));
 
     [HttpPut("password")]
     public async Task<IActionResult> ChangePassword(ChangePasswordRequest req)
     {
-        try { await svc.ChangePasswordAsync(UserId, req); return Ok(new { message = "Đổi mật khẩu thành công." }); }
-        catch (UnauthorizedAccessException ex) { return BadRequest(new { message = ex.Message }); }
-        catch (InvalidOperationException ex)   { return BadRequest(new { message = ex.Message }); }
+        await svc.ChangePasswordAsync(UserId, req);
+        return Ok(new { message = "Đổi mật khẩu thành công." });
     }
 
     /// <summary>Danh bạ (saved) trước, sau user đăng ký. Hỗ trợ STK + tên NH.</summary>

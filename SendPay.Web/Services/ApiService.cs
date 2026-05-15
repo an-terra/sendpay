@@ -112,7 +112,7 @@ public record ReceiverLookupDto(
     [property: JsonPropertyName("bankDisplay")] string? BankDisplay,
     [property: JsonPropertyName("resolvedPhone")] string? ResolvedPhone);
 
-public class ApiService(HttpClient http, ILocalStorageService localStorage)
+public class ApiService(HttpClient http, ILocalStorageService localStorage, LanguageService lang)
 {
     static readonly TimeSpan AccessRefreshSkew = TimeSpan.FromMinutes(2);
 
@@ -126,6 +126,14 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
         await localStorage.SetItemAsync("fullName", data.FullName);
         await localStorage.SetItemAsync("isAdmin", data.IsAdmin);
         await localStorage.SetItemAsync("userId", data.UserId);
+    }
+
+    /// <summary>G\u1eafn header Accept-Language theo ng\u00f4n ng\u1eef hi\u1ec7n t\u1ea1i (\u0111\u1ec3 server/log bi\u1ebft, b\u1ea3n d\u1ecbch v\u1eabn ch\u1ea1y \u1edf FE).</summary>
+    private void SetAcceptLanguageHeader()
+    {
+        http.DefaultRequestHeaders.AcceptLanguage.Clear();
+        http.DefaultRequestHeaders.AcceptLanguage.Add(
+            new System.Net.Http.Headers.StringWithQualityHeaderValue(lang.Current));
     }
 
     async Task EnsureFreshAccessTokenAsync()
@@ -149,6 +157,7 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
 
     private async Task SetAuthHeader()
     {
+        SetAcceptLanguageHeader();
         await EnsureFreshAccessTokenAsync();
         var token = await localStorage.GetItemAsync<string>("token");
         http.DefaultRequestHeaders.Authorization =
@@ -182,24 +191,26 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
     public async Task<(bool ok, AuthResponse? data, string error)> RegisterAsync(
         string fullName, string email, string phone, string password)
     {
+        SetAcceptLanguageHeader();
         var res = await http.PostAsJsonAsync("api/auth/register",
             new { fullName, email, phone, password });
 
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<AuthResponse>(), "");
 
-        return (false, null, await ReadErrorMessageAsync(res, "Lỗi không xác định"));
+        return (false, null, await ReadErrorMessageAsync(res, lang.T("error.bad_request")));
     }
 
     public async Task<(bool ok, AuthResponse? data, string error)> LoginAsync(
         string email, string password)
     {
+        SetAcceptLanguageHeader();
         var res = await http.PostAsJsonAsync("api/auth/login", new { email, password });
 
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<AuthResponse>(), "");
 
-        return (false, null, await ReadErrorMessageAsync(res, "Sai email hoặc mật khẩu"));
+        return (false, null, await ReadErrorMessageAsync(res, lang.T("error.auth.invalid_credentials")));
     }
 
     public async Task<WalletResponse?> GetWalletAsync()
@@ -302,10 +313,11 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
 
     public async Task<(bool ok, FakeBankApproveResponse? data, string error)> FakeBankApproveAsync(string state, string accountNo, string loginId)
     {
+        SetAcceptLanguageHeader();
         var res = await http.PostAsJsonAsync("api/bank-link/fake-approve", new { state, accountNo, loginId });
         if (res.IsSuccessStatusCode)
             return (true, await res.Content.ReadFromJsonAsync<FakeBankApproveResponse>(), "");
-        return (false, null, await ReadErrorMessageAsync(res, "Xác nhận thất bại."));
+        return (false, null, await ReadErrorMessageAsync(res, lang.T("error.system")));
     }
 
     public async Task<List<UserBankLinkDto>> GetMyBankLinksAsync()
@@ -545,14 +557,14 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
         return (false, await ReadErrorMessageAsync(res, "Rebuild thất bại"));
     }
 
-    private static async Task<string> ReadErrorMessageAsync(HttpResponseMessage res, string fallback)
+    private async Task<string> ReadErrorMessageAsync(HttpResponseMessage res, string fallback)
     {
         var body = await res.Content.ReadAsStringAsync();
         if (string.IsNullOrWhiteSpace(body))
         {
-            var code = (int)res.StatusCode;
+            var status = (int)res.StatusCode;
             var reason = res.ReasonPhrase ?? "";
-            return code > 0 ? $"{code} {reason}".Trim() : fallback;
+            return status > 0 ? $"{status} {reason}".Trim() : fallback;
         }
 
         try
@@ -567,6 +579,20 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
                 if (el.TryGetProperty(b, out var y) && y.ValueKind == JsonValueKind.String)
                     return y.GetString();
                 return null;
+            }
+
+            var code = strProp(root, "code", "Code");
+            if (!string.IsNullOrWhiteSpace(code))
+            {
+                IReadOnlyDictionary<string, object?>? args = null;
+                if (root.TryGetProperty("args", out var argsEl) && argsEl.ValueKind == JsonValueKind.Object)
+                    args = JsonObjectToDictionary(argsEl);
+                else if (root.TryGetProperty("Args", out var argsEl2) && argsEl2.ValueKind == JsonValueKind.Object)
+                    args = JsonObjectToDictionary(argsEl2);
+
+                var localized = lang.T(code!, args);
+                if (!string.IsNullOrWhiteSpace(localized) && localized != code)
+                    return localized;
             }
 
             var msg = strProp(root, "message", "Message")
@@ -596,6 +622,28 @@ public class ApiService(HttpClient http, ILocalStorageService localStorage)
         }
         catch (JsonException) { /* body không phải JSON */ }
 
-        return body.Length > 280 ? body[..277] + "…" : body;
+        return fallback;
     }
+
+    private static IReadOnlyDictionary<string, object?> JsonObjectToDictionary(JsonElement obj)
+    {
+        var dict = new Dictionary<string, object?>();
+        foreach (var prop in obj.EnumerateObject())
+            dict[prop.Name] = JsonElementToObject(prop.Value);
+        return dict;
+    }
+
+    private static object? JsonElementToObject(JsonElement el) => el.ValueKind switch
+    {
+        JsonValueKind.Null      => null,
+        JsonValueKind.True      => true,
+        JsonValueKind.False     => false,
+        JsonValueKind.String    => el.GetString(),
+        JsonValueKind.Number    => el.TryGetDecimal(out var d) ? d
+                                  : el.TryGetInt64(out var l)  ? l
+                                  : el.GetDouble(),
+        JsonValueKind.Array     => el.EnumerateArray().Select(JsonElementToObject).ToArray(),
+        JsonValueKind.Object    => JsonObjectToDictionary(el),
+        _                       => el.GetRawText()
+    };
 }

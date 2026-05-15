@@ -30,10 +30,10 @@ public class AuthService(
         PasswordPolicy.EnsureStrongOrThrow(req.Password);
 
         if (await db.Users.AnyAsync(u => u.Email == req.Email))
-            throw new InvalidOperationException("Email đã được sử dụng.");
+            throw AppError.BadRequest(ErrorCodes.EmailInUse, "Email đã được sử dụng.");
 
         if (await db.Users.AnyAsync(u => u.Phone == req.Phone))
-            throw new InvalidOperationException("Số điện thoại đã được sử dụng.");
+            throw AppError.BadRequest(ErrorCodes.PhoneInUse, "Số điện thoại đã được sử dụng.");
 
         var user = new User
         {
@@ -67,16 +67,16 @@ public class AuthService(
     public async Task<AuthResponse> LoginAsync(LoginRequest req)
     {
         var user = await db.Users.FirstOrDefaultAsync(u => u.Email == req.Email)
-            ?? throw new UnauthorizedAccessException("Email hoặc mật khẩu không đúng.");
+            ?? throw AppError.Unauthorized(ErrorCodes.AuthInvalidCredentials, "Email hoặc mật khẩu không đúng.");
 
         if (!BCrypt.Net.BCrypt.Verify(req.Password, user.PasswordHash))
         {
             await audit.WriteAsync("auth.login_failed", $"email={req.Email}", null, ClientIp);
-            throw new UnauthorizedAccessException("Email hoặc mật khẩu không đúng.");
+            throw AppError.Unauthorized(ErrorCodes.AuthInvalidCredentials, "Email hoặc mật khẩu không đúng.");
         }
 
         if (!user.IsActive)
-            throw new UnauthorizedAccessException("Tài khoản đã bị khóa.");
+            throw AppError.Unauthorized(ErrorCodes.AuthAccountLocked, "Tài khoản đã bị khóa.");
 
         await refreshTokens.RevokeAllForUserAsync(user.Id);
 
@@ -102,7 +102,7 @@ public class AuthService(
     {
         var result = await refreshTokens.ValidateAndRotateAsync(req.RefreshToken, ClientIp);
         if (result is null)
-            throw new UnauthorizedAccessException("Refresh token không hợp lệ hoặc đã hết hạn.");
+            throw AppError.Unauthorized(ErrorCodes.AuthRefreshInvalid, "Refresh token không hợp lệ hoặc đã hết hạn.");
 
         var (user, newRefresh) = result.Value;
         var (jwt, expUtc, _) = CreateAccessToken(user);

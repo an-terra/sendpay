@@ -15,45 +15,15 @@ public class AuthController(IAuthService authService) : ControllerBase
 {
     [HttpPost("register")]
     public async Task<IActionResult> Register(RegisterRequest request)
-    {
-        try
-        {
-            var result = await authService.RegisterAsync(request);
-            return Ok(result);
-        }
-        catch (InvalidOperationException ex)
-        {
-            return BadRequest(new { message = ex.Message });
-        }
-    }
+        => Ok(await authService.RegisterAsync(request));
 
     [HttpPost("login")]
     public async Task<IActionResult> Login(LoginRequest request)
-    {
-        try
-        {
-            var result = await authService.LoginAsync(request);
-            return Ok(result);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return Unauthorized(new { message = ex.Message });
-        }
-    }
+        => Ok(await authService.LoginAsync(request));
 
     [HttpPost("refresh")]
     public async Task<IActionResult> Refresh([FromBody] RefreshRequest request)
-    {
-        try
-        {
-            var result = await authService.RefreshTokensAsync(request);
-            return Ok(result);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            return Unauthorized(new { message = ex.Message });
-        }
-    }
+        => Ok(await authService.RefreshTokensAsync(request));
 
     [Authorize]
     [HttpPost("logout")]

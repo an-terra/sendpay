@@ -1,3 +1,5 @@
+using SendPay.Api.Infrastructure;
+
 namespace SendPay.Api.Security;
 
 /// <summary>
@@ -17,6 +19,6 @@ public static class PasswordPolicy
     public static void EnsureStrongOrThrow(string password)
     {
         if (!IsStrongPassword(password))
-            throw new InvalidOperationException(RequirementDescriptionVi);
+            throw AppError.BadRequest(ErrorCodes.PasswordWeak, RequirementDescriptionVi);
     }
 }

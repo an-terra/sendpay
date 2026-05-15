@@ -71,7 +71,8 @@ public class AdminController(
 
         var user = await db.Users.FindAsync(id);
         if (user is null) return NotFound();
-        if (user.IsAdmin) return BadRequest(new { message = "Không thể khóa tài khoản admin." });
+        if (user.IsAdmin)
+            throw AppError.BadRequest(ErrorCodes.AdminCannotLockAdmin, "Không thể khóa tài khoản admin.");
 
         user.IsActive = !user.IsActive;
         await db.SaveChangesAsync();
@@ -103,26 +104,28 @@ public class AdminController(
         var emailTrim = req.Email.Trim();
         var phoneTrim = req.Phone.Trim();
         if (await db.Users.AnyAsync(x => x.Email == emailTrim && x.Id != id))
-            return BadRequest(new { message = "Email đã được sử dụng." });
+            throw AppError.BadRequest(ErrorCodes.EmailInUse, "Email đã được sử dụng.");
         if (await db.Users.AnyAsync(x => x.Phone == phoneTrim && x.Id != id))
-            return BadRequest(new { message = "Số điện thoại đã được sử dụng." });
+            throw AppError.BadRequest(ErrorCodes.PhoneInUse, "Số điện thoại đã được sử dụng.");
 
         if (user.IsAdmin && !req.IsActive)
-            return BadRequest(new { message = "Không thể khóa tài khoản admin." });
+            throw AppError.BadRequest(ErrorCodes.AdminCannotLockAdmin, "Không thể khóa tài khoản admin.");
 
         if (adminId == id)
         {
             if (!req.IsActive)
-                return BadRequest(new { message = "Không thể tự khóa chính tài khoản admin đang đăng nhập." });
+                throw AppError.BadRequest(ErrorCodes.AdminCannotSelfLock,
+                    "Không thể tự khóa chính tài khoản admin đang đăng nhập.");
             if (!req.IsAdmin)
-                return BadRequest(new { message = "Không thể tự bỏ quyền admin." });
+                throw AppError.BadRequest(ErrorCodes.AdminCannotSelfRevoke, "Không thể tự bỏ quyền admin.");
         }
 
         if (user.IsAdmin && !req.IsAdmin)
         {
             var otherAdmins = await db.Users.CountAsync(u => u.IsAdmin && u.Id != id);
             if (otherAdmins == 0)
-                return BadRequest(new { message = "Không thể bỏ quyền admin — đây là tài khoản admin duy nhất." });
+                throw AppError.BadRequest(ErrorCodes.AdminLastAdmin,
+                    "Không thể bỏ quyền admin — đây là tài khoản admin duy nhất.");
         }
 
         var wasActive = user.IsActive;
@@ -147,21 +150,14 @@ public class AdminController(
             var url = req.JapanBankTopUpUrl.Trim();
             if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
                 !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-                return BadRequest(new { message = "URL ngân hàng phải bắt đầu bằng http:// hoặc https://." });
+                throw AppError.BadRequest(ErrorCodes.ProfileUrlInvalid,
+                    "URL ngân hàng phải bắt đầu bằng http:// hoặc https://.");
             user.JapanBankTopUpUrl = url;
         }
 
         if (!string.IsNullOrWhiteSpace(req.NewPassword))
         {
-            try
-            {
-                PasswordPolicy.EnsureStrongOrThrow(req.NewPassword.Trim());
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-
+            PasswordPolicy.EnsureStrongOrThrow(req.NewPassword.Trim());
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.NewPassword.Trim());
             await audit.WriteAsync("admin.user_password_reset", $"targetUserId={id}", adminId, ip);
         }
@@ -189,7 +185,8 @@ public class AdminController(
 
         var user = await db.Users.FindAsync(id);
         if (user is null) return NotFound();
-        if (user.IsAdmin) return BadRequest(new { message = "Không thể xóa tài khoản admin." });
+        if (user.IsAdmin)
+            throw AppError.BadRequest(ErrorCodes.AdminCannotDeleteAdmin, "Không thể xóa tài khoản admin.");
 
         await refreshTokens.RevokeAllForUserAsync(id);
         await audit.WriteAsync("admin.user_deleted", $"targetUserId={id} email={user.Email}", adminId, ip);
@@ -255,14 +252,16 @@ public class AdminController(
     public async Task<IActionResult> ConfirmTopUpIntent(int id)
     {
         var (ok, err) = await reconciliation.AdminConfirmTopUpAsync(id);
-        if (!ok) return BadRequest(new { message = err });
+        if (!ok)
+            throw AppError.BadRequest(ErrorCodes.BadRequest, err);
         return Ok(new { message = "Đã ghi có ví." });
     }
 
     [HttpPost("bank-statement-lines")]
     public async Task<IActionResult> ImportBankStatementLines([FromBody] BankStatementImportRequest req)
     {
-        if (req.Lines is not { Count: > 0 }) return BadRequest(new { message = "Danh sách trống." });
+        if (req.Lines is not { Count: > 0 })
+            throw AppError.BadRequest(ErrorCodes.AdminImportEmpty, "Danh sách trống.");
         var src = "AdminImport";
         foreach (var line in req.Lines)
         {

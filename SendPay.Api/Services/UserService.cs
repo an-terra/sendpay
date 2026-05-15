@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using SendPay.Api.Data;
 using SendPay.Api.DTOs.User;
+using SendPay.Api.Infrastructure;
 using SendPay.Api.Models;
 using SendPay.Api.Security;
 
@@ -11,7 +12,7 @@ public class UserService(AppDbContext db) : IUserService
     public async Task<UserProfileResponse> GetProfileAsync(int userId)
     {
         var u = await db.Users.FindAsync(userId)
-            ?? throw new KeyNotFoundException("User not found.");
+            ?? throw AppError.NotFound(ErrorCodes.UserNotFound, "Người dùng không tồn tại.");
         return new UserProfileResponse(u.Id, u.FullName, u.Email, u.Phone, u.Balance, u.CreatedAt,
             u.JapanBankName, u.JapanBankTopUpUrl);
     }
@@ -19,13 +20,13 @@ public class UserService(AppDbContext db) : IUserService
     public async Task<UserProfileResponse> UpdateProfileAsync(int userId, UpdateProfileRequest req)
     {
         var u = await db.Users.FindAsync(userId)
-            ?? throw new KeyNotFoundException("User not found.");
+            ?? throw AppError.NotFound(ErrorCodes.UserNotFound, "Người dùng không tồn tại.");
 
         if (await db.Users.AnyAsync(x => x.Email == req.Email && x.Id != userId))
-            throw new InvalidOperationException("Email đã được sử dụng.");
+            throw AppError.BadRequest(ErrorCodes.EmailInUse, "Email đã được sử dụng.");
 
         if (await db.Users.AnyAsync(x => x.Phone == req.Phone && x.Id != userId))
-            throw new InvalidOperationException("Số điện thoại đã được sử dụng.");
+            throw AppError.BadRequest(ErrorCodes.PhoneInUse, "Số điện thoại đã được sử dụng.");
 
         u.FullName = req.FullName.Trim();
         u.Email    = req.Email.Trim();
@@ -42,7 +43,8 @@ public class UserService(AppDbContext db) : IUserService
             var url = req.JapanBankTopUpUrl.Trim();
             if (!url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) &&
                 !url.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("URL ngân hàng phải bắt đầu bằng http:// hoặc https://.");
+                throw AppError.BadRequest(ErrorCodes.ProfileUrlInvalid,
+                    "URL ngân hàng phải bắt đầu bằng http:// hoặc https://.");
             u.JapanBankTopUpUrl = url;
         }
 
@@ -54,10 +56,10 @@ public class UserService(AppDbContext db) : IUserService
     public async Task ChangePasswordAsync(int userId, ChangePasswordRequest req)
     {
         var u = await db.Users.FindAsync(userId)
-            ?? throw new KeyNotFoundException("User not found.");
+            ?? throw AppError.NotFound(ErrorCodes.UserNotFound, "Người dùng không tồn tại.");
 
         if (!BCrypt.Net.BCrypt.Verify(req.CurrentPassword, u.PasswordHash))
-            throw new UnauthorizedAccessException("Mật khẩu hiện tại không đúng.");
+            throw AppError.Unauthorized(ErrorCodes.CurrentPasswordWrong, "Mật khẩu hiện tại không đúng.");
 
         PasswordPolicy.EnsureStrongOrThrow(req.NewPassword);
 
@@ -77,7 +79,7 @@ public class UserService(AppDbContext db) : IUserService
             .FirstOrDefaultAsync();
 
         if (mePhone is null)
-            throw new KeyNotFoundException("User not found.");
+            throw AppError.NotFound(ErrorCodes.UserNotFound, "Người dùng không tồn tại.");
 
         var meNorm = OtpPayloadBuilder.NormalizePhone(mePhone);
 
@@ -120,8 +122,16 @@ public class UserService(AppDbContext db) : IUserService
         if (meNorm == phoneNorm)
             return new ReceiverLookupResponse(false, null, true, null, null, null, null);
 
+        var phoneRaw = phone ?? "";
         var row = await db.Users.AsNoTracking()
-            .Where(u => u.Phone == phone || OtpPayloadBuilder.NormalizePhone(u.Phone) == phoneNorm)
+            .Where(u => u.Phone == phoneRaw
+                     || u.Phone == phoneNorm
+                     || u.Phone.Replace(" ", "")
+                               .Replace("-", "")
+                               .Replace("+", "")
+                               .Replace("(", "")
+                               .Replace(")", "")
+                               .Replace(".", "") == phoneNorm)
             .Select(u => new { u.FullName, u.Phone })
             .FirstOrDefaultAsync();
 
